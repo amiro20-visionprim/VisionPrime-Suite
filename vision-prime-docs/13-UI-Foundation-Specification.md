@@ -1,0 +1,72 @@
+# Vision Prime — UI Foundation Specification
+
+## Visual character
+Premium، آرام، دقیق، enterprise-grade. نور و فضای سفید کنترل‌شده؛ نه dark-heavy، نه gradient-heavy، نه کارت‌های بیش‌ازحد تزئینی.
+
+## Semantic Tokens
+| Token | Value / use |
+|---|---|
+| brand-900 | `#163B68` — primary emphasis, logo/dark text |
+| brand-700 | `#1E4E86` — primary button/link |
+| brand-600 | `#2B6CB0` — interactive hover/chart |
+| surface-page | `#F8FBFF` |
+| surface-card | `#FFFFFF` |
+| text-strong | `#23364D` |
+| text-default | `#4E647F` |
+| text-muted | `#6E87A6` |
+| border-default | `#E6EEF8` |
+| success | green semantic, accessible contrast |
+| warning | amber semantic, accessible contrast |
+| danger | red semantic, accessible contrast |
+
+**قانون:** Componentها فقط semantic token مصرف می‌کنند؛ hex مستقیم در component ممنوع است.
+
+## Layout
+- Desktop app: sidebar ثابت، header سبک، content max-width منطقی.
+- Client portal: navigation کم‌تراکم‌تر و content narrative-first.
+- Marketing: container ثابت، section spacing کنترل‌شده؛ whitespace باید هدفمند باشد.
+- Base spacing unit: 4px؛ scale پیشنهادی 4/8/12/16/20/24/32/40/48/64.
+- Radius: 8 برای input/button، 12 برای card، 16 برای modal/feature panels.
+- Shadow: subtle فقط برای elevation واقعی؛ border اغلب کافی است.
+
+## Component State Matrix
+| Component | الزام‌ها |
+|---|---|
+| Button | primary/secondary/ghost/danger، hover/focus/disabled/loading، icon RTL-aware |
+| Input | label، required marker، hint، error، disabled، leading/trailing content mixed-direction |
+| Select | searchable در lists بزرگ، empty/no-result/loading/error |
+| Table | loading skeleton، empty state، pagination، sort/filter، mobile transformation |
+| Card | title، optional action، loading skeleton، empty/error variant |
+| Modal/Drawer | focus trap، close behavior، destructive confirmation، mobile safe |
+| Badge | neutral/info/success/warning/danger؛ فقط color نباشد، label هم داشته باشد |
+| Chart | loading/empty/no-data explanation، accessible legend، consistent semantic palette |
+
+## Screen Patterns
+### Operational list page
+`Page title + context + primary CTA → filter bar → table/cards → pagination`
+
+### Detail page
+`Breadcrumb → title/status/context → summary KPI → tabs → evidence/details → activity/audit`
+
+### Review page
+`Current vs Proposed → evidence → risk/policy → decision actions → mandatory note if reject/changes requested`
+
+### Settings page
+`شرح کوتاه اثر تنظیم → form grouped by risk → save state → audit/history if sensitive`
+
+## Empty / Loading / Error Language
+- Empty باید اقدام بعدی مشخص داشته باشد: «هنوز سایتی اضافه نشده است — افزودن سایت».
+- Loading باید skeleton مشابه ساختار نهایی باشد، نه spinner تنها.
+- Error باید human-readable و actionable باشد؛ details فنی در expandable section برای Admin.
+
+## Motion
+- Transition کوتاه 150–220ms، فقط برای state change و hierarchy.
+- no parallax / noisy animation / excessive count-up.
+- respects `prefers-reduced-motion`.
+
+## Charts
+- Clicks: brand blue
+- Impressions: muted blue
+- CTR: teal/green semantic
+- Position: violet or amber با label روشن (کاهش عدد position بهتر است)
+- Never rely solely on color; legend و tooltip دارند.
