@@ -1,0 +1,36 @@
+services:
+  wordpress-db:
+    image: mariadb:11
+    environment:
+      MARIADB_DATABASE: wordpress
+      MARIADB_USER: wordpress
+      MARIADB_PASSWORD: wordpress
+      MARIADB_ROOT_PASSWORD: root
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  wordpress:
+    image: wordpress:php8.2-apache
+    depends_on:
+      wordpress-db:
+        condition: service_healthy
+    ports:
+      - "8088:80"
+    environment:
+      WORDPRESS_DB_HOST: wordpress-db
+      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+      WORDPRESS_CONFIG_EXTRA: |
+        define('WP_DEBUG', true);
+        define('WP_DEBUG_LOG', true);
+    volumes:
+      - ../vision-prime-wordpress-plugin:/var/www/html/wp-content/plugins/vision-prime-connector
+
+# Laravel, PostgreSQL and Redis are intentionally not duplicated here.
+# Run the Vision Prime app locally or add its existing production-like compose services.
+# From the WordPress container, use host.docker.internal or a shared Docker network
+# as the configured Vision Prime platform URL.

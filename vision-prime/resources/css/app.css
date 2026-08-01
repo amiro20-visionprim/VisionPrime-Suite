@@ -1,0 +1,92 @@
+@import 'tailwindcss';
+@import 'vazirmatn/Vazirmatn-font-face.css';
+
+@theme {
+  /* Brand and semantic surfaces */
+  --color-brand-50: #f1f6fc;
+  --color-brand-100: #e3eef9;
+  --color-brand-200: #c7ddf2;
+  --color-brand-500: #2b6cb0;
+  --color-brand-600: #245c9b;
+  --color-brand-700: #1e4e86;
+  --color-brand-900: #163b68;
+
+  --color-canvas: #f8fbff;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f1f6fc;
+  --color-ink-strong: #23364d;
+  --color-ink: #4e647f;
+  --color-ink-muted: #6e87a6;
+  --color-line: #e6eef8;
+  --color-line-strong: #d4e2f1;
+
+  --color-success-50: #effaf4;
+  --color-success-600: #168657;
+  --color-success-700: #116a45;
+  --color-warning-50: #fff8e8;
+  --color-warning-600: #b7791f;
+  --color-warning-700: #8a5915;
+  --color-danger-50: #fff2f2;
+  --color-danger-600: #c53030;
+  --color-danger-700: #9b2c2c;
+  --color-info-50: #eff7ff;
+  --color-info-600: #2563a8;
+
+  /* Typography */
+  --font-sans: Vazirmatn, Inter, Manrope, system-ui, sans-serif;
+  --font-display: Vazirmatn, Sora, Inter, system-ui, sans-serif;
+  --text-display: 2.5rem;
+  --text-display--line-height: 1.35;
+  --text-page-title: 1.875rem;
+  --text-page-title--line-height: 1.45;
+  --text-section-title: 1.375rem;
+  --text-section-title--line-height: 1.55;
+
+  /* Shape, elevation and motion */
+  --radius-ui: 0.5rem;
+  --radius-card: 0.75rem;
+  --radius-panel: 1rem;
+  --shadow-card: 0 4px 16px rgb(22 59 104 / 6%);
+  --shadow-panel: 0 12px 32px rgb(22 59 104 / 8%);
+  --ease-ui: cubic-bezier(0.2, 0, 0, 1);
+  --duration-ui: 180ms;
+}
+
+:root {
+  color-scheme: light;
+  --vp-focus-ring: var(--color-brand-600);
+}
+
+@layer base {
+  html {
+    background: var(--color-canvas);
+    font-family: var(--font-sans);
+  }
+
+  body {
+    min-width: 320px;
+    color: var(--color-ink);
+    text-rendering: optimizeLegibility;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--vp-focus-ring);
+    outline-offset: 2px;
+  }
+}
+
+@utility font-latin {
+  font-family: Inter, Manrope, system-ui, sans-serif;
+}
+
+@utility transition-ui {
+  transition-duration: var(--duration-ui);
+  transition-timing-function: var(--ease-ui);
+}
