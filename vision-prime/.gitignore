@@ -22,3 +22,6 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+.subversion/
+.sudo_as_admin_successful
+vision-prime-update.patch

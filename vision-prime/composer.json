@@ -9,7 +9,7 @@
   ],
   "license": "MIT",
   "require": {
-    "php": "^8.2",
+    "php": "^8.3",
     "inertiajs/inertia-laravel": "^2.0",
     "laravel/framework": "^12.0",
     "laravel/horizon": "^5.0",
@@ -84,6 +84,11 @@
     "allow-plugins": {
       "pestphp/pest-plugin": true,
       "php-http/discovery": true
+    },
+    "platform": {
+      "php": "8.3.32",
+      "ext-pcntl": "8.3.32",
+      "ext-posix": "8.3.32"
     }
   },
   "minimum-stability": "stable",
