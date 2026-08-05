@@ -18,7 +18,7 @@ class DemoWorkspaceSeeder extends Seeder
     public function run(): void
     {
         $org = Organization::firstOrCreate(['slug' => 'vision-prime-demo'], ['public_id' => (string) Str::ulid(), 'name' => 'Vision Prime Demo Agency', 'status' => 'active']);
-        $user = User::firstOrCreate(['email' => 'demo@visionprime.test'], ['name' => 'Demo Admin', 'password' => Hash::make('ChangeMe123!')]);
+        $user = User::firstOrCreate(['email' => 'demo@visionprime.test'], ['name' => 'Demo Admin', 'password' => Hash::make('DemoAdmin2024!Secure#')]);
         $role = \DB::table('roles')->where('key', 'agency-admin')->value('id');
         if ($role) {
             \DB::table('memberships')->updateOrInsert(['organization_id' => $org->id, 'user_id' => $user->id], ['role_id' => $role, 'status' => 'active', 'updated_at' => now(), 'created_at' => now()]);
