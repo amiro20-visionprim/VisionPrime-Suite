@@ -25,3 +25,6 @@ Thumbs.db
 .subversion/
 .sudo_as_admin_successful
 vision-prime-update.patch
+
+# Machine-specific TLS certificates
+docker/nginx/ssl/*.pem

@@ -45,6 +45,14 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/html
 
+# Frontend build stage (compiles Vite assets for production)
+FROM node:22-alpine AS frontend
+WORKDIR /build
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
 # Production stage
 FROM base AS production
 
@@ -53,6 +61,9 @@ COPY . .
 
 # Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader --no-interaction --no-progress
+
+# Copy compiled frontend assets into the image
+COPY --from=frontend /build/public/build /var/www/html/public/build
 
 # Set permissions
 RUN chown -R www-data:www-data /var/www/html \

@@ -49,6 +49,16 @@ use Inertia\Inertia;
 Route::post('/connector/pair', PairSiteController::class)->name('connector.pair');
 Route::post('/connector/health', HealthCheckController::class)->name('connector.health');
 
+Route::get('/up', function (): \Illuminate\Http\JsonResponse {
+    try {
+        \Illuminate\Support\Facades\DB::select('select 1');
+    } catch (\Throwable) {
+        abort(503);
+    }
+
+    return response()->json(['status' => 'ok', 'time' => now()->toIso8601String()]);
+})->name('health');
+
 Route::get('/', fn () => Inertia::render('Home'))->name('home');
 Route::get('/product', fn () => Inertia::render('Marketing/Product'))->name('marketing.product');
 Route::get('/features', fn () => Inertia::render('Marketing/Features'))->name('marketing.features');
