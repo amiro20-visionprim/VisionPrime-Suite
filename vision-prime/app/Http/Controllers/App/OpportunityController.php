@@ -23,7 +23,13 @@ class OpportunityController extends Controller
     public function show(int $opportunity, CurrentOrganization $org): Response
     {
         $siteIds = Site::query()->where('organization_id', $org->id())->pluck('id');
-        $item = \DB::table('opportunities')->whereIn('site_id', $siteIds)->where('id', $opportunity)->firstOrFail();
+        $item = \DB::table('opportunities')
+            ->leftJoin('url_profiles', 'url_profiles.id', '=', 'opportunities.url_profile_id')
+            ->leftJoin('keyword_insights', 'keyword_insights.id', '=', 'opportunities.keyword_insight_id')
+            ->leftJoin('sites', 'sites.id', '=', 'opportunities.site_id')
+            ->whereIn('opportunities.site_id', $siteIds)
+            ->where('opportunities.id', $opportunity)
+            ->firstOrFail(['opportunities.*', 'url_profiles.canonical_url', 'keyword_insights.query_normalized', 'sites.name as site_name']);
         $factors = \DB::table('opportunity_factors')->where('opportunity_id', $item->id)->get();
 
         return Inertia::render('App/Opportunities/Show', ['opportunity' => $item, 'factors' => $factors]);

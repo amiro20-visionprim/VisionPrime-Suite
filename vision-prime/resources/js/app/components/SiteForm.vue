@@ -47,7 +47,7 @@ function submit() {
       required
     /><VInput v-model="f.name" label="نام سایت" :error="f.errors.name" required /><VInput
       v-model="f.canonical_url"
-      label="Canonical URL"
+      label="آدرس اصلی (Canonical URL)"
       dir="ltr"
       placeholder="https://example.ir"
       :error="f.errors.canonical_url"
@@ -63,7 +63,7 @@ function submit() {
         ]"
       /><VInput
         v-model="f.timezone"
-        label="Timezone"
+        label="منطقه زمانی"
         dir="ltr"
         :error="f.errors.timezone"
       /><VSelect

@@ -52,8 +52,8 @@ const modules = [
               اثر هر تصمیم را به زبان روشن نشان می‌دهد.
             </p>
             <div class="mt-8 flex flex-wrap gap-3">
-              <VButton href="/demo" size="lg">درخواست دموی اختصاصی</VButton>
-              <VButton href="/product" size="lg" variant="secondary">مشاهده محصول</VButton>
+              <VButton href="/register" size="lg">شروع رایگان</VButton>
+              <VButton href="/demo" size="lg" variant="secondary">درخواست دموی اختصاصی</VButton>
             </div>
             <p class="text-ink-muted mt-5 text-sm">
               بدون انتشار مستقیم AI و بدون تغییر پرریسک خارج از سیاست سایت.
@@ -145,7 +145,10 @@ const modules = [
                 در دمو، جریان کاری مناسب آژانس و سایت‌های وردپرسی شما را بررسی می‌کنیم.
               </p>
             </div>
-            <VButton href="/demo" size="lg" variant="secondary">درخواست دمو</VButton>
+            <div class="mt-8 flex flex-wrap gap-3">
+              <VButton href="/register" size="lg">ساخت حساب رایگان</VButton>
+              <VButton href="/demo" size="lg" variant="secondary">درخواست دمو</VButton>
+            </div>
           </div>
         </div>
       </section>

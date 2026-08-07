@@ -65,6 +65,7 @@ function closeMenu(): void {
 
       <div class="hidden items-center gap-3 lg:flex">
         <Link href="/login" class="text-ink hover:text-brand-700 text-sm font-semibold">ورود</Link>
+        <VButton href="/register" size="sm" variant="secondary">ساخت حساب</VButton>
         <VButton href="/demo" size="sm">درخواست دمو</VButton>
       </div>
 
@@ -102,6 +103,9 @@ function closeMenu(): void {
             class="text-ink block text-center text-sm font-semibold"
             @click="closeMenu"
             >ورود به حساب</Link
+          >
+          <VButton href="/register" class="w-full" variant="secondary" @click="closeMenu"
+            >ساخت حساب رایگان</VButton
           >
           <VButton href="/demo" class="w-full" @click="closeMenu">درخواست دمو</VButton>
         </div>

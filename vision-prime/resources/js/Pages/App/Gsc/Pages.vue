@@ -6,17 +6,17 @@ import type { GscPageMetric, Paginated } from '@/types/gsc'
 defineProps<{ metrics: Paginated<GscPageMetric> }>()
 </script>
 <template>
-  <Head title="GSC Pages" /><AppLayout
+  <Head title="عملکرد صفحات" /><AppLayout
     ><VPageHeader title="عملکرد صفحات" description="کلیک، نمایش، CTR و رتبه صفحات در سرچ کنسول." />
     <div class="mt-8 overflow-x-auto">
       <table class="w-full text-sm">
         <thead>
           <tr>
             <th>URL</th>
-            <th>Clicks</th>
-            <th>Impressions</th>
-            <th>CTR</th>
-            <th>Position</th>
+            <th>کلیک</th>
+            <th>نمایش</th>
+            <th>نرخ کلیک</th>
+            <th>جایگاه</th>
           </tr>
         </thead>
         <tbody>

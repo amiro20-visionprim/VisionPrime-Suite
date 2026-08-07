@@ -64,6 +64,12 @@ function submit(): void {
         >
       </div>
       <VButton class="w-full" type="submit" :loading="form.processing">ورود به فضای کاری</VButton>
+      <p class="text-ink-muted text-center text-sm">
+        حساب ندارید؟
+        <Link href="/register" class="text-brand-700 hover:text-brand-900 font-semibold"
+          >ساخت حساب رایگان</Link
+        >
+      </p>
     </form>
   </AuthLayout>
 </template>

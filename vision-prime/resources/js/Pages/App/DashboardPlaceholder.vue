@@ -91,11 +91,11 @@ const nextStep = computed(() => {
       >
       <VCard title="سایت‌ها"
         ><p class="text-ink-strong mt-2 text-2xl font-bold">{{ counts.sites }}</p>
-        <p class="text-ink-muted mt-1 text-sm">سایت‌های آماده اتصال</p></VCard
+        <p class="text-ink-muted mt-1 text-sm">از این تعداد {{ counts.connectedSites }} سایت به وردپرس متصل است</p></VCard
       >
       <VCard title="فرصت‌های باز"
         ><p class="text-ink-strong mt-2 text-2xl font-bold">{{ counts.openOpportunities }}</p>
-        <p class="text-ink-muted mt-1 text-sm">پس از اتصال داده محاسبه می‌شود</p></VCard
+        <p class="text-ink-muted mt-1 text-sm">فرصت‌های اولویت‌دار منتظر اقدام</p></VCard
       >
     </section>
     <div class="mt-8">

@@ -1,0 +1,83 @@
+name: Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to rollback to (e.g., v1.0.0)'
+        required: true
+        type: string
+      environment:
+        description: 'Environment to rollback'
+        required: true
+        type: choice
+        options: [staging, production]
+
+jobs:
+  rollback:
+    name: Rollback ${{ github.event.inputs.environment }}
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set environment variables
+        id: env
+        run: |
+          if [[ "${{ github.event.inputs.environment }}" == "production" ]]; then
+            echo "host=${{ secrets.PROD_HOST }}" >> $GITHUB_OUTPUT
+            echo "user=${{ secrets.PROD_USER }}" >> $GITHUB_OUTPUT
+            echo "key=${{ secrets.PROD_SSH_KEY }}" >> $GITHUB_OUTPUT
+            echo "domain=visionprime.ir" >> $GITHUB_OUTPUT
+            echo "compose_path=/opt/vision-prime" >> $GITHUB_OUTPUT
+          else
+            echo "host=${{ secrets.STAGING_HOST }}" >> $GITHUB_OUTPUT
+            echo "user=${{ secrets.STAGING_USER }}" >> $GITHUB_OUTPUT
+            echo "key=${{ secrets.STAGING_SSH_KEY }}" >> $GITHUB_OUTPUT
+            echo "domain=staging.visionprime.ir" >> $GITHUB_OUTPUT
+            echo "compose_path=/opt/vision-prime-staging" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Rollback Application
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ steps.env.outputs.host }}
+          username: ${{ steps.env.outputs.user }}
+          key: ${{ steps.env.outputs.key }}
+          script: |
+            cd ${{ steps.env.outputs.compose_path }}
+            export IMAGE_TAG=${{ github.event.inputs.version }}
+            
+            echo "Rolling back to version: ${{ github.event.inputs.version }}"
+            
+            # Pull the old image
+            docker compose -f docker-compose.production.yml --env-file .env.${{ github.event.inputs.environment }} pull
+            
+            # Stop current services
+            docker compose -f docker-compose.production.yml --env-file .env.${{ github.event.inputs.environment }} down
+            
+            # Start with old version
+            docker compose -f docker-compose.production.yml --env-file .env.${{ github.event.inputs.environment }} up -d
+            
+            # Wait for health
+            for i in {1..30}; do
+              if curl -sf https://${{ steps.env.outputs.domain }}/up; then
+                echo "App is healthy after rollback"
+                break
+              fi
+              sleep 2
+            done
+            
+            # Restart Horizon
+            docker compose -f docker-compose.production.yml --env-file .env.${{ github.event.inputs.environment }} exec -T horizon php artisan horizon:terminate
+
+      - name: Health Check
+        run: |
+          sleep 10
+          curl -sf https://${{ steps.env.outputs.domain }}/up || exit 1
+
+      - name: Notify Rollback Complete
+        run: |
+          echo "✅ Rollback to ${{ github.event.inputs.version }} completed for ${{ github.event.inputs.environment }}"
+          echo "Application available at: https://${{ steps.env.outputs.domain }}"

@@ -22,11 +22,11 @@ function generate() {
     ><VPageHeader
       title="گزارش‌ها"
       description="گزارش‌های مدیریتی، رشد و اقدامات اولویت‌دار."
-    /><VCard class="mt-8" title="ایجاد گزارش Draft"
+    /><VCard class="mt-8" title="ایجاد گزارش"
       ><form class="grid gap-4 sm:grid-cols-2" @submit.prevent="generate">
-        <VInput v-model="form.site_id" label="Site ID" /><VInput
+        <VInput v-model="form.site_id" label="شناسه سایت" /><VInput
           v-model="form.type"
-          label="Report Type"
+          label="نوع گزارش"
         /><VInput v-model="form.period_start" label="شروع دوره" type="date" /><VInput
           v-model="form.period_end"
           label="پایان دوره"

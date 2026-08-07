@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { Head } from '@inertiajs/vue3'
-import { ref } from 'vue'
+import { Head, useForm, usePage } from '@inertiajs/vue3'
 
 import MarketingPageHero from '@/marketing/components/MarketingPageHero.vue'
 import MarketingLayout from '@/marketing/layouts/MarketingLayout.vue'
@@ -9,15 +8,28 @@ import VButton from '@/shared/ui/VButton.vue'
 import VCard from '@/shared/ui/VCard.vue'
 import VInput from '@/shared/ui/VInput.vue'
 import VTextarea from '@/shared/ui/VTextarea.vue'
+import type { AppPageProps } from '@/types/app'
 
-const name = ref('')
-const email = ref('')
-const company = ref('')
-const website = ref('')
-const submitted = ref(false)
+interface DemoForm {
+  name: string
+  email: string
+  company: string
+  website: string
+  message: string
+}
+
+const form = useForm<DemoForm>({
+  name: '',
+  email: '',
+  company: '',
+  website: '',
+  message: '',
+})
+
+const page = usePage<AppPageProps & { flash?: { status?: string } }>()
 
 function submit(): void {
-  submitted.value = true
+  form.post('/demo', { preserveScroll: true })
 }
 </script>
 
@@ -43,31 +55,40 @@ function submit(): void {
         </ul>
       </div>
       <VCard title="درخواست دمو" description="اطلاعات شما فقط برای هماهنگی جلسه استفاده می‌شود."
-        ><VAlert v-if="submitted" class="mb-5" tone="success" title="درخواست ثبت شد"
-          >در این مرحله، فرم به‌صورت نمایشی است؛ اتصال ذخیره‌سازی و ارسال Lead در فاز Conversion
-          فعال می‌شود.</VAlert
-        >
+        ><VAlert v-if="page.props.flash?.status" class="mb-5" tone="success">{{
+          page.props.flash.status
+        }}</VAlert>
         <form class="grid gap-5 sm:grid-cols-2" @submit.prevent="submit">
-          <VInput v-model="name" label="نام و نام خانوادگی" required /><VInput
-            v-model="company"
+          <VInput v-model="form.name" label="نام و نام خانوادگی" required :error="form.errors.name" />
+          <VInput
+            v-model="form.company"
             label="نام شرکت یا آژانس"
-            required
+            :error="form.errors.company"
           /><VInput
-            v-model="email"
+            v-model="form.email"
             class="sm:col-span-2"
             label="ایمیل کاری"
             type="email"
             dir="ltr"
             required
+            :error="form.errors.email"
           /><VInput
-            v-model="website"
+            v-model="form.website"
             class="sm:col-span-2"
             label="وب‌سایت اصلی"
             type="url"
             dir="ltr"
             placeholder="https://example.ir"
-          /><VTextarea class="sm:col-span-2" label="تعداد سایت‌ها یا نیاز اصلی شما" />
-          <div class="sm:col-span-2"><VButton type="submit" size="lg">ثبت درخواست</VButton></div>
+            :error="form.errors.website"
+          /><VTextarea
+            v-model="form.message"
+            class="sm:col-span-2"
+            label="تعداد سایت‌ها یا نیاز اصلی شما"
+            :error="form.errors.message"
+          />
+          <div class="sm:col-span-2">
+            <VButton type="submit" size="lg" :loading="form.processing">ثبت درخواست</VButton>
+          </div>
         </form></VCard
       >
     </section>

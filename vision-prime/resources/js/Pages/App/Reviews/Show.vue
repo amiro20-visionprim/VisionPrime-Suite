@@ -15,7 +15,7 @@ function decide() {
 }
 </script>
 <template>
-  <Head title="Review Detail" /><AppLayout
+  <Head title="جزئیات بررسی" /><AppLayout
     ><VPageHeader title="بررسی خروجی" :description="p.item.subject_type" /><VCard
       class="mt-8"
       title="تصمیم"

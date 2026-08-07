@@ -1,0 +1,96 @@
+name: Staging Deploy
+
+on:
+  push:
+    branches: [staging]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, xml, pgsql, redis, pcntl, posix
+          coverage: none
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Run quality checks
+        run: |
+          npm run format:check
+          npm run lint
+          npm run typecheck
+          npm run build
+          vendor/bin/pint --test
+
+      - name: Run tests (SQLite)
+        run: php artisan test
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ':memory:'
+
+      - name: Build Docker image
+        run: |
+          docker build -t $IMAGE_NAME:staging-${{ github.sha }} -f docker/php/Dockerfile --target production .
+
+      - name: Push to GHCR
+        if: github.event_name != 'workflow_dispatch'
+        run: |
+          echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          docker push $IMAGE_NAME:staging-${{ github.sha }}
+
+  deploy-staging:
+    name: Deploy to Staging
+    needs: build
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy to Staging Server
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_USER }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          script: |
+            cd /opt/vision-prime-staging
+            docker compose -f docker-compose.production.yml --env-file .env.staging pull
+            docker compose -f docker-compose.production.yml --env-file .env.staging up -d --remove-orphans
+            docker compose -f docker-compose.production.yml --env-file .env.staging exec -T app php artisan migrate --force
+            docker compose -f docker-compose.production.yml --env-file .env.staging exec -T app php artisan config:cache
+            docker compose -f docker-compose.production.yml --env-file .env.staging exec -T app php artisan route:cache
+            docker compose -f docker-compose.production.yml --env-file .env.staging exec -T app php artisan view:cache
+            docker compose -f docker-compose.production.yml --env-file .env.staging exec -T horizon php artisan horizon:terminate
+
+      - name: Health Check
+        run: |
+          sleep 15
+          curl -sf https://staging.visionprime.ir/up || exit 1
+
+      - name: Run Smoke Tests
+        run: |
+          curl -sf https://staging.visionprime.ir/login
+          curl -sf https://staging.visionprime.ir/app/dashboard

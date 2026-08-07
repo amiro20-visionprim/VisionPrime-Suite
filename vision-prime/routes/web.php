@@ -15,6 +15,7 @@ use App\Http\Controllers\App\MoneyPageController;
 use App\Http\Controllers\App\OpportunityController;
 use App\Http\Controllers\App\OrganizationOnboardingController;
 use App\Http\Controllers\App\ProjectController;
+use App\Http\Controllers\App\RecommendationController;
 use App\Http\Controllers\App\ReportController;
 use App\Http\Controllers\App\ReviewController;
 use App\Http\Controllers\App\ReviewDecisionController;
@@ -28,11 +29,19 @@ use App\Http\Controllers\App\SiteSyncStatusController;
 use App\Http\Controllers\App\UrlProfileController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\NewPasswordController;
+use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
+use App\Http\Controllers\Client\ClientActivityController;
 use App\Http\Controllers\Client\ClientDashboardController;
+use App\Http\Controllers\Client\ClientDecisionController;
+use App\Http\Controllers\Client\ClientDecisionsController;
+use App\Http\Controllers\Client\ClientGrowthController;
+use App\Http\Controllers\Client\ClientPrioritiesController;
 use App\Http\Controllers\Client\ClientReportController;
+use App\Http\Controllers\Client\ClientSiteHealthController;
 use App\Http\Controllers\Client\CurrentClientController;
 use App\Http\Controllers\Connector\HealthCheckController;
+use App\Http\Controllers\Marketing\LeadController;
 use App\Http\Controllers\Connector\PairSiteController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -45,11 +54,15 @@ Route::get('/product', fn () => Inertia::render('Marketing/Product'))->name('mar
 Route::get('/features', fn () => Inertia::render('Marketing/Features'))->name('marketing.features');
 Route::get('/pricing', fn () => Inertia::render('Marketing/Pricing'))->name('marketing.pricing');
 Route::get('/demo', fn () => Inertia::render('Marketing/Demo'))->name('marketing.demo');
+Route::post('/demo', [LeadController::class, 'store'])->name('marketing.lead')->middleware('throttle:10,1');
 Route::get('/security', fn () => Inertia::render('Marketing/Security'))->name('marketing.security');
 Route::get('/about', fn () => Inertia::render('Marketing/About'))->name('marketing.about');
 Route::get('/contact', fn () => Inertia::render('Marketing/Contact'))->name('marketing.contact');
 
 Route::middleware('guest')->group(function (): void {
+    Route::get('/register', [RegisterController::class, 'create'])->name('register');
+    Route::post('/register', [RegisterController::class, 'store'])->name('register.store')->middleware('throttle:10,1');
+
     Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
     Route::post('/login', [AuthenticatedSessionController::class, 'store'])->name('login.store');
 
@@ -68,18 +81,16 @@ Route::middleware('auth')->group(function (): void {
 
 Route::middleware(['auth', 'current.organization', 'client.portal'])->prefix('client')->group(function (): void {
     Route::get('/dashboard', ClientDashboardController::class)->name('client.dashboard');
+    Route::get('/growth', ClientGrowthController::class)->name('client.growth');
     Route::get('/reports', [ClientReportController::class, 'index'])->name('client.reports.index');
     Route::put('/current-client/{client}', [CurrentClientController::class, 'update'])->name('client.current-client.update');
 
-    foreach ([
-        '/growth' => ['client.growth', 'رشد و فرصت‌ها', 'روند رشد و فرصت‌های کلیدی سایت را در یک نمای مدیریتی مشاهده کنید.'],
-        '/site-health' => ['client.site-health', 'سلامت سایت', 'خلاصه‌ای از سلامت سایت و موارد مهم نیازمند توجه.'],
-        '/opportunities' => ['client.opportunities', 'اولویت‌ها', 'فرصت‌های مهم برای رشد در این بازه.'],
-        '/decisions' => ['client.decisions', 'نیازمند تصمیم شما', 'فقط مواردی که برای ادامه مسیر به تأیید شما نیاز دارند.'],
-        '/activity' => ['client.activity', 'فعالیت‌ها', 'خلاصه‌ای از کارهای مهم و پیشرفت‌های اخیر.'],
-    ] as $uri => [$name, $title, $description]) {
-        Route::get($uri, fn () => Inertia::render('Client/PortalPlaceholder', compact('title', 'description')))->name($name);
-    }
+    Route::get('/site-health', ClientSiteHealthController::class)->name('client.site-health');
+    Route::get('/opportunities', ClientPrioritiesController::class)->name('client.opportunities');
+    Route::get('/decisions', ClientDecisionsController::class)->name('client.decisions');
+    Route::get('/activity', ClientActivityController::class)->name('client.activity');
+    Route::post('/decisions/commands/{command}', [ClientDecisionController::class, 'command'])->name('client.decisions.command')->middleware('throttle:20,1');
+    Route::post('/decisions/reviews/{review}', [ClientDecisionController::class, 'review'])->name('client.decisions.review')->middleware('throttle:20,1');
 });
 
 Route::middleware(['auth', 'current.organization'])->group(function (): void {
@@ -115,6 +126,12 @@ Route::middleware(['auth', 'current.organization'])->group(function (): void {
     Route::get('/app/conversion-risks', [ConversionRiskController::class, 'index'])->name('app.conversion-risks.index');
     Route::get('/app/opportunities', [OpportunityController::class, 'index'])->name('app.opportunities.index');
     Route::get('/app/opportunities/{opportunity}', [OpportunityController::class, 'show'])->name('app.opportunities.show');
+    Route::post('/app/opportunities/{opportunity}/recommendation', [RecommendationController::class, 'fromOpportunity'])->name('app.opportunities.recommendation');
+
+    Route::get('/app/recommendations', [RecommendationController::class, 'index'])->name('app.recommendations.index');
+    Route::get('/app/recommendations/create', [RecommendationController::class, 'create'])->name('app.recommendations.create');
+    Route::post('/app/recommendations', [RecommendationController::class, 'store'])->name('app.recommendations.store');
+    Route::put('/app/recommendations/{recommendation}', [RecommendationController::class, 'update'])->name('app.recommendations.update');
     Route::get('/app/reviews', [ReviewController::class, 'index'])->name('app.reviews.index');
     Route::get('/app/reviews/{review}', [ReviewDetailController::class, 'show'])->name('app.reviews.show');
     Route::post('/app/reviews/{review}/decision', [ReviewDecisionController::class, 'store'])->name('app.reviews.decision');
@@ -144,7 +161,6 @@ Route::middleware(['auth', 'current.organization'])->group(function (): void {
         '/app/money-pages' => ['app.money-pages', 'صفحات درآمدزا', 'صفحه‌های کلیدی تجاری و وضعیت بهینه‌سازی آن‌ها.'],
         '/app/conversion-risks' => ['app.conversion-risks', 'ریسک‌های تبدیل', 'ریسک‌های تجربه، پیام و تبدیل در صفحه‌های مهم.'],
         '/app/url-profiles' => ['app.url-profiles', 'URLها و محتوا', 'پروفایل‌های URL و تاریخچه محتوای همگام‌سازی‌شده.'],
-        '/app/recommendations' => ['app.recommendations', 'پیشنهادها', 'پیشنهادهای قابل پیگیری برای رشد، محتوا و بهینه‌سازی.'],
         '/app/reviews' => ['app.reviews', 'بررسی و تأییدها', 'صف بررسی آیتم‌های نیازمند تصمیم و تأیید.'],
         '/app/commands' => ['app.commands', 'تغییرات اجرایی', 'تغییرات کنترل‌شده و وضعیت اجرای آن‌ها در وردپرس.'],
         '/app/reports' => ['app.reports', 'گزارش‌ها', 'گزارش‌های مدیریتی، خروجی مشتری و سنجش اثر.'],

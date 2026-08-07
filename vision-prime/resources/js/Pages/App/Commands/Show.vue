@@ -17,18 +17,18 @@ defineProps<{
 }>()
 </script>
 <template>
-  <Head title="Command Detail" /><AppLayout
+  <Head title="جزئیات تغییر اجرایی" /><AppLayout
     ><VPageHeader title="جزئیات تغییر اجرایی" :description="command.type" /><VCard
       class="mt-8"
       title="وضعیت"
       ><p>{{ command.status }} · {{ command.risk_tier }}</p></VCard
-    ><VCard class="mt-6" title="Approval History"
+    ><VCard class="mt-6" title="تاریخچه تأییدها"
       ><div v-for="approval in approvals" :key="approval.id">
         {{ approval.decision }} — {{ approval.note }}
       </div></VCard
-    ><VCard class="mt-6" title="Execution Logs"
+    ><VCard class="mt-6" title="گزارش اجرا"
       ><div v-for="log in logs" :key="log.id">{{ log.status }} — {{ log.executed_at }}</div></VCard
-    ><VCard class="mt-6" title="Rollback Snapshots"
+    ><VCard class="mt-6" title="عکس‌های بازگشت"
       ><div v-for="snapshot in snapshots" :key="snapshot.id">
         {{ snapshot.target_ref }} — {{ snapshot.status }}
       </div></VCard

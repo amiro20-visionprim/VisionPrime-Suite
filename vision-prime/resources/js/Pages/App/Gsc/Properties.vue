@@ -26,7 +26,7 @@ function save() {
 }
 </script>
 <template>
-  <Head title="GSC Properties" /><AppLayout
+  <Head title="ملک‌های سرچ کنسول" /><AppLayout
     ><VCard title="انتخاب Property سرچ کنسول"
       ><form class="space-y-4" @submit.prevent="save">
         <VSelect
@@ -35,20 +35,20 @@ function save() {
           :options="sites.map((site) => ({ label: site.name, value: String(site.id) }))"
         /><VSelect
           v-model="form.gsc_account_id"
-          label="Google Account"
+          label="حساب Google"
           :options="
             accounts.map((account) => ({ label: account.email, value: String(account.id) }))
           "
         /><VSelect
           v-model="form.property_uri"
-          label="Property"
+          label="ملک"
           :options="
             (properties[form.gsc_account_id] || []).map((property) => ({
               label: property.property_uri,
               value: property.property_uri,
             }))
           "
-        /><VButton type="submit">ذخیره Property</VButton>
+        /><VButton type="submit">ذخیره ملک</VButton>
       </form></VCard
     ></AppLayout
   >

@@ -30,7 +30,7 @@ defineProps<{ accounts: GscAccount[]; properties: GscProperty[]; runs: GscImport
           v-else
           title="حساب Google متصل نیست"
           description="برای انتخاب Property و دریافت داده، ابتدا حساب Google را متصل کنید." /></VCard
-      ><VCard title="Propertyهای انتخاب‌شده"
+      ><VCard title="ملک‌های انتخاب‌شده"
         ><div v-if="properties.length" class="space-y-3">
           <div v-for="property in properties" :key="property.id">
             <p class="font-semibold">{{ property.site_name }}</p>
@@ -39,9 +39,9 @@ defineProps<{ accounts: GscAccount[]; properties: GscProperty[]; runs: GscImport
         </div>
         <VEmptyState
           v-else
-          title="Property انتخاب نشده است"
-          description="پس از اتصال حساب، Property مناسب هر Site را انتخاب کنید."
-          action-label="انتخاب Property"
+          title="ملک انتخاب نشده است"
+          description="پس از اتصال حساب، ملک مناسب هر سایت را انتخاب کنید."
+          action-label="انتخاب ملک"
           @action="$inertia.visit('/app/gsc/properties')"
       /></VCard>
     </section>
@@ -61,7 +61,7 @@ defineProps<{ accounts: GscAccount[]; properties: GscProperty[]; runs: GscImport
           >
         </div>
       </div>
-      <p v-else class="text-ink-muted">هنوز Importی اجرا نشده است.</p></VCard
+      <p v-else class="text-ink-muted">هنوز همگام‌سازی داده‌ای اجرا نشده است.</p></VCard
     ></AppLayout
   >
 </template>

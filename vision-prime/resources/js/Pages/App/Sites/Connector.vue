@@ -31,7 +31,7 @@ function disconnect(): void {
 }
 </script>
 <template>
-  <Head :title="`Connector ${site.name}`" />
+  <Head :title="`اتصال وردپرس ${site.name}`" />
   <AppLayout>
     <VPageHeader
       title="اتصال وردپرس"
@@ -39,7 +39,7 @@ function disconnect(): void {
       :breadcrumbs="[
         { label: 'سایت‌ها', href: '/app/sites' },
         { label: site.name, href: `/app/sites/${site.id}` },
-        { label: 'Connector' },
+        { label: 'اتصال وردپرس' },
       ]"
     />
     <VCard class="mt-8" title="وضعیت اتصال">
@@ -50,25 +50,25 @@ function disconnect(): void {
       >
       <dl v-if="connection" class="divide-line divide-y">
         <div class="flex justify-between gap-4 py-3">
-          <dt class="text-ink-muted">Platform URL</dt>
+          <dt class="text-ink-muted">آدرس پلتفرم</dt>
           <dd class="font-latin text-ink-strong" dir="ltr">{{ connection.platformUrl }}</dd>
         </div>
         <div class="flex justify-between gap-4 py-3">
-          <dt class="text-ink-muted">Plugin Version</dt>
+          <dt class="text-ink-muted">نسخه پلاگین</dt>
           <dd>{{ connection.pluginVersion || '—' }}</dd>
         </div>
         <div class="flex justify-between gap-4 py-3">
-          <dt class="text-ink-muted">Last Seen</dt>
+          <dt class="text-ink-muted">آخرین فعالیت</dt>
           <dd>{{ connection.lastSeenAt || '—' }}</dd>
         </div>
       </dl>
       <p v-else class="text-ink-muted">
-        برای اتصال، Pairing Token ایجاد کرده و آن را در تنظیمات افزونه Vision Prime وردپرس وارد
-        کنید.
+        برای اتصال، توکن اتصال (Pairing Token) ایجاد کرده و آن را در تنظیمات افزونه Vision Prime
+        وردپرس وارد کنید.
       </p>
       <div class="border-line mt-6 border-t pt-5">
         <div class="flex flex-wrap gap-3">
-          <VButton @click="generateToken">ایجاد Pairing Token</VButton
+          <VButton @click="generateToken">ایجاد توکن اتصال</VButton
           ><VButton
             v-if="connection?.status === 'connected'"
             variant="danger"
@@ -78,7 +78,7 @@ function disconnect(): void {
         </div>
         <div v-if="page.props.flash?.pairingToken" class="rounded-card bg-warning-50 mt-4 p-4">
           <p class="text-warning-700 text-sm font-semibold">
-            این Token فقط اکنون نمایش داده می‌شود.
+            این توکن فقط اکنون نمایش داده می‌شود.
           </p>
           <code
             class="rounded-ui bg-surface font-latin text-ink-strong mt-3 block p-3 text-sm break-all"
@@ -86,7 +86,7 @@ function disconnect(): void {
             >{{ page.props.flash.pairingToken }}</code
           >
           <div class="mt-3 flex items-center gap-3">
-            <VButton size="sm" variant="secondary" @click="copyToken">کپی Token</VButton
+            <VButton size="sm" variant="secondary" @click="copyToken">کپی توکن</VButton
             ><span class="text-ink-muted text-sm"
               >انقضا: {{ page.props.flash.pairingTokenExpiresAt }}</span
             >
@@ -97,7 +97,7 @@ function disconnect(): void {
     <VConfirmDialog
       v-model="disconnectOpen"
       title="قطع اتصال وردپرس"
-      description="Secret این سایت حذف می‌شود و افزونه تا Pairing مجدد قادر به ارسال درخواست معتبر نخواهد بود."
+      description="کلید محرمانه این سایت حذف می‌شود و افزونه تا اتصال مجدد قادر به ارسال درخواست معتبر نخواهد بود."
       confirm-label="قطع اتصال"
       tone="danger"
       @confirm="disconnect"

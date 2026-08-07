@@ -18,19 +18,19 @@ defineProps<{
 }>()
 </script>
 <template>
-  <Head title="URL Profile" /><AppLayout
+  <Head title="پروفایل URL" /><AppLayout
     ><VPageHeader
-      title="URL Profile"
+      title="پروفایل URL"
       :description="profile.url"
       :breadcrumbs="[{ label: 'URLها و محتوا', href: '/app/url-profiles' }, { label: 'جزئیات' }]"
-    /><VCard class="mt-8" title="Metadata"
+    /><VCard class="mt-8" title="فراداده"
       ><dl class="divide-line divide-y">
         <div class="flex justify-between py-3">
-          <dt>Meta Title</dt>
+          <dt>عنوان متا</dt>
           <dd>{{ profile.metadata?.meta_title || '—' }}</dd>
         </div>
         <div class="flex justify-between py-3">
-          <dt>Meta Description</dt>
+          <dt>توضیح متا</dt>
           <dd>{{ profile.metadata?.meta_description || '—' }}</dd>
         </div>
       </dl></VCard
@@ -40,7 +40,7 @@ defineProps<{
         <p class="font-latin text-ink-muted mt-1 text-xs" dir="ltr">{{ s.hash }}</p>
         <p class="text-ink-muted mt-1 text-sm">{{ s.wordCount }} کلمه</p>
       </div>
-      <p v-if="!profile.snapshots.length" class="text-ink-muted">Snapshotی وجود ندارد.</p></VCard
+      <p v-if="!profile.snapshots.length" class="text-ink-muted">عکسی از محتوا ثبت نشده است.</p></VCard
     ></AppLayout
   >
 </template>

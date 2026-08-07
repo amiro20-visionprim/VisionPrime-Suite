@@ -6,20 +6,20 @@ import type { GscQueryMetric, Paginated } from '@/types/gsc'
 defineProps<{ metrics: Paginated<GscQueryMetric> }>()
 </script>
 <template>
-  <Head title="GSC Queries" /><AppLayout
+  <Head title="جستارها" /><AppLayout
     ><VPageHeader
-      title="عملکرد Queryها"
+      title="عملکرد جستارها"
       description="جستجوهای کاربران و عملکرد آن‌ها در سرچ کنسول."
     />
     <div class="mt-8 overflow-x-auto">
       <table class="w-full text-sm">
         <thead>
           <tr>
-            <th>Query</th>
-            <th>Clicks</th>
-            <th>Impressions</th>
-            <th>CTR</th>
-            <th>Position</th>
+            <th>جستار</th>
+            <th>کلیک</th>
+            <th>نمایش</th>
+            <th>نرخ کلیک</th>
+            <th>جایگاه</th>
           </tr>
         </thead>
         <tbody>

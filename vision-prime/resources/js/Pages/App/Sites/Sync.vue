@@ -24,7 +24,7 @@ function sync() {
   <Head title="همگام‌سازی محتوا" /><AppLayout
     ><VPageHeader title="همگام‌سازی محتوا" :description="site.name" /><VCard
       class="mt-8"
-      title="آخرین Sync"
+      title="آخرین همگام‌سازی"
       ><template #action><VButton @click="sync">شروع همگام‌سازی</VButton></template>
       <div v-if="run">
         <VBadge
@@ -36,7 +36,7 @@ function sync() {
         <p class="text-ink mt-4">آیتم‌های پردازش‌شده: {{ run.summary?.items ?? '—' }}</p>
         <p v-if="run.error?.message" class="text-danger-600 mt-3">{{ run.error.message }}</p>
         <div v-if="run.failedItems.length" class="mt-5">
-          <p class="font-semibold">Itemهای ناموفق</p>
+          <p class="font-semibold">موردهای ناموفق</p>
           <div
             v-for="(item, index) in run.failedItems"
             :key="item.url ?? index"
@@ -46,7 +46,7 @@ function sync() {
           </div>
         </div>
       </div>
-      <p v-else class="text-ink-muted">هنوز Syncی اجرا نشده است.</p></VCard
+      <p v-else class="text-ink-muted">هنوز همگام‌سازی‌ای اجرا نشده است.</p></VCard
     ></AppLayout
   >
 </template>

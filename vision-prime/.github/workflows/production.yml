@@ -1,0 +1,167 @@
+name: Production Deploy
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag to deploy (e.g., v1.0.0)'
+        required: true
+        type: string
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, xml, pgsql, redis, pcntl, posix
+          coverage: none
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Run quality checks
+        run: |
+          npm run format:check
+          npm run lint
+          npm run typecheck
+          npm run build
+          vendor/bin/pint --test
+
+      - name: Run tests (SQLite)
+        run: php artisan test
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ':memory:'
+
+      - name: Determine version
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build Docker image
+        run: |
+          docker build -t $IMAGE_NAME:${{ steps.version.outputs.version }} -f docker/php/Dockerfile --target production .
+
+      - name: Push to GHCR
+        run: |
+          echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          docker push $IMAGE_NAME:${{ steps.version.outputs.version }}
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Composer Audit
+        run: composer audit --no-check-publish --no-check-all || true
+
+      - name: Run NPM Audit
+        run: npm audit --audit-level=high || true
+
+      - name: Run CodeQL Analysis
+        uses: github/codeql-action/init@v3
+        with:
+          languages: php, javascript, typescript
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+
+  deploy-production:
+    name: Deploy to Production
+    needs: [build, security-scan]
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Determine version
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Deploy to Production Server
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          script: |
+            cd /opt/vision-prime
+            export IMAGE_TAG=${{ steps.version.outputs.version }}
+            docker compose -f docker-compose.production.yml --env-file .env.production pull
+            docker compose -f docker-compose.production.yml --env-file .env.production up -d --remove-orphans
+            
+            # Wait for app to be healthy
+            for i in {1..30}; do
+              if curl -sf https://visionprime.ir/up; then
+                echo "App is healthy"
+                break
+              fi
+              sleep 2
+            done
+            
+            # Run migrations
+            docker compose -f docker-compose.production.yml --env-file .env.production exec -T app php artisan migrate --force
+            
+            # Optimize
+            docker compose -f docker-compose.production.yml --env-file .env.production exec -T app php artisan config:cache
+            docker compose -f docker-compose.production.yml --env-file .env.production exec -T app php artisan route:cache
+            docker compose -f docker-compose.production.yml --env-file .env.production exec -T app php artisan view:cache
+            docker compose -f docker-compose.production.yml --env-file .env.production exec -T app php artisan event:cache
+            
+            # Restart Horizon
+            docker compose -f docker-compose.production.yml --env-file .env.production exec -T horizon php artisan horizon:terminate
+
+      - name: Health Check
+        run: |
+          sleep 20
+          curl -sf https://visionprime.ir/up || exit 1
+
+      - name: Run Smoke Tests
+        run: |
+          curl -sf https://visionprime.ir/login
+          curl -sf https://visionprime.ir/app/dashboard
+          curl -sf https://visionprime.ir/client/dashboard
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
