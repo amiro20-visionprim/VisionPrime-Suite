@@ -20,6 +20,9 @@ use App\Http\Controllers\App\ReportController;
 use App\Http\Controllers\App\ReviewController;
 use App\Http\Controllers\App\ReviewDecisionController;
 use App\Http\Controllers\App\ReviewDetailController;
+use App\Http\Controllers\App\Settings\AuditLogSettingsController;
+use App\Http\Controllers\App\Settings\IntegrationsSettingsController;
+use App\Http\Controllers\App\Settings\OrganizationSettingsController;
 use App\Http\Controllers\App\SiteConnectorController;
 use App\Http\Controllers\App\SiteConnectorTokenController;
 use App\Http\Controllers\App\SiteController;
@@ -166,20 +169,12 @@ Route::middleware(['auth', 'current.organization'])->group(function (): void {
     Route::post('/app/clients/{client}/assignments', [ClientController::class, 'assignUser'])->name('app.clients.assignments.store');
     Route::delete('/app/clients/{client}/assignments/{assignment}', [ClientController::class, 'removeUserAssignment'])->name('app.clients.assignments.destroy');
 
-    foreach ([
-        '/app/opportunities' => ['app.opportunities', 'فرصت‌های رشد', 'فرصت‌های اولویت‌دار رشد از داده‌های سایت و سرچ کنسول.'],
-        '/app/money-pages' => ['app.money-pages', 'صفحات درآمدزا', 'صفحه‌های کلیدی تجاری و وضعیت بهینه‌سازی آن‌ها.'],
-        '/app/conversion-risks' => ['app.conversion-risks', 'ریسک‌های تبدیل', 'ریسک‌های تجربه، پیام و تبدیل در صفحه‌های مهم.'],
-        '/app/url-profiles' => ['app.url-profiles', 'URLها و محتوا', 'پروفایل‌های URL و تاریخچه محتوای همگام‌سازی‌شده.'],
-        '/app/reviews' => ['app.reviews', 'بررسی و تأییدها', 'صف بررسی آیتم‌های نیازمند تصمیم و تأیید.'],
-        '/app/commands' => ['app.commands', 'تغییرات اجرایی', 'تغییرات کنترل‌شده و وضعیت اجرای آن‌ها در وردپرس.'],
-        '/app/reports' => ['app.reports', 'گزارش‌ها', 'گزارش‌های مدیریتی، خروجی مشتری و سنجش اثر.'],
-        '/app/settings/organization' => ['app.settings.organization', 'سازمان و اعضا', 'تنظیمات سازمان، اعضای تیم و سطح دسترسی‌ها.'],
-        '/app/settings/integrations' => ['app.settings.integrations', 'یکپارچه‌سازی‌ها', 'اتصال‌های سرچ کنسول، وردپرس و سرویس‌های خارجی.'],
-        '/app/settings/audit-log' => ['app.settings.audit-log', 'گزارش ممیزی', 'تاریخچه رویدادها و عملیات حساس سازمان.'],
-    ] as $uri => [$name, $title, $description]) {
-        Route::get($uri, fn () => Inertia::render('App/WorkspacePlaceholder', compact('title', 'description')))->name($name);
-    }
+    Route::get('/app/settings/organization', [OrganizationSettingsController::class, 'index'])->name('app.settings.organization');
+    Route::post('/app/settings/organization/members', [OrganizationSettingsController::class, 'store'])->name('app.settings.organization.members.store')->middleware('throttle:20,1');
+    Route::put('/app/settings/organization/members/{membership}', [OrganizationSettingsController::class, 'update'])->name('app.settings.organization.members.update');
+    Route::delete('/app/settings/organization/members/{membership}', [OrganizationSettingsController::class, 'destroy'])->name('app.settings.organization.members.destroy');
+    Route::get('/app/settings/integrations', [IntegrationsSettingsController::class, 'index'])->name('app.settings.integrations');
+    Route::get('/app/settings/audit-log', [AuditLogSettingsController::class, 'index'])->name('app.settings.audit-log');
 });
 
 if (app()->environment(['local', 'testing'])) {

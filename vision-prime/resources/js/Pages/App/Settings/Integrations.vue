@@ -1,0 +1,155 @@
+<script setup lang="ts">
+import { Head } from '@inertiajs/vue3'
+
+import AppLayout from '@/app/layouts/AppLayout.vue'
+import { formatLocalizedDate } from '@/lib/locale'
+import VBadge from '@/shared/ui/VBadge.vue'
+import VButton from '@/shared/ui/VButton.vue'
+import VCard from '@/shared/ui/VCard.vue'
+import VPageHeader from '@/shared/ui/VPageHeader.vue'
+
+interface GscAccount {
+  email: string
+  status: string
+  expiresAt: string | null
+}
+
+interface SiteConnection {
+  id: number
+  name: string
+  status: string
+  lastSeenAt: string | null
+}
+
+defineProps<{
+  gsc: {
+    connected: number
+    accounts: GscAccount[]
+    propertiesCount: number
+  }
+  wordpress: {
+    totalSites: number
+    pairedSites: number
+    sites: SiteConnection[]
+  }
+  ai: {
+    providers: string[]
+    isConfigured: boolean
+  }
+}>()
+</script>
+
+<template>
+  <Head title="یکپارچه‌سازی‌ها" />
+  <AppLayout>
+    <VPageHeader
+      title="یکپارچه‌سازی‌ها"
+      description="وضعیت اتصال سرویس‌های خارجی: سرچ کنسول، وردپرس و سرویس‌های هوش مصنوعی."
+    />
+
+    <div class="mt-8 grid gap-6 lg:grid-cols-2">
+      <VCard
+        title="سرچ کنسول گوگل (GSC)"
+        description="دادهٔ جستجو، کوئری‌ها و صفحات برای تحلیل رشد از این اتصال می‌آید."
+      >
+        <div class="flex items-center gap-3">
+          <VBadge :tone="gsc.connected ? 'success' : 'neutral'">
+            {{ gsc.connected ? `${gsc.connected} حساب متصل` : 'اتصال برقرار نشده' }}
+          </VBadge>
+          <VBadge v-if="gsc.propertiesCount" tone="info">
+            {{ gsc.propertiesCount }} ملک انتخاب‌شده
+          </VBadge>
+        </div>
+
+        <ul v-if="gsc.accounts.length" class="mt-5 space-y-3">
+          <li
+            v-for="account in gsc.accounts"
+            :key="account.email"
+            class="border-line flex items-center justify-between gap-3 rounded-xl border px-4 py-3"
+          >
+            <div class="min-w-0">
+              <p class="text-ink-strong truncate text-sm font-semibold" dir="ltr">
+                {{ account.email }}
+              </p>
+              <p v-if="account.expiresAt" class="text-ink-muted text-xs">
+                انقضای توکن: {{ formatLocalizedDate(account.expiresAt, 'fa') }}
+              </p>
+            </div>
+            <VBadge :tone="account.status === 'connected' ? 'success' : 'warning'">{{
+              account.status === 'connected' ? 'متصل' : account.status
+            }}</VBadge>
+          </li>
+        </ul>
+        <p v-else class="text-ink-muted mt-4 text-sm leading-6">
+          برای فعال‌سازی هوش رشد، حساب گوگل را به سرچ کنسول متصل کنید.
+        </p>
+
+        <div class="border-line mt-5 flex gap-3 border-t pt-5">
+          <VButton :href="gsc.connected ? '/app/gsc' : '/app/gsc/connect'">
+            {{ gsc.connected ? 'مدیریت سرچ کنسول' : 'اتصال حساب گوگل' }}
+          </VButton>
+        </div>
+      </VCard>
+
+      <VCard
+        title="اتصال وردپرس"
+        description="ارسال تغییرات اجرایی و همگام‌سازی محتوا از طریق پلاگین Vision Prime انجام می‌شود."
+      >
+        <div class="flex items-center gap-3">
+          <VBadge :tone="wordpress.pairedSites ? 'success' : 'neutral'">
+            {{ wordpress.pairedSites }} از {{ wordpress.totalSites }} سایت متصل
+          </VBadge>
+        </div>
+
+        <ul v-if="wordpress.sites.length" class="mt-5 space-y-3">
+          <li
+            v-for="site in wordpress.sites"
+            :key="site.id"
+            class="border-line flex items-center justify-between gap-3 rounded-xl border px-4 py-3"
+          >
+            <div class="min-w-0">
+              <p class="text-ink-strong truncate text-sm font-semibold">{{ site.name }}</p>
+              <p v-if="site.lastSeenAt" class="text-ink-muted text-xs">
+                آخرین حضور: {{ formatLocalizedDate(site.lastSeenAt, 'fa') }}
+              </p>
+            </div>
+            <VBadge :tone="site.status === 'paired' ? 'success' : 'neutral'">{{
+              site.status === 'paired' ? 'متصل' : 'بدون اتصال'
+            }}</VBadge>
+          </li>
+        </ul>
+        <p v-else class="text-ink-muted mt-4 text-sm leading-6">
+          هنوز سایتی برای اتصال ثبت نشده است.
+        </p>
+
+        <div class="border-line mt-5 flex gap-3 border-t pt-5">
+          <VButton :href="wordpress.totalSites ? '/app/sites' : '/app/sites/create'" variant="secondary">
+            {{ wordpress.totalSites ? 'مدیریت سایت‌ها' : 'افزودن سایت' }}
+          </VButton>
+        </div>
+      </VCard>
+
+      <VCard
+        class="lg:col-span-2"
+        title="هوش مصنوعی"
+        description="تولید پیشنهادها، نسخه‌های پیشنویس و تحلیل‌های خودکار از سرویس‌های هوش مصنوعی استفاده می‌کند."
+      >
+        <div class="flex flex-wrap items-center gap-3">
+          <VBadge :tone="ai.isConfigured ? 'success' : 'warning'">
+            {{ ai.isConfigured ? 'پیکربندی شده' : 'پیکربندی نشده' }}
+          </VBadge>
+          <VBadge v-for="provider in ai.providers" :key="provider" tone="info" dir="ltr">{{
+            provider
+          }}</VBadge>
+        </div>
+        <p class="text-ink-muted mt-4 max-w-2xl text-sm leading-6">
+          {{
+            ai.isConfigured
+              ? 'سرویس هوش مصنوعی برای این سازمان فعال است و در جریان تولید پیشنهادها استفاده می‌شود.'
+              : 'برای استفاده از هوش مصنوعی، ابتدا provider و کلید آن در تنظیمات سازمان پیکربندی شود. تا آن زمان، پیشنهادها به‌صورت دستی قابل تولید هستند.'
+          }}
+        </p>
+      </VCard>
+    </div>
+  </AppLayout>
+</template>
