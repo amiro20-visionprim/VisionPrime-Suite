@@ -18,8 +18,13 @@ echo "==> 1/4 Building production assets (npm run build) ..."
 ( cd "$SRC" && npm run build )
 
 echo "==> 2/4 Syncing code to $DST ..."
+# robocopy needs native Windows paths, and its /flags must not be path-mangled
+# by Git Bash: combine MSYS_NO_PATHCONV=1 (protects /E, /XD, /XF) with cygpath -w
+# (converts the source/destination to drive-letter form).
+SRC_WIN="$(cygpath -w "$SRC")"
+DST_WIN="$(cygpath -w "$DST")"
 # Exit codes 0-7 are success for robocopy; never let set -e trip on them.
-MSYS_NO_PATHCONV=1 robocopy "$SRC" "$DST" \
+MSYS_NO_PATHCONV=1 robocopy "$SRC_WIN" "$DST_WIN" \
     /E /XD node_modules .git .freebuff \
     /XF .env "public\\hot" /NFL /NDL /NJH /NJS /NP || true
 # The deploy copy must serve BUILT assets, never the Vite dev server.
