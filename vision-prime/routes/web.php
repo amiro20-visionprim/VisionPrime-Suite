@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 use App\Http\Controllers\App\ClientController;
 use App\Http\Controllers\App\CommandController;
+use App\Http\Controllers\App\CommandDispatchController;
 use App\Http\Controllers\App\ConversionRiskController;
 use App\Http\Controllers\App\CurrentOrganizationController;
 use App\Http\Controllers\App\DashboardController;
 use App\Http\Controllers\App\GscDashboardController;
+use App\Http\Controllers\App\GscImportController;
 use App\Http\Controllers\App\GscMetricsController;
 use App\Http\Controllers\App\GscOAuthController;
 use App\Http\Controllers\App\GscPropertyController;
@@ -45,12 +47,14 @@ use App\Http\Controllers\Client\ClientSiteHealthController;
 use App\Http\Controllers\Client\CurrentClientController;
 use App\Http\Controllers\Connector\HealthCheckController;
 use App\Http\Controllers\Marketing\LeadController;
+use App\Http\Controllers\Connector\CommandResultController;
 use App\Http\Controllers\Connector\PairSiteController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 Route::post('/connector/pair', PairSiteController::class)->name('connector.pair');
 Route::post('/connector/health', HealthCheckController::class)->name('connector.health');
+Route::post('/connector/command-result', CommandResultController::class)->name('connector.command-result');
 
 Route::get('/up', function (): \Illuminate\Http\JsonResponse {
     try {
@@ -132,9 +136,11 @@ Route::middleware(['auth', 'current.organization'])->group(function (): void {
     Route::get('/app/gsc/queries', [GscMetricsController::class, 'queries'])->name('app.gsc.queries');
     Route::get('/app/gsc/properties', [GscPropertyController::class, 'index'])->name('app.gsc.properties');
     Route::post('/app/gsc/properties', [GscPropertyController::class, 'store'])->name('app.gsc.properties.store');
+    Route::post('/app/gsc/import', [GscImportController::class, 'store'])->name('app.gsc.import')->middleware('throttle:10,1');
 
     Route::get('/app/commands', [CommandController::class, 'index'])->name('app.commands.index');
     Route::get('/app/commands/{command}', [CommandController::class, 'show'])->name('app.commands.show');
+    Route::post('/app/commands/{command}/dispatch', [CommandDispatchController::class, 'store'])->name('app.commands.dispatch')->middleware('throttle:10,1');
     Route::get('/app/money-pages', [MoneyPageController::class, 'index'])->name('app.money-pages.index');
     Route::get('/app/conversion-risks', [ConversionRiskController::class, 'index'])->name('app.conversion-risks.index');
     Route::get('/app/opportunities', [OpportunityController::class, 'index'])->name('app.opportunities.index');

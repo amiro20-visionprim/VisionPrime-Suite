@@ -1,13 +1,51 @@
 <script setup lang="ts">
-import { Head } from '@inertiajs/vue3'
+import { Head, router } from '@inertiajs/vue3'
+import { computed, ref } from 'vue'
 import AppLayout from '@/app/layouts/AppLayout.vue'
+import VAlert from '@/shared/ui/VAlert.vue'
 import VBadge from '@/shared/ui/VBadge.vue'
 import VButton from '@/shared/ui/VButton.vue'
 import VCard from '@/shared/ui/VCard.vue'
 import VEmptyState from '@/shared/ui/VEmptyState.vue'
+import VInput from '@/shared/ui/VInput.vue'
 import VPageHeader from '@/shared/ui/VPageHeader.vue'
+import VSelect from '@/shared/ui/VSelect.vue'
 import type { GscAccount, GscImportRun, GscProperty } from '@/types/gsc'
-defineProps<{ accounts: GscAccount[]; properties: GscProperty[]; runs: GscImportRun[] }>()
+
+const props = defineProps<{ accounts: GscAccount[]; properties: GscProperty[]; runs: GscImportRun[]; flash?: { status?: string } }>()
+
+const propertyId = ref(props.properties[0] ? String(props.properties[0].id) : '')
+const days = ref('28')
+const importing = ref(false)
+
+const hasProperties = computed(() => props.properties.length > 0)
+
+const dateRange = computed(() => {
+  const end = new Date()
+  const start = new Date()
+  start.setDate(end.getDate() - Number(days.value))
+  const fmt = (d: Date) => d.toISOString().slice(0, 10)
+  return { start: fmt(start), end: fmt(end) }
+})
+
+function startImport() {
+  if (!propertyId.value) return
+  importing.value = true
+  router.post(
+    '/app/gsc/import',
+    {
+      gsc_property_id: Number(propertyId.value),
+      date_start: dateRange.value.start,
+      date_end: dateRange.value.end,
+    },
+    {
+      preserveScroll: true,
+      onFinish: () => {
+        importing.value = false
+      },
+    },
+  )
+}
 </script>
 <template>
   <Head title="Google Search Console" /><AppLayout
@@ -17,6 +55,30 @@ defineProps<{ accounts: GscAccount[]; properties: GscProperty[]; runs: GscImport
       ><template #actions
         ><VButton href="/app/gsc/connect">اتصال حساب Google</VButton></template
       ></VPageHeader
+    >
+    <VAlert v-if="props.flash?.status" class="mb-5" tone="success">{{ props.flash.status }}</VAlert>
+    <VCard class="mt-6" title="وارد کردن دادهٔ سرچ کنسول"
+      ><div class="flex flex-wrap items-end gap-4">
+        <div class="w-64">
+          <VSelect
+            v-model="propertyId"
+            :options="
+              props.properties.map((p) => ({ value: String(p.id), label: `${p.site_name} — ${p.property_uri}` }))
+            "
+            label="ملک"
+            :disabled="!hasProperties"
+          />
+        </div>
+        <div class="w-40">
+          <VInput v-model="days" type="number" min="1" max="90" label="بازهٔ روزهای گذشته" />
+        </div>
+        <VButton :disabled="!hasProperties || importing" :loading="importing" @click="startImport">
+          شروع Import
+        </VButton>
+      </div>
+      <p v-if="!hasProperties" class="text-ink-muted mt-3 text-sm">
+        برای import ابتدا یک Property انتخاب کنید.
+      </p></VCard
     >
     <section class="mt-8 grid gap-5 lg:grid-cols-2">
       <VCard title="حساب‌های متصل"

@@ -16,6 +16,7 @@ use App\Domains\Workspace\Policies\ProjectPolicy;
 use App\Domains\Workspace\Policies\SitePolicy;
 use App\Support\RequestContext;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -39,5 +40,10 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Client::class, ClientPolicy::class);
         Gate::policy(Project::class, ProjectPolicy::class);
         Gate::policy(Site::class, SitePolicy::class);
+
+        // Funnel/Tailscale terminates TLS in front of :80, so the app only ever
+        // sees plain HTTP. Force https scheme so generated asset URLs (mixed
+        // content) keep working when served behind a public https endpoint.
+        URL::forceScheme('https');
     }
 }
