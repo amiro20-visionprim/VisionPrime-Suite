@@ -43,7 +43,11 @@ class AppServiceProvider extends ServiceProvider
 
         // Funnel/Tailscale terminates TLS in front of :80, so the app only ever
         // sees plain HTTP. Force https scheme so generated asset URLs (mixed
-        // content) keep working when served behind a public https endpoint.
-        URL::forceScheme('https');
+        // content) keep working when served behind the public https endpoint,
+        // while local dev (127.0.0.1) keeps plain http.
+        $host = (string) request()?->getHost();
+        if (str_ends_with($host, '.ts.net')) {
+            URL::forceScheme('https');
+        }
     }
 }
