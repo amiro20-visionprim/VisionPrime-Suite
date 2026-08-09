@@ -20,11 +20,21 @@ class GscPropertyController extends Controller
     {
         $accounts = \DB::table('gsc_accounts')->where('organization_id', $org->id())->get();
         $properties = [];
+        $googleErrors = [];
         foreach ($accounts as $a) {
-            $properties[$a->id] = $client->properties($a);
-        }$sites = Site::query()->where('organization_id', $org->id())->get(['id', 'name', 'canonical_url']);
+            try {
+                $properties[$a->id] = $client->properties($a);
+            } catch (\Illuminate\Http\Client\RequestException $e) {
+                $properties[$a->id] = [];
+                $status = $e->response->status();
+                $googleErrors[$a->id] = $status === 403
+                    ? 'گوگل دسترسی را رد کرد (403). مطمئن شوید «Search Console API» در پروژهٔ Google Cloud فعال است و این حساب به ملک‌های سرچ کنسول دسترسی دارد.'
+                    : "دریافت ملک‌ها از گوگل ناموفق بود (خطای {$status}). چند لحظه بعد دوباره امتحان کنید.";
+            }
+        }
+        $sites = Site::query()->where('organization_id', $org->id())->get(['id', 'name', 'canonical_url']);
 
-        return Inertia::render('App/Gsc/Properties', ['accounts' => $accounts, 'properties' => $properties, 'sites' => $sites]);
+        return Inertia::render('App/Gsc/Properties', ['accounts' => $accounts, 'properties' => $properties, 'sites' => $sites, 'googleErrors' => $googleErrors]);
     }
 
     public function store(Request $request, RecordAuditLog $audit): RedirectResponse

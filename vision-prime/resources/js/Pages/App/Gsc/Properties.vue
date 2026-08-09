@@ -4,6 +4,7 @@ import AppLayout from '@/app/layouts/AppLayout.vue'
 import VButton from '@/shared/ui/VButton.vue'
 import VCard from '@/shared/ui/VCard.vue'
 import VSelect from '@/shared/ui/VSelect.vue'
+import VAlert from '@/shared/ui/VAlert.vue'
 import type { GscAccount, GscProperty } from '@/types/gsc'
 interface SiteOption {
   id: number
@@ -14,6 +15,7 @@ defineProps<{
   accounts: GscAccount[]
   properties: Record<string, GscProperty[]>
   sites: SiteOption[]
+  googleErrors: Record<string, string>
 }>()
 const form = useForm({
   site_id: '',
@@ -27,7 +29,22 @@ function save() {
 </script>
 <template>
   <Head title="ملک‌های سرچ کنسول" /><AppLayout
-    ><VCard title="انتخاب Property سرچ کنسول"
+    ><VAlert
+        v-if="form.gsc_account_id && googleErrors[form.gsc_account_id]"
+        tone="danger"
+        title="دریافت ملک‌ها از گوگل ناموفق بود"
+        class="mb-5"
+      >
+        {{ googleErrors[form.gsc_account_id] }}
+        <a
+          class="underline underline-offset-2"
+          href="https://console.developers.google.com/apis/api/webmasters.googleapis.com/overview?project=visionprime-suite-505019"
+          target="_blank"
+          rel="noopener"
+        >فعال‌سازی Search Console API</a
+        >
+      </VAlert
+      ><VCard title="انتخاب Property سرچ کنسول"
       ><form class="space-y-4" @submit.prevent="save">
         <VSelect
           v-model="form.site_id"
