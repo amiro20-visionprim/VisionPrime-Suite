@@ -109,6 +109,36 @@ class CommandDispatchEndpointTest extends TestCase
         $this->assertDatabaseHas('commands', ['id' => $this->commandId, 'status' => 'approved']);
     }
 
+    public function test_dispatch_sends_the_exact_signed_body(): void
+    {
+        Http::fake([
+            'https://wp.test/wp-json/vision-prime/v1/commands' => Http::response(['status' => 'ack'], 200),
+        ]);
+
+        $this->actingAs($this->admin)
+            ->post("/app/commands/{$this->commandId}/dispatch")
+            ->assertRedirect();
+
+        Http::assertSent(function (\Illuminate\Http\Client\Request $request): bool {
+            $headers = $request->headers();
+            $signature = $headers['X-VP-Signature'][0] ?? '';
+            $timestamp = $headers['X-VP-Timestamp'][0] ?? '';
+            $nonce = $headers['X-VP-Nonce'][0] ?? '';
+            $sentBody = $request->body();
+
+            // Regression: the signature must cover the exact body that is actually sent,
+            // otherwise the WordPress connector rejects the request (invalid signature).
+            $payload = "POST\n/vision-prime/v1/commands\n{$timestamp}\n{$nonce}\n".hash('sha256', $sentBody);
+            $expected = hash_hmac('sha256', $payload, 'test-secret');
+
+            $decoded = json_decode($sentBody, true);
+
+            return is_array($decoded)
+                && isset($decoded['type'], $decoded['payload'], $decoded['idempotency_key'])
+                && hash_equals($expected, $signature);
+        });
+    }
+
     public function test_connector_failure_marks_command_failed_and_redirects(): void
     {
         Http::fake(['https://wp.test/*' => Http::response('boom', 500)]);

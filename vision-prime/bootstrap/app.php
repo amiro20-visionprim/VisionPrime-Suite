@@ -22,6 +22,12 @@ return Application::configure(basePath: dirname(__DIR__))
             HandleInertiaRequests::class,
         ]);
 
+        // The WordPress connector calls these routes server-to-server without a session;
+        // they authenticate via HMAC signatures, so they must not require a CSRF token.
+        $middleware->validateCsrfTokens(except: [
+            'connector/*',
+        ]);
+
         $middleware->redirectGuestsTo('/login');
         $middleware->redirectUsersTo('/app/dashboard');
         $middleware->alias([

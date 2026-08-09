@@ -2,11 +2,13 @@
 /**
  * Plugin Name: Vision Prime Connector
  * Description: Secure connection between WordPress and Vision Prime.
- * Version: 0.1.0
+ * Version: 0.2.0
  * Requires PHP: 8.2
  */
 
 defined('ABSPATH') || exit;
+
+define('VISION_PRIME_CONNECTOR_VERSION', '0.2.0');
 
 require_once __DIR__ . '/includes/class-vp-api-client.php';
 require_once __DIR__ . '/includes/class-vp-request-verifier.php';
@@ -66,10 +68,11 @@ final class Vision_Prime_Connector {
     public function register_routes(): void {
         register_rest_route('vision-prime/v1', '/health', ['methods' => 'GET', 'callback' => [$this, 'health'], 'permission_callback' => '__return_true']);
         register_rest_route('vision-prime/v1', '/content', ['methods' => 'GET', 'callback' => [$this, 'content'], 'permission_callback' => [VP_Request_Verifier::class, 'verify']]);
+        register_rest_route('vision-prime/v1', '/commands', ['methods' => 'POST', 'callback' => [$this, 'commands'], 'permission_callback' => [VP_Request_Verifier::class, 'verify']]);
     }
 
     public function health(): WP_REST_Response {
-        return new WP_REST_Response(['plugin_version' => '0.1.0', 'wordpress_version' => get_bloginfo('version'), 'php_version' => PHP_VERSION, 'rest_api' => true]);
+        return new WP_REST_Response(['plugin_version' => VISION_PRIME_CONNECTOR_VERSION, 'wordpress_version' => get_bloginfo('version'), 'php_version' => PHP_VERSION, 'rest_api' => true]);
     }
 
     public function content(WP_REST_Request $request): WP_REST_Response {
@@ -83,6 +86,83 @@ final class Vision_Prime_Connector {
             return ['id' => $post->ID, 'title' => get_the_title($post), 'url' => get_permalink($post), 'slug' => $post->post_name, 'type' => $post->post_type, 'status' => $post->post_status, 'modified_at' => get_post_modified_time('c', true, $post), 'meta_title' => get_post_meta($post->ID, '_yoast_wpseo_title', true), 'meta_description' => get_post_meta($post->ID, '_yoast_wpseo_metadesc', true), 'headings' => $headings, 'word_count' => str_word_count(wp_strip_all_tags($content)), 'content_hash' => hash('sha256', $content), 'content' => $content];
         }, $query->posts);
         return new WP_REST_Response(['data' => $items, 'page' => $page, 'per_page' => $per_page, 'total' => (int) $query->found_posts, 'total_pages' => (int) $query->max_num_pages]);
+    }
+
+    /**
+     * Execute a command dispatched by the Vision Prime platform.
+     *
+     * The platform signs the request (HMAC + timestamp + nonce) and waits for
+     * this endpoint's response, so we must NEVER block on the result callback.
+     * The result is reported back asynchronously to /connector/command-result.
+     */
+    public function commands(WP_REST_Request $request): WP_REST_Response {
+        $params = $request->get_json_params();
+        $settings = get_option(self::OPTION, []);
+        $idempotency_key = sanitize_key((string) ($params['idempotency_key'] ?? ''));
+        $type = sanitize_key((string) ($params['type'] ?? ''));
+        $payload = is_array($params['payload'] ?? null) ? $params['payload'] : [];
+
+        // Never execute the same command twice.
+        $dedupe_key = 'vision_prime_cmd_' . md5($idempotency_key);
+        if ($idempotency_key !== '' && get_transient($dedupe_key)) {
+            return new WP_REST_Response(['status' => 'ack', 'deduplicated' => true], 200);
+        }
+
+        try {
+            $result = $this->execute_command($type, $payload);
+            $status = 'executed';
+        } catch (Throwable $e) {
+            $result = ['error' => $e->getMessage()];
+            $status = 'failed';
+        }
+
+        if ($idempotency_key !== '') {
+            set_transient($dedupe_key, '1', DAY_IN_SECONDS);
+        }
+
+        VP_API_Client::send_command_result($settings, [
+            'site_id' => (int) $settings['site_id'],
+            'idempotency_key' => $idempotency_key,
+            'status' => $status,
+            'result' => $status === 'executed' ? $result : null,
+            'error' => $status === 'failed' ? ($result['error'] ?? 'unknown error') : null,
+        ]);
+
+        return new WP_REST_Response(['status' => 'ack'], 200);
+    }
+
+    /**
+     * @return array<string,mixed>
+     * @throws RuntimeException When the target post is missing or the type is unknown.
+     */
+    private function execute_command(string $type, array $payload): array {
+        $post_id = absint($payload['post_id'] ?? 0);
+        if ($post_id === 0 && ! empty($payload['url'])) {
+            $by_url = get_page_by_path($this->url_to_path((string) $payload['url']), OBJECT, ['post', 'page']);
+            $post_id = $by_url instanceof WP_Post ? $by_url->ID : 0;
+        }
+        if ($post_id === 0) {
+            throw new RuntimeException('Command payload has no valid post_id or url target.');
+        }
+        switch ($type) {
+            case 'update_meta_title':
+                $previous = get_post_meta($post_id, '_yoast_wpseo_title', true);
+                $new = sanitize_text_field((string) ($payload['title'] ?? ''));
+                update_post_meta($post_id, '_yoast_wpseo_title', $new);
+                return ['post_id' => $post_id, 'previous' => $previous, 'new' => $new];
+            case 'update_meta_description':
+                $previous = get_post_meta($post_id, '_yoast_wpseo_metadesc', true);
+                $new = sanitize_text_field((string) ($payload['description'] ?? ''));
+                update_post_meta($post_id, '_yoast_wpseo_metadesc', $new);
+                return ['post_id' => $post_id, 'previous' => $previous, 'new' => $new];
+            default:
+                throw new RuntimeException('Unknown command type: ' . $type);
+        }
+    }
+
+    private function url_to_path(string $url): string {
+        $path = (string) wp_parse_url($url, PHP_URL_PATH);
+        return trim($path, '/');
     }
 }
 new Vision_Prime_Connector();

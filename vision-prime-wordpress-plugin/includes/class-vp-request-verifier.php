@@ -13,7 +13,8 @@ final class VP_Request_Verifier {
         if (abs(time() - (int)$timestamp) > 300) return new WP_Error('vision_prime_expired', 'Expired connector request.', ['status'=>401]);
         $key = 'vision_prime_nonce_' . hash('sha256', $nonce);
         if (get_transient($key)) return new WP_Error('vision_prime_replay', 'Replay request rejected.', ['status'=>409]);
-        $path = '/' . $request->get_route();
+        // The platform signs requests with the route as matched, e.g. /vision-prime/v1/content (leading slash included).
+        $path = (string) $request->get_route();
         $payload = strtoupper($request->get_method())."\n".$path."\n".$timestamp."\n".$nonce."\n".hash('sha256', $request->get_body());
         $expected = hash_hmac('sha256', $payload, $secret);
         if (!hash_equals($expected, $signature)) return new WP_Error('vision_prime_invalid_signature', 'Invalid connector signature.', ['status'=>401]);

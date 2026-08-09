@@ -27,7 +27,10 @@ class ExecuteCommand
                     'X-VP-Signature' => $signed['signature'],
                     'X-VP-Idempotency-Key' => json_decode($signed['body'], true)['idempotency_key'] ?? '',
                 ])
-                ->post($signed['url'], json_decode($signed['body'], true)['payload'] ?? []);
+                // The signature covers the FULL signed body, so we must send that exact body
+                // (the WordPress connector verifies the received body hash against the signature).
+                ->withBody($signed['body'], 'application/json')
+                ->post($signed['url']);
 
             $responseRedacted = [
                 'http_status' => $response->status(),
