@@ -35,9 +35,11 @@ class GscTokenService
      */
     public function refresh(object $account, array $token): string
     {
-        $response = Http::asForm()
-            ->timeout(30)
-            ->post('https://oauth2.googleapis.com/token', [
+        $http = Http::asForm()->timeout(30);
+        $proxy = config('gsc.http_proxy');
+        $http = $proxy ? $http->withOptions(['proxy' => $proxy]) : $http;
+
+        $response = $http->post('https://oauth2.googleapis.com/token', [
                 'client_id' => config('gsc.client_id'),
                 'client_secret' => config('gsc.client_secret'),
                 'refresh_token' => $token['refresh_token'],

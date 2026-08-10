@@ -71,3 +71,41 @@ GSC_REDIRECT_URI="http://127.0.0.1:8000/app/gsc/callback"
 | `access_denied` | ایمیلی که با آن لاگین می‌کنی در **Test users** نیست |
 | بعد از callback صفحهٔ 403 | state منقضی شده؛ دوباره از دکمهٔ اتصال شروع کن |
 | `consent screen` دیده نمی‌شود | مطمئن شو نوع اپ **External** است |
+
+## مرحله ۷ — بلاک جغرافیایی گوگل (IP ایران)
+
+گوگل برای IP های داخل ایران، تماس‌های مستقیم به `www.googleapis.com` (میزبان API سرچ کنسول) را در لبهٔ سرویس خودش با صفحهٔ `403 Forbidden` ربات رد می‌کند — حتی با توکن معتبر. نشانه‌هایش:
+
+```bash
+# تست: باید JSON برگردد، نه صفحهٔ 403 ربات گوگل
+curl -s -o /dev/null -w '%{http_code}\n' 'https://www.googleapis.com/oauth2/v3/certs'
+# خروجی 403 از IP ایران / 200 از خارج
+```
+
+### راه‌حل ۱ — پراکسی (سریع، برای لوکال)
+
+اگر Clash/V2Ray یا VPN با نود خارج از ایران داری، آدرس پراکسی را در `.env` بگذار (اپ همهٔ تماس‌های GSC را از آن می‌فرستد):
+
+```env
+# Clash (پورت پیش‌فرض):
+GSC_HTTP_PROXY=http://127.0.0.1:7897
+```
+
+بعد از ست کردن، سرور را ریاستارت کن. برای تست:
+
+```bash
+curl -s --max-time 10 -x http://127.0.0.1:7897 -o /dev/null -w '%{http_code}\n' 'https://www.googleapis.com/oauth2/v3/certs'
+# 200 یعنی پراکسی کار می‌کند
+```
+
+> ⚠️ پراکسی‌های عمومی رایگان جواب نمی‌دهند (گوگل IP دیتاسنترها را هم بلاک می‌کند). فقط پراکسی/VPN شخصی یا VPS خارج از ایران.
+
+### راه‌حل ۲ — VPS خارج از ایران (توصیه‌شده برای پروداکشن)
+
+وقتی اپ روی VPS خارج از ایران دیپلوی شد، `GSC_HTTP_PROXY` را خالی بگذار (دیگر لازم نیست) و فقط `GSC_REDIRECT_URI` را به دامنهٔ اصلی تغییر بده:
+
+```env
+GSC_REDIRECT_URI="https://visionprime-suite.ir/app/gsc/callback"
+```
+
+و در Google Cloud Console همان redirect URI دوم را به OAuth Client اضافه کن.
