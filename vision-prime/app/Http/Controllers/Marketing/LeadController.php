@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Marketing;
 
+use App\Domains\Marketing\Actions\ScoreLead;
+use App\Domains\Marketing\Services\NotifyMarketingTeam;
 use App\Http\Controllers\Controller;
 use App\Models\Lead;
 use Illuminate\Http\RedirectResponse;
@@ -27,7 +29,7 @@ class LeadController extends Controller
             'landing_page' => ['nullable', 'string', 'max:500'],
         ]);
 
-        Lead::query()->create([
+        $lead = Lead::query()->create([
             'name' => $data['name'],
             'email' => $data['email'],
             'company' => $data['company'] ?? null,
@@ -48,6 +50,9 @@ class LeadController extends Controller
                 'device' => $this->detectDevice($request->userAgent()),
             ],
         ]);
+
+        app(ScoreLead::class)->handle($lead);
+        app(NotifyMarketingTeam::class)->handle($lead);
 
         return back()->with('status', 'درخواست شما ثبت شد؛ تیم ما در کمتر از ۲۴ ساعت کاری برای هماهنگی دمو با شما تماس می‌گیرد.');
     }

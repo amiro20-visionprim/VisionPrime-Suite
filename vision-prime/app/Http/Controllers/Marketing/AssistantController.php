@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Marketing;
 
+use App\Domains\Marketing\Actions\ScoreLead;
+use App\Domains\Marketing\Services\NotifyMarketingTeam;
 use App\Http\Controllers\Controller;
 use App\Models\Lead;
 use Illuminate\Http\JsonResponse;
@@ -84,7 +86,7 @@ class AssistantController extends Controller
             'message' => ['required', 'string', 'max:2000'],
         ]);
 
-        Lead::query()->create([
+        $lead = Lead::query()->create([
             'name' => $data['name'],
             'email' => str_contains($data['contact'], '@') ? $data['contact'] : null,
             'message' => $data['message'],
@@ -96,6 +98,9 @@ class AssistantController extends Controller
                 'device' => $this->detectDevice($request->userAgent()),
             ],
         ]);
+
+        app(ScoreLead::class)->handle($lead);
+        app(NotifyMarketingTeam::class)->handle($lead);
 
         return response()->json([
             'ok' => true,

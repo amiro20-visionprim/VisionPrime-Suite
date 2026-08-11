@@ -67,6 +67,40 @@ const attribution: { label: string; value: string | null | undefined }[] = [
       </template>
     </VPageHeader>
 
+    <!-- Lead score -->
+    <div v-if="lead.score !== null" class="rounded-panel border-line bg-surface mt-8 border p-5">
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 class="text-ink-strong text-sm font-bold">امتیاز خودکار لید</h2>
+          <p class="text-ink-muted mt-1 text-sm">
+            بر اساس دادهٔ کمپین و سیگنال‌های رفتاری محاسبه می‌شود — هرچه بالاتر، اولویت پیگیری بیشتر.
+          </p>
+        </div>
+        <div
+          class="flex size-16 items-center justify-center rounded-2xl text-2xl font-bold"
+          :class="
+            lead.score >= 70
+              ? 'bg-success-50 text-success-700'
+              : lead.score >= 45
+                ? 'bg-brand-50 text-brand-700'
+                : 'bg-surface-muted text-ink-muted'
+          "
+        >
+          {{ lead.score }}
+        </div>
+      </div>
+      <div v-if="lead.scoreBreakdown.length" class="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        <div
+          v-for="item in lead.scoreBreakdown"
+          :key="item.key"
+          class="border-line bg-surface-muted/50 flex items-center justify-between gap-3 rounded-card border px-3 py-2"
+        >
+          <span class="text-ink text-xs leading-5">{{ item.label }}</span>
+          <span class="text-success-700 shrink-0 text-sm font-bold">+{{ item.points }}</span>
+        </div>
+      </div>
+    </div>
+
     <!-- Status decisions -->
     <div v-if="canManage" class="rounded-panel border-line bg-surface mt-8 border p-5">
       <h2 class="text-ink-strong text-sm font-bold">تصمیم دربارهٔ این لید</h2>

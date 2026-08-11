@@ -19,6 +19,8 @@ export interface MarketingLead {
   referrer: string | null
   contact: string | null
   device: string | null
+  score: number | null
+  scoreBreakdown: { key: string; label: string; points: number }[]
   userAgent?: string | null
   locale?: string | null
   createdAt: string | null
@@ -47,4 +49,5 @@ export interface MarketingFilters {
   q: string
   from: string
   to: string
+  sort: string
 }

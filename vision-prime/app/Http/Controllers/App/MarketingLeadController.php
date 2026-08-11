@@ -66,8 +66,10 @@ class MarketingLeadController extends Controller
             $query->whereDate('created_at', '<=', $to);
         }
 
+        $sort = $request->string('sort')->toString();
+        $query = $sort === 'score' ? $query->orderByDesc('score') : $query->orderByDesc('created_at');
+
         $leads = (clone $query)
-            ->orderByDesc('created_at')
             ->limit(200)
             ->get()
             ->map(fn (Lead $lead): array => $this->leadItem($lead))
@@ -115,6 +117,7 @@ class MarketingLeadController extends Controller
                 'q' => $search,
                 'from' => $from,
                 'to' => $to,
+                'sort' => $sort,
             ],
             'statusLabels' => Lead::STATUS_LABELS,
             'canManage' => $this->canManage($organization),
@@ -217,6 +220,8 @@ class MarketingLeadController extends Controller
             'referrer' => $lead->referrer,
             'contact' => $metadata['contact'] ?? null,
             'device' => $metadata['device'] ?? null,
+            'score' => $lead->score,
+            'scoreBreakdown' => $metadata['score_breakdown']['items'] ?? [],
             'createdAt' => $lead->created_at?->toIso8601String(),
         ];
 

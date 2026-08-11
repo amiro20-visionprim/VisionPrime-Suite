@@ -63,6 +63,7 @@ class HandleInertiaRequests extends Middleware
             ] : null,
             'permissions' => fn (): array => $request->user() === null || ! app(CurrentOrganization::class)->has() ? [] : app(OrganizationPermission::class)
                 ->allPermissions($request->user(), app(CurrentOrganization::class)->get()),
+            'notificationCount' => fn (): int => $request->user() === null ? 0 : $request->user()->unreadNotifications()->count(),
             'app' => [
                 'name' => config('app.name'),
                 'locale' => config('vision-prime.default_locale'),

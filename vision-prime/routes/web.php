@@ -17,6 +17,7 @@ use App\Http\Controllers\App\GscOAuthController;
 use App\Http\Controllers\App\GscPropertyController;
 use App\Http\Controllers\App\MarketingLeadController;
 use App\Http\Controllers\App\MoneyPageController;
+use App\Http\Controllers\App\NotificationController;
 use App\Http\Controllers\App\OpportunityController;
 use App\Http\Controllers\App\OrganizationOnboardingController;
 use App\Http\Controllers\App\ProjectController;
@@ -123,6 +124,10 @@ Route::middleware(['auth', 'current.organization', 'client.portal'])->prefix('cl
 
 Route::middleware(['auth', 'current.organization'])->group(function (): void {
     Route::get('/app/dashboard', DashboardController::class)->name('app.dashboard');
+
+    Route::get('/app/notifications', [NotificationController::class, 'index'])->name('app.notifications.index');
+    Route::put('/app/notifications/read-all', [NotificationController::class, 'readAll'])->name('app.notifications.read-all');
+    Route::put('/app/notifications/{notification}/read', [NotificationController::class, 'read'])->name('app.notifications.read');
 
     Route::get('/app/marketing', [MarketingLeadController::class, 'index'])->name('app.marketing.index');
     Route::get('/app/marketing/leads/{lead}', [MarketingLeadController::class, 'show'])->name('app.marketing.leads.show');

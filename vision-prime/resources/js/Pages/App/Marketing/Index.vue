@@ -50,8 +50,22 @@ function applyFilters(): void {
 }
 
 function clearFilters(): void {
-  draft.value = { status: '', source: '', campaign: '', q: '', from: '', to: '' }
+  draft.value = { status: '', source: '', campaign: '', q: '', from: '', to: '', sort: '' }
   router.get('/app/marketing', {}, { preserveState: true })
+}
+
+function toggleSort(): void {
+  const sort = draft.value.sort === 'score' ? '' : 'score'
+  draft.value.sort = sort
+  router.get('/app/marketing', { sort }, { preserveState: true, preserveScroll: true })
+}
+
+function scoreTone(score: number | null): 'success' | 'info' | 'warning' | 'neutral' {
+  if (score === null) return 'neutral'
+  if (score >= 70) return 'success'
+  if (score >= 45) return 'info'
+  if (score >= 25) return 'warning'
+  return 'neutral'
 }
 
 function changeStatus(lead: MarketingLead, status: string): void {
@@ -191,6 +205,9 @@ const maxSourceCount = Math.max(1, ...props.stats.topSources.map((s) => s.count)
       <div class="mt-4 flex flex-wrap items-center gap-2">
         <VButton size="sm" @click="applyFilters">اعمال فیلتر</VButton>
         <VButton size="sm" variant="ghost" @click="clearFilters">پاک‌کردن</VButton>
+        <VButton size="sm" variant="secondary" @click="toggleSort">
+          {{ draft.sort === 'score' ? 'مرتب‌سازی: تاریخ ⏱' : 'مرتب‌سازی: امتیاز ⭐' }}
+        </VButton>
         <span class="text-ink-muted ms-auto text-xs">{{ leads.length }} لید نمایش داده شده</span>
       </div>
     </div>
@@ -205,6 +222,7 @@ const maxSourceCount = Math.max(1, ...props.stats.topSources.map((s) => s.count)
             <th class="text-ink-muted px-4 py-3 text-center font-medium">منبع</th>
             <th class="text-ink-muted px-4 py-3 text-center font-medium">کمپین</th>
             <th class="text-ink-muted px-4 py-3 text-center font-medium">کانال</th>
+            <th class="text-ink-muted px-4 py-3 text-center font-medium">امتیاز</th>
             <th class="text-ink-muted px-4 py-3 text-center font-medium">وضعیت</th>
             <th class="text-ink-muted px-4 py-3 text-center font-medium">تاریخ</th>
             <th class="text-ink-muted px-4 py-3 text-center font-medium">اقدام</th>
@@ -224,6 +242,10 @@ const maxSourceCount = Math.max(1, ...props.stats.topSources.map((s) => s.count)
             </td>
             <td class="text-ink px-4 py-3.5 text-center">{{ lead.utmCampaign ?? '—' }}</td>
             <td class="text-ink px-4 py-3.5 text-center">{{ lead.utmSource ?? (lead.referrer ? 'referrer' : 'direct') }}</td>
+            <td class="px-4 py-3.5 text-center">
+              <VBadge v-if="lead.score !== null" :tone="scoreTone(lead.score)">{{ lead.score }}/۱۰۰</VBadge>
+              <span v-else class="text-ink-muted text-xs">—</span>
+            </td>
             <td class="px-4 py-3.5 text-center">
               <div class="flex items-center justify-center gap-2">
                 <VBadge :tone="statusTone[lead.status]">{{ statusLabels[lead.status] }}</VBadge>

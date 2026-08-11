@@ -3,6 +3,7 @@ import { Link, router, usePage } from '@inertiajs/vue3'
 import { ref } from 'vue'
 
 import AppNavigation from '@/app/components/AppNavigation.vue'
+import AppNotificationBell from '@/app/components/AppNotificationBell.vue'
 import OrganizationSwitcher from '@/app/components/OrganizationSwitcher.vue'
 import VDrawer from '@/shared/ui/VDrawer.vue'
 import VButton from '@/shared/ui/VButton.vue'
@@ -60,6 +61,7 @@ function logout(): void {
         </button>
         <div class="text-ink-muted hidden text-sm lg:block">عملیات SEO، شفاف و قابل کنترل</div>
         <div class="flex items-center gap-3">
+          <AppNotificationBell />
           <span class="text-ink hidden text-sm sm:inline">{{
             page.props.currentOrganization?.name
           }}</span
