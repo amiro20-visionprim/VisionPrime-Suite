@@ -20,6 +20,7 @@ use App\Http\Controllers\App\OrganizationOnboardingController;
 use App\Http\Controllers\App\ProjectController;
 use App\Http\Controllers\App\RecommendationController;
 use App\Http\Controllers\App\ReportController;
+use App\Http\Controllers\App\ReportPublishController;
 use App\Http\Controllers\App\ReviewController;
 use App\Http\Controllers\App\ReviewDecisionController;
 use App\Http\Controllers\App\ReviewDetailController;
@@ -161,6 +162,7 @@ Route::middleware(['auth', 'current.organization'])->group(function (): void {
     Route::post('/app/reviews/{review}/decision', [ReviewDecisionController::class, 'store'])->name('app.reviews.decision');
     Route::get('/app/reports', [ReportController::class, 'index'])->name('app.reports.index');
     Route::post('/app/reports', [ReportController::class, 'store'])->name('app.reports.store');
+    Route::post('/app/reports/{report}/publish', [ReportPublishController::class, 'store'])->name('app.reports.publish');
 
     Route::get('/app/projects', [ProjectController::class, 'index'])->name('app.projects.index');
     Route::get('/app/projects/create', [ProjectController::class, 'create'])->name('app.projects.create');

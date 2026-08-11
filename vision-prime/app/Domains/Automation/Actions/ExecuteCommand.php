@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Domains\Automation\Actions;
 
 use App\Domains\Audit\Actions\RecordAuditLog;
+use App\Domains\Reporting\Actions\CreateImpactEvent;
+use App\Domains\Workspace\Models\Site;
 use Illuminate\Support\Facades\Http;
 
 class ExecuteCommand
@@ -12,6 +14,7 @@ class ExecuteCommand
     public function __construct(
         private readonly DispatchCommand $dispatch,
         private readonly RecordAuditLog $audit,
+        private readonly CreateImpactEvent $impact,
     ) {}
 
     public function handle(int $commandId): array
@@ -66,6 +69,7 @@ class ExecuteCommand
                 'updated_at' => now(),
             ]);
             $this->audit->handle(action: 'command.executed', after: ['command_id' => $commandId, 'http_status' => $response->status()]);
+            $this->recordImpact($commandId, $responseRedacted);
 
             return $responseRedacted;
         } catch (\Throwable $e) {
@@ -82,5 +86,34 @@ class ExecuteCommand
 
             throw $e;
         }
+    }
+
+    /** @param  array<string, mixed>  $responseRedacted */
+    private function recordImpact(int $commandId, array $responseRedacted): void
+    {
+        $command = \DB::table('commands')->where('id', $commandId)->first();
+        if ($command === null) {
+            return;
+        }
+
+        $site = Site::query()->find($command->site_id);
+        if ($site === null) {
+            return;
+        }
+
+        $payload = json_decode($command->payload, true) ?? [];
+        $result = $responseRedacted['body']['result'] ?? $responseRedacted['body'] ?? [];
+
+        $this->impact->handle(
+            $site,
+            'command',
+            $command->id,
+            [
+                'command_type' => $command->type,
+                'target_url' => $payload['url'] ?? null,
+                'result' => is_array($result) ? $result : null,
+            ],
+            'تغییر اجرایی «'.$command->type.'» روی وردپرس اعمال شد.',
+        );
     }
 }

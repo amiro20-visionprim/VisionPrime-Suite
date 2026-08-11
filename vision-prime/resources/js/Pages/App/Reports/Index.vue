@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { Head, useForm } from '@inertiajs/vue3'
+import { Head, router, useForm } from '@inertiajs/vue3'
 import AppLayout from '@/app/layouts/AppLayout.vue'
+import VBadge from '@/shared/ui/VBadge.vue'
 import VButton from '@/shared/ui/VButton.vue'
 import VCard from '@/shared/ui/VCard.vue'
 import VInput from '@/shared/ui/VInput.vue'
@@ -8,6 +9,17 @@ import VPageHeader from '@/shared/ui/VPageHeader.vue'
 import type { Paginated, Report } from '@/types/reporting'
 
 defineProps<{ reports: Paginated<Report>; sites: { id: number; name: string }[] }>()
+
+const reportStatusTone: Record<string, 'success' | 'info' | 'warning' | 'neutral'> = {
+  draft: 'warning',
+  generating: 'info',
+  ready: 'info',
+  published: 'success',
+}
+
+function publish(report: Report): void {
+  router.post(`/app/reports/${report.id}/publish`, {}, { preserveScroll: true })
+}
 
 const reportTypes: { value: string; label: string }[] = [
   { value: 'executive_seo_summary', label: 'خلاصه اجرایی سئو' },
@@ -74,8 +86,16 @@ function generate() {
         <span class="text-ink-strong text-sm">
           {{ reportTypeLabels[report.type] ?? report.type }}
         </span>
-        <span class="text-ink-muted text-sm">
-          {{ reportStatusLabels[report.status] ?? report.status }}
+        <span class="flex items-center gap-2">
+          <span class="text-ink-muted text-sm">
+            {{ report.period_start }} تا {{ report.period_end }}
+          </span>
+          <VBadge :tone="reportStatusTone[report.status] ?? 'neutral'">
+            {{ reportStatusLabels[report.status] ?? report.status }}
+          </VBadge>
+          <VButton v-if="report.status === 'draft'" size="sm" @click="publish(report)">
+            انتشار برای مشتری
+          </VButton>
         </span>
       </div></VCard
     ></AppLayout

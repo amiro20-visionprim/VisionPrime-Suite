@@ -25,7 +25,8 @@ defineProps<{
         <p class="text-ink-muted text-sm">ریسک‌های مهم: {{ report.content.high_risks }}</p>
         <p class="text-ink-muted text-sm">
           اقدام‌های پیشنهادی: {{ report.content.recommendations }}
-        </p></VCard
+        </p>
+        <p class="text-ink-muted text-sm">تغییرات اجراشده: {{ report.content.impact_events ?? 0 }}</p></VCard
       >
     </div>
     <VEmptyState
