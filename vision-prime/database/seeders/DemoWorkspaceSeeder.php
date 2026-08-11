@@ -94,11 +94,20 @@ class DemoWorkspaceSeeder extends Seeder
             ['key' => 'unclear_offer', 'severity' => 'medium', 'score' => 42, 'explanation' => 'پیشنهاد اصلی صفحه به‌وضوح بیان نشده است.'],
         ];
         foreach ($risks as $index => $risk) {
-            \DB::table('conversion_risks')->insert([
+            $riskId = \DB::table('conversion_risks')->insertGetId([
                 'url_profile_id' => $profileIds[$index],
                 'key' => $risk['key'],
                 'severity' => $risk['severity'],
                 'score' => $risk['score'],
+                'explanation' => $risk['explanation'],
+                'created_at' => $now->copy()->subDay(),
+                'updated_at' => $now->copy()->subDay(),
+            ]);
+            \DB::table('conversion_risk_factors')->insert([
+                'conversion_risk_id' => $riskId,
+                'key' => $risk['key'],
+                'weight' => 1,
+                'value' => $risk['score'] / 100,
                 'explanation' => $risk['explanation'],
                 'created_at' => $now->copy()->subDay(),
                 'updated_at' => $now->copy()->subDay(),

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Controllers\App\ClientController;
 use App\Http\Controllers\App\CommandController;
+use App\Http\Controllers\App\CommandDecisionController;
 use App\Http\Controllers\App\CommandDispatchController;
 use App\Http\Controllers\App\ConversionRiskController;
 use App\Http\Controllers\App\CurrentOrganizationController;
@@ -146,6 +147,7 @@ Route::middleware(['auth', 'current.organization'])->group(function (): void {
     Route::get('/app/commands', [CommandController::class, 'index'])->name('app.commands.index');
     Route::get('/app/commands/{command}', [CommandController::class, 'show'])->name('app.commands.show');
     Route::post('/app/commands/{command}/dispatch', [CommandDispatchController::class, 'store'])->name('app.commands.dispatch')->middleware('throttle:10,1');
+    Route::post('/app/commands/{command}/decision', [CommandDecisionController::class, 'store'])->name('app.commands.decision')->middleware('throttle:20,1');
     Route::get('/app/money-pages', [MoneyPageController::class, 'index'])->name('app.money-pages.index');
     Route::get('/app/money-pages/{audit}', [MoneyPageController::class, 'show'])->name('app.money-pages.show');
     Route::get('/app/conversion-risks', [ConversionRiskController::class, 'index'])->name('app.conversion-risks.index');

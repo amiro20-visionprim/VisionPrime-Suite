@@ -57,13 +57,19 @@ const actionLabels: Record<string, string> = {
   'recommendation.created_from_opportunity': 'توصیه از فرصت رشد ایجاد شد',
   'recommendation.updated': 'توصیه به‌روزرسانی شد',
   'command.created': 'تغییر اجرایی پیشنهاد شد',
+  'command.created_from_recommendation': 'تغییر اجرایی از توصیه ساخته شد',
   'command.approval_decided': 'تصمیم تأیید تغییر ثبت شد',
   'command.dispatched': 'تغییر اجرایی به‌اجرا درآمد',
   'command.executed': 'تغییر اجرایی اجرا شد',
   'command.failed': 'اجرای تغییر ناموفق بود',
   'review.created': 'مورد بازبینی جدید ایجاد شد',
+  'review.item_created': 'مورد بازبینی جدید ایجاد شد',
   'review.decided': 'بازبینی تصمیم‌گیری شد',
+  'ai.generation_created': 'پیشنویس هوش مصنوعی تولید شد',
+  'ai.draft_generated': 'پیشنویس متا تولید شد',
+  'ai.provider_setting_saved': 'پیکربندی هوش مصنوعی ذخیره شد',
   'report.created': 'گزارش جدید ایجاد شد',
+  'report.published': 'گزارش برای مشتری منتشر شد',
 }
 
 const nextStep = computed(() => {
