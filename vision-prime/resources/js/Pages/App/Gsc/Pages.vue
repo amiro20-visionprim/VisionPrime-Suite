@@ -1,14 +1,21 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3'
 import AppLayout from '@/app/layouts/AppLayout.vue'
+import MetricFilters from '@/Pages/App/Gsc/MetricFilters.vue'
 import VPageHeader from '@/shared/ui/VPageHeader.vue'
 import type { GscPageMetric, Paginated } from '@/types/gsc'
-defineProps<{ metrics: Paginated<GscPageMetric> }>()
+
+defineProps<{
+  metrics: Paginated<GscPageMetric>
+  sites: { id: number; name: string }[]
+  filters: { site_id: string | null; date_from: string | null; date_to: string | null }
+}>()
 </script>
 <template>
   <Head title="عملکرد صفحات" /><AppLayout
     ><VPageHeader title="عملکرد صفحات" description="کلیک، نمایش، CTR و رتبه صفحات در سرچ کنسول." />
-    <div class="mt-8 overflow-x-auto">
+    <MetricFilters class="mt-8" base-url="/app/gsc/pages" :sites="sites" :filters="filters" />
+    <div class="mt-6 overflow-x-auto">
       <table class="w-full text-sm">
         <thead>
           <tr>

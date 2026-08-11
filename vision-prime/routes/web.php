@@ -147,6 +147,7 @@ Route::middleware(['auth', 'current.organization'])->group(function (): void {
     Route::get('/app/commands/{command}', [CommandController::class, 'show'])->name('app.commands.show');
     Route::post('/app/commands/{command}/dispatch', [CommandDispatchController::class, 'store'])->name('app.commands.dispatch')->middleware('throttle:10,1');
     Route::get('/app/money-pages', [MoneyPageController::class, 'index'])->name('app.money-pages.index');
+    Route::get('/app/money-pages/{audit}', [MoneyPageController::class, 'show'])->name('app.money-pages.show');
     Route::get('/app/conversion-risks', [ConversionRiskController::class, 'index'])->name('app.conversion-risks.index');
     Route::get('/app/opportunities', [OpportunityController::class, 'index'])->name('app.opportunities.index');
     Route::get('/app/opportunities/{opportunity}', [OpportunityController::class, 'show'])->name('app.opportunities.show');

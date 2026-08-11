@@ -1,9 +1,15 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3'
 import AppLayout from '@/app/layouts/AppLayout.vue'
+import MetricFilters from '@/Pages/App/Gsc/MetricFilters.vue'
 import VPageHeader from '@/shared/ui/VPageHeader.vue'
 import type { GscQueryMetric, Paginated } from '@/types/gsc'
-defineProps<{ metrics: Paginated<GscQueryMetric> }>()
+
+defineProps<{
+  metrics: Paginated<GscQueryMetric>
+  sites: { id: number; name: string }[]
+  filters: { site_id: string | null; date_from: string | null; date_to: string | null }
+}>()
 </script>
 <template>
   <Head title="جستارها" /><AppLayout
@@ -11,7 +17,13 @@ defineProps<{ metrics: Paginated<GscQueryMetric> }>()
       title="عملکرد جستارها"
       description="جستجوهای کاربران و عملکرد آن‌ها در سرچ کنسول."
     />
-    <div class="mt-8 overflow-x-auto">
+    <MetricFilters
+      class="mt-8"
+      base-url="/app/gsc/queries"
+      :sites="sites"
+      :filters="filters"
+    />
+    <div class="mt-6 overflow-x-auto">
       <table class="w-full text-sm">
         <thead>
           <tr>
