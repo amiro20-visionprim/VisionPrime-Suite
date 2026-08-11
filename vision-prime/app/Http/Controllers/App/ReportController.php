@@ -19,8 +19,9 @@ class ReportController extends Controller
     {
         $siteIds = Site::query()->where('organization_id', $org->id())->pluck('id');
         $reports = \DB::table('reports')->whereIn('site_id', $siteIds)->latest('id')->paginate(50);
+        $sites = Site::query()->where('organization_id', $org->id())->orderBy('name')->get(['id', 'name']);
 
-        return Inertia::render('App/Reports/Index', ['reports' => $reports]);
+        return Inertia::render('App/Reports/Index', ['reports' => $reports, 'sites' => $sites]);
     }
 
     public function store(Request $request, BuildExecutiveReport $builder): RedirectResponse

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3'
 import AppLayout from '@/app/layouts/AppLayout.vue'
+import { labelOf, reviewStatusLabels, reviewSubjectLabels } from '@/lib/labels'
 import VBadge from '@/shared/ui/VBadge.vue'
 import VPageHeader from '@/shared/ui/VPageHeader.vue'
 import type { Paginated, ReviewItem } from '@/types/review'
@@ -19,7 +20,7 @@ defineProps<{ items: Paginated<ReviewItem> }>()
         class="rounded-card border-line bg-surface border p-5"
       >
         <div class="flex justify-between">
-          <span>{{ item.subject_type }}</span
+          <span>{{ labelOf(reviewSubjectLabels, item.subject_type) }}</span
           ><VBadge
             :tone="
               item.status === 'approved'
@@ -28,7 +29,7 @@ defineProps<{ items: Paginated<ReviewItem> }>()
                   ? 'danger'
                   : 'warning'
             "
-            >{{ item.status }}</VBadge
+            >{{ labelOf(reviewStatusLabels, item.status) }}</VBadge
           >
         </div>
       </div>

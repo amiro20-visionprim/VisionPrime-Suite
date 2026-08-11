@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Domains\Gsc\Services;
 
 use Illuminate\Support\Facades\Crypt;
-use Illuminate\Support\Facades\Http;
 
 /**
  * Keeps GSC access tokens usable: access tokens expire after ~1h and the
@@ -14,6 +13,8 @@ use Illuminate\Support\Facades\Http;
  */
 class GscTokenService
 {
+    public function __construct(private readonly GscHttp $http) {}
+
     /**
      * Return a usable access token for the account, refreshing first when the
      * stored one is expired.
@@ -35,11 +36,10 @@ class GscTokenService
      */
     public function refresh(object $account, array $token): string
     {
-        $http = Http::asForm()->timeout(30);
-        $proxy = config('gsc.http_proxy');
-        $http = $proxy ? $http->withOptions(['proxy' => $proxy]) : $http;
-
-        $response = $http->post('https://oauth2.googleapis.com/token', [
+        $response = $this->http->request()
+            ->asForm()
+            ->timeout(30)
+            ->post('https://oauth2.googleapis.com/token', [
                 'client_id' => config('gsc.client_id'),
                 'client_secret' => config('gsc.client_secret'),
                 'refresh_token' => $token['refresh_token'],

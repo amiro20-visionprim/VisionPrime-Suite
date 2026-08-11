@@ -51,7 +51,11 @@ class SiteController extends Controller
         Gate::authorize('view', $site);
         $site->load('project.client:id,name');
 
-        return Inertia::render('App/Sites/Show', ['site' => $this->item($site)]);
+        return Inertia::render('App/Sites/Show', [
+            'site' => $this->item($site),
+            'gsc' => $this->gscStatus($site),
+            'connector' => $this->connectorStatus($site),
+        ]);
     }
 
     public function edit(Site $site, CurrentOrganization $c): Response
@@ -87,5 +91,32 @@ class SiteController extends Controller
     private function item(Site $site): array
     {
         return ['id' => $site->id, 'name' => $site->name, 'canonicalUrl' => $site->canonical_url, 'projectId' => $site->project_id, 'projectName' => $site->project?->name, 'clientName' => $site->project?->client?->name, 'locale' => $site->locale, 'timezone' => $site->timezone, 'businessImportance' => $site->business_importance, 'status' => $site->status];
+    }
+
+    private function gscStatus(Site $site): array
+    {
+        $property = \DB::table('gsc_properties')->where('site_id', $site->id)->first();
+        if ($property === null) {
+            return ['connected' => false, 'property' => null, 'accountEmail' => null, 'latestRun' => null];
+        }
+        $account = \DB::table('gsc_accounts')->where('id', $property->gsc_account_id)->first();
+        $run = \DB::table('gsc_import_runs')->where('gsc_property_id', $property->id)->latest('id')->first();
+
+        return [
+            'connected' => true,
+            'property' => ['id' => $property->id, 'uri' => $property->property_uri, 'type' => $property->property_type, 'status' => $property->status],
+            'accountEmail' => $account?->email,
+            'latestRun' => $run === null ? null : ['status' => $run->status, 'summary' => json_decode($run->summary ?? '{}', true), 'error' => $run->error, 'startedAt' => $run->started_at, 'finishedAt' => $run->finished_at],
+        ];
+    }
+
+    private function connectorStatus(Site $site): array
+    {
+        $connection = \DB::table('site_connections')->where('site_id', $site->id)->first();
+        if ($connection === null) {
+            return ['connected' => false, 'status' => null, 'platformUrl' => null, 'pluginVersion' => null, 'lastSeenAt' => null];
+        }
+
+        return ['connected' => true, 'status' => $connection->status, 'platformUrl' => $connection->platform_url, 'pluginVersion' => $connection->plugin_version, 'lastSeenAt' => $connection->last_seen_at];
     }
 }

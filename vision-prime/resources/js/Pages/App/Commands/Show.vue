@@ -2,6 +2,14 @@
 import { Head, router, usePage } from '@inertiajs/vue3'
 import { computed } from 'vue'
 import AppLayout from '@/app/layouts/AppLayout.vue'
+import { formatJalaliDate } from '@/lib/locale'
+import {
+  commandStatusLabels,
+  commandTypeLabels,
+  decisionLabels,
+  labelOf,
+  riskTierLabels,
+} from '@/lib/labels'
 import VAlert from '@/shared/ui/VAlert.vue'
 import VBadge from '@/shared/ui/VBadge.vue'
 import VButton from '@/shared/ui/VButton.vue'
@@ -40,7 +48,10 @@ const toneFor = (status: string) =>
 <template>
   <Head title="جزئیات تغییر اجرایی" />
   <AppLayout>
-    <VPageHeader title="جزئیات تغییر اجرایی" :description="command.type">
+    <VPageHeader
+      title="جزئیات تغییر اجرایی"
+      :description="labelOf(commandTypeLabels, command.type)"
+    >
       <template #actions>
         <VButton
           v-if="command.status === 'approved'"
@@ -61,11 +72,15 @@ const toneFor = (status: string) =>
 
     <VCard class="mt-8" title="وضعیت">
       <div class="flex items-center gap-3">
-        <VBadge :tone="toneFor(command.status)">{{ command.status }}</VBadge>
-        <span class="text-ink-muted text-sm">ریسک: {{ command.risk_tier }}</span>
+        <VBadge :tone="toneFor(command.status)">
+          {{ labelOf(commandStatusLabels, command.status) }}
+        </VBadge>
+        <span class="text-ink-muted text-sm">
+          ریسک: {{ labelOf(riskTierLabels, command.risk_tier) }}
+        </span>
       </div>
       <p v-if="command.expires_at" class="text-ink-muted mt-3 text-sm">
-        انقضا: {{ command.expires_at }}
+        انقضا: {{ formatJalaliDate(command.expires_at) }}
       </p>
     </VCard>
 
@@ -73,7 +88,7 @@ const toneFor = (status: string) =>
       <div v-if="approvals.length" class="space-y-2">
         <div v-for="approval in approvals" :key="approval.id" class="flex items-center gap-3">
           <VBadge :tone="approval.decision === 'approved' ? 'success' : 'danger'">
-            {{ approval.decision }}
+            {{ labelOf(decisionLabels, approval.decision) }}
           </VBadge>
           <span v-if="approval.note" class="text-ink-muted">{{ approval.note }}</span>
         </div>
@@ -84,8 +99,12 @@ const toneFor = (status: string) =>
     <VCard class="mt-6" title="گزارش اجرا">
       <div v-if="logs.length" class="space-y-2">
         <div v-for="log in logs" :key="log.id" class="flex items-center gap-3">
-          <VBadge :tone="toneFor(log.status)">{{ log.status }}</VBadge>
-          <span class="text-ink-muted text-sm">{{ log.executed_at }}</span>
+          <VBadge :tone="toneFor(log.status)">
+            {{ labelOf(commandStatusLabels, log.status) }}
+          </VBadge>
+          <span v-if="log.executed_at" class="text-ink-muted text-sm">
+            {{ formatJalaliDate(log.executed_at) }}
+          </span>
         </div>
       </div>
       <p v-else class="text-ink-muted">هنوز اجرایی انجام نشده است.</p>
@@ -94,7 +113,7 @@ const toneFor = (status: string) =>
     <VCard class="mt-6" title="عکس‌های بازگشت">
       <div v-if="snapshots.length" class="space-y-2">
         <div v-for="snapshot in snapshots" :key="snapshot.id">
-          {{ snapshot.target_ref }} — {{ snapshot.status }}
+          {{ snapshot.target_ref }} — {{ labelOf(commandStatusLabels, snapshot.status) }}
         </div>
       </div>
       <p v-else class="text-ink-muted">عکسی ثبت نشده است.</p>

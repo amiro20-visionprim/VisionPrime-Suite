@@ -4,7 +4,23 @@ import AppLayout from '@/app/layouts/AppLayout.vue'
 import VBadge from '@/shared/ui/VBadge.vue'
 import VPageHeader from '@/shared/ui/VPageHeader.vue'
 import type { Opportunity, Paginated } from '@/types/seo'
+
 defineProps<{ opportunities: Paginated<Opportunity> }>()
+
+const typeLabels: Record<string, string> = {
+  revenue_opportunity: 'فرصت درآمدی',
+  ctr_gap: 'شکاف نرخ کلیک',
+  keyword_opportunity: 'فرصت کلیدواژه',
+  conversion_boost: 'بهبود تبدیل',
+  content_gap: 'شکاف محتوا',
+  cannibalization: 'رقابت داخلی کلمات',
+}
+
+function displayQuery(item: Opportunity): string {
+  if (item.query_normalized) return item.query_normalized
+  const match = item.explanation?.match(/«([^»]+)»/)
+  return match ? match[1] : 'فرصت بدون کلیدواژه'
+}
 </script>
 <template>
   <Head title="فرصت‌های رشد" /><AppLayout
@@ -19,11 +35,13 @@ defineProps<{ opportunities: Paginated<Opportunity> }>()
         :href="`/app/opportunities/${item.id}`"
         class="rounded-card border-line bg-surface block border p-5"
         ><div class="flex justify-between">
-          <p class="font-semibold">{{ item.query_normalized || 'فرصت بدون Query' }}</p>
+          <p class="font-semibold">{{ displayQuery(item) }}</p>
           <VBadge tone="warning">{{ item.score }}</VBadge>
         </div>
-        <p class="font-latin text-ink-muted mt-2 text-sm" dir="ltr">{{ item.canonical_url }}</p>
-        <p class="mt-2 text-sm">{{ item.type }}</p></Link
+        <p v-if="item.canonical_url" class="font-latin text-ink-muted mt-2 text-sm" dir="ltr">
+          {{ item.canonical_url }}
+        </p>
+        <p class="text-ink-muted mt-2 text-sm">{{ typeLabels[item.type] ?? item.type }}</p></Link
       >
     </div></AppLayout
   >

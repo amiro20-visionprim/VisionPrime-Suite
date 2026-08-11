@@ -14,6 +14,7 @@ const props = defineProps<{
     projects: number
     sites: number
     connectedSites: number
+    gscConnectedSites: number
     openOpportunities: number
   }
   activities: {
@@ -36,6 +37,33 @@ const actionLabels: Record<string, string> = {
   'site.created': 'سایت اضافه شد',
   'site.updated': 'سایت به‌روزرسانی شد',
   'site.archived': 'سایت بایگانی شد',
+  'organization.created': 'سازمان ایجاد شد',
+  'auth.registered': 'ثبت‌نام کاربر جدید',
+  'auth.login_succeeded': 'ورود موفق',
+  'auth.logout': 'خروج از حساب',
+  'gsc.account_connected': 'حساب سرچ کنسول متصل شد',
+  'gsc.property_selected': 'ملک سرچ کنسول انتخاب شد',
+  'gsc.import_completed': 'همگام‌سازی سرچ کنسول تکمیل شد',
+  'gsc.import_failed': 'همگام‌سازی سرچ کنسول ناموفق بود',
+  'gsc.analysis_completed': 'تحلیل رشد روی داده‌ها اجرا شد',
+  'connector.paired': 'سایت به وردپرس متصل شد',
+  'connector.pairing_token_created': 'توکن اتصال وردپرس ایجاد شد',
+  'connector.disconnected': 'اتصال وردپرس قطع شد',
+  'sync.completed': 'همگام‌سازی محتوا تکمیل شد',
+  'sync.failed': 'همگام‌سازی محتوا ناموفق بود',
+  'opportunity.created': 'فرصت رشد جدید شناسایی شد',
+  'opportunity.updated': 'فرصت رشد به‌روزرسانی شد',
+  'recommendation.created': 'توصیه ایجاد شد',
+  'recommendation.created_from_opportunity': 'توصیه از فرصت رشد ایجاد شد',
+  'recommendation.updated': 'توصیه به‌روزرسانی شد',
+  'command.created': 'تغییر اجرایی پیشنهاد شد',
+  'command.approval_decided': 'تصمیم تأیید تغییر ثبت شد',
+  'command.dispatched': 'تغییر اجرایی به‌اجرا درآمد',
+  'command.executed': 'تغییر اجرایی اجرا شد',
+  'command.failed': 'اجرای تغییر ناموفق بود',
+  'review.created': 'مورد بازبینی جدید ایجاد شد',
+  'review.decided': 'بازبینی تصمیم‌گیری شد',
+  'report.created': 'گزارش جدید ایجاد شد',
 }
 
 const nextStep = computed(() => {
@@ -60,11 +88,27 @@ const nextStep = computed(() => {
       label: 'افزودن سایت',
       href: '/app/sites/create',
     }
+  if (props.counts.gscConnectedSites === 0)
+    return {
+      title: 'سرچ کنسول را متصل کنید',
+      description:
+        'با اتصال داده‌های جستجو، سیستم می‌تواند فرصت‌های رشد واقعی را برای سایت‌های شما شناسایی کند.',
+      label: 'اتصال سرچ کنسول',
+      href: '/app/gsc',
+    }
+  if (props.counts.openOpportunities === 0)
+    return {
+      title: 'تحلیل رشد را اجرا کنید',
+      description:
+        'داده‌های سرچ کنسول آماده‌اند؛ با اجرای تحلیل، فرصت‌ها و ریسک‌های هر صفحه شناسایی می‌شوند.',
+      label: 'اجرای تحلیل رشد',
+      href: '/app/gsc',
+    }
   return {
-    title: 'سایت‌های شما آماده اتصال هستند',
-    description: 'در گام بعدی منابع داده سرچ کنسول و وردپرس را متصل کنید.',
-    label: 'مدیریت سایت‌ها',
-    href: '/app/sites',
+    title: 'فرصت‌های رشد آماده بررسی هستند',
+    description: 'فرصت‌های اولویت‌دار را مرور کنید و اقدامات پیشنهادی را تأیید یا رد کنید.',
+    label: 'مشاهده فرصت‌ها',
+    href: '/app/opportunities',
   }
 })
 </script>

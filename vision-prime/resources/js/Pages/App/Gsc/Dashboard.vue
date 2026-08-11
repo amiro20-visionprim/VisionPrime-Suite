@@ -17,6 +17,7 @@ const props = defineProps<{ accounts: GscAccount[]; properties: GscProperty[]; r
 const propertyId = ref(props.properties[0] ? String(props.properties[0].id) : '')
 const days = ref('28')
 const importing = ref(false)
+const analyzing = ref(false)
 
 const hasProperties = computed(() => props.properties.length > 0)
 
@@ -42,6 +43,21 @@ function startImport() {
       preserveScroll: true,
       onFinish: () => {
         importing.value = false
+      },
+    },
+  )
+}
+
+function startAnalysis() {
+  if (!propertyId.value) return
+  analyzing.value = true
+  router.post(
+    '/app/gsc/analyze',
+    { gsc_property_id: Number(propertyId.value) },
+    {
+      preserveScroll: true,
+      onFinish: () => {
+        analyzing.value = false
       },
     },
   )
@@ -75,9 +91,21 @@ function startImport() {
         <VButton :disabled="!hasProperties || importing" :loading="importing" @click="startImport">
           شروع Import
         </VButton>
+        <VButton
+          variant="secondary"
+          :disabled="!hasProperties || analyzing"
+          :loading="analyzing"
+          @click="startAnalysis"
+        >
+          اجرای تحلیل رشد
+        </VButton>
       </div>
       <p v-if="!hasProperties" class="text-ink-muted mt-3 text-sm">
         برای import ابتدا یک Property انتخاب کنید.
+      </p>
+      <p class="text-ink-muted mt-3 text-sm">
+        تحلیل رشد، فرصت‌ها، ریسک‌ها و ممیزی صفحات را از دادهٔ import شده می‌سازد و بعد از هر
+        import به‌صورت خودکار اجرا می‌شود.
       </p></VCard
     >
     <section class="mt-8 grid gap-5 lg:grid-cols-2">

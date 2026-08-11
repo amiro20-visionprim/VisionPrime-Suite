@@ -24,8 +24,8 @@ defineProps<{ metrics: Paginated<GscPageMetric> }>()
             <td class="font-latin py-3" dir="ltr">{{ metric.page_url }}</td>
             <td>{{ metric.clicks }}</td>
             <td>{{ metric.impressions }}</td>
-            <td>{{ metric.ctr }}</td>
-            <td>{{ metric.position }}</td>
+            <td>{{ (metric.ctr * 100).toFixed(1) }}٪</td>
+            <td>{{ metric.position?.toFixed(1) ?? '—' }}</td>
           </tr>
         </tbody>
       </table>

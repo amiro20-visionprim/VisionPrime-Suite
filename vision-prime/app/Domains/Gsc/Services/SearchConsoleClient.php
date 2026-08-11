@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace App\Domains\Gsc\Services;
 
-use Illuminate\Support\Facades\Http;
+use Illuminate\Http\Client\PendingRequest;
 
 class SearchConsoleClient
 {
-    public function __construct(private readonly GscTokenService $tokens) {}
+    public function __construct(
+        private readonly GscTokenService $tokens,
+        private readonly GscHttp $http,
+    ) {}
 
     public function properties(object $account): array
     {
@@ -26,11 +29,8 @@ class SearchConsoleClient
         return $response->json()['siteEntry'] ?? [];
     }
 
-    private function client(string $token): \Illuminate\Http\Client\PendingRequest
+    private function client(string $token): PendingRequest
     {
-        $http = Http::withToken($token);
-        $proxy = config('gsc.http_proxy');
-
-        return $proxy ? $http->withOptions(['proxy' => $proxy]) : $http;
+        return $this->http->request(['Authorization' => 'Bearer '.$token]);
     }
 }

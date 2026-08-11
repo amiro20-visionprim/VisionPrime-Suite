@@ -32,7 +32,7 @@ class GscImportFailureTest extends TestCase
         {
             public function __construct(\App\Domains\Gsc\Services\GscTokenService $tokens)
             {
-                parent::__construct($tokens);
+                parent::__construct($tokens, app(\App\Domains\Gsc\Services\GscHttp::class));
             }
 
             public function query(object $a, string $p, string $s, string $e, array $d): array

@@ -27,6 +27,7 @@ class DashboardController extends Controller
                 'projects' => Project::query()->where('organization_id', $id)->count(),
                 'sites' => $siteIds->count(),
                 'connectedSites' => DB::table('site_connections')->whereIn('site_id', $siteIds)->distinct()->count('site_id'),
+                'gscConnectedSites' => DB::table('gsc_properties')->whereIn('site_id', $siteIds)->distinct()->count('site_id'),
                 'openOpportunities' => DB::table('opportunities')->whereIn('site_id', $siteIds)->where('status', 'open')->count(),
             ],
             'activities' => $activities->forOrganization($id),

@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\Domains\Gsc\Services;
 
+use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Crypt;
-use Illuminate\Support\Facades\Http;
 
 class GscMetricsClient
 {
-    public function __construct(private readonly GscTokenService $tokens) {}
+    public function __construct(
+        private readonly GscTokenService $tokens,
+        private readonly GscHttp $http,
+    ) {}
 
     public function query(object $account, string $property, string $start, string $end, array $dimensions): array
     {
@@ -27,11 +30,8 @@ class GscMetricsClient
         return $response->json();
     }
 
-    private function client(string $token): \Illuminate\Http\Client\PendingRequest
+    private function client(string $token): PendingRequest
     {
-        $http = Http::withToken($token);
-        $proxy = config('gsc.http_proxy');
-
-        return $proxy ? $http->withOptions(['proxy' => $proxy]) : $http;
+        return $this->http->request(['Authorization' => 'Bearer '.$token]);
     }
 }

@@ -24,6 +24,11 @@ class GscTokenRefreshTest extends TestCase
     {
         parent::setUp();
 
+        // These tests assert the refresh/retry logic against faked Google URLs.
+        // In relay mode the request URL is rewritten to the worker, which would
+        // bypass the fakes and hit the network - so pin the transport to direct.
+        config(['gsc.http_proxy' => null]);
+
         $org = Organization::query()->create([
             'public_id' => (string) Str::ulid(),
             'name' => 'سازمان آزمون',

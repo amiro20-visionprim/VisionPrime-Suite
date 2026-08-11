@@ -4,6 +4,13 @@ import { computed, ref } from 'vue'
 
 import ClientPortalLayout from '@/client/layouts/ClientPortalLayout.vue'
 import { formatJalaliDate } from '@/lib/locale'
+import {
+  commandTypeLabels,
+  decisionLabels,
+  labelOf,
+  reviewSubjectLabels,
+  riskTierLabels,
+} from '@/lib/labels'
 import VBadge from '@/shared/ui/VBadge.vue'
 import VButton from '@/shared/ui/VButton.vue'
 import VCard from '@/shared/ui/VCard.vue'
@@ -33,26 +40,7 @@ const props = defineProps<{
   reviews: PendingReview[]
 }>()
 
-const commandLabels: Record<string, string> = {
-  update_meta_title: 'به‌روزرسانی عنوان متا',
-  update_meta_description: 'به‌روزرسانی توضیحات متا',
-  update_content: 'به‌روزرسانی محتوای صفحه',
-  add_internal_link: 'افزودن لینک داخلی',
-  update_schema: 'به‌روزرسانی داده ساختاریافته',
-}
-
-const subjectLabels: Record<string, string> = {
-  money_page_audit: 'بازبینی صفحه درآمدزا',
-  ai_generation: 'بازبینی پیشنویس هوش مصنوعی',
-  command: 'بازبینی تغییر اجرایی',
-  url_profile: 'بازبینی صفحه',
-}
-
-const decisionLabels: Record<string, string> = {
-  approved: 'تأیید',
-  rejected: 'رد',
-  changes_requested: 'درخواست تغییر',
-}
+const subjectLabels = reviewSubjectLabels
 
 interface PendingDecision {
   type: 'command' | 'review'
@@ -124,12 +112,12 @@ function confirmDecision(): void {
             <div class="min-w-0">
               <div class="flex flex-wrap items-center gap-3">
                 <p class="text-ink-strong font-semibold">
-                  {{ commandLabels[command.type] ?? command.type }}
+                  {{ labelOf(commandTypeLabels, command.type) }}
                 </p>
                 <VBadge tone="neutral">{{ command.site_name }}</VBadge>
               </div>
               <p class="text-ink-muted mt-2 text-sm">
-                سطح ریسک: {{ command.risk_tier }} · ثبت در
+                سطح ریسک: {{ labelOf(riskTierLabels, command.risk_tier) }} · ثبت در
                 {{ formatJalaliDate(command.created_at) }}
               </p>
               <p class="text-warning-700 mt-1 text-xs font-semibold">
@@ -180,7 +168,7 @@ function confirmDecision(): void {
             <div class="min-w-0">
               <div class="flex flex-wrap items-center gap-3">
                 <p class="text-ink-strong font-semibold">
-                  {{ subjectLabels[review.subject_type] ?? review.subject_type }}
+                  {{ labelOf(subjectLabels, review.subject_type) }}
                 </p>
                 <VBadge tone="neutral">{{ review.site_name }}</VBadge>
               </div>

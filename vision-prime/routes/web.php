@@ -9,6 +9,7 @@ use App\Http\Controllers\App\ConversionRiskController;
 use App\Http\Controllers\App\CurrentOrganizationController;
 use App\Http\Controllers\App\DashboardController;
 use App\Http\Controllers\App\GscDashboardController;
+use App\Http\Controllers\App\GscAnalyzeController;
 use App\Http\Controllers\App\GscImportController;
 use App\Http\Controllers\App\GscMetricsController;
 use App\Http\Controllers\App\GscOAuthController;
@@ -137,6 +138,7 @@ Route::middleware(['auth', 'current.organization'])->group(function (): void {
     Route::get('/app/gsc/properties', [GscPropertyController::class, 'index'])->name('app.gsc.properties');
     Route::post('/app/gsc/properties', [GscPropertyController::class, 'store'])->name('app.gsc.properties.store');
     Route::post('/app/gsc/import', [GscImportController::class, 'store'])->name('app.gsc.import')->middleware('throttle:10,1');
+    Route::post('/app/gsc/analyze', [GscAnalyzeController::class, 'store'])->name('app.gsc.analyze')->middleware('throttle:10,1');
 
     Route::get('/app/commands', [CommandController::class, 'index'])->name('app.commands.index');
     Route::get('/app/commands/{command}', [CommandController::class, 'show'])->name('app.commands.show');

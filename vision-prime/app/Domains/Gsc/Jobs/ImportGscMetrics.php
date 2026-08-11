@@ -6,6 +6,7 @@ namespace App\Domains\Gsc\Jobs;
 
 use App\Domains\Gsc\Actions\UpsertGscMetric;
 use App\Domains\Gsc\Services\GscMetricsClient;
+use App\Domains\Seo\Jobs\RunGrowthAnalysisJob;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -32,6 +33,9 @@ class ImportGscMetrics implements ShouldQueue
                     $count++;
                 }
             }\DB::table('gsc_import_runs')->where('id', $run->id)->update(['status' => 'completed', 'summary' => json_encode(['rows' => $count]), 'finished_at' => now()]);
+
+            // A fresh dataset means the intelligence layer must be rebuilt.
+            RunGrowthAnalysisJob::dispatch((int) $property->site_id);
         } catch (\Throwable $e) {
             \DB::table('gsc_import_runs')->where('id', $run->id)->update(['status' => 'failed', 'error' => json_encode(['message' => $e->getMessage()]), 'finished_at' => now()]);
             throw $e;
