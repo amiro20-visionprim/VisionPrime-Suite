@@ -17,4 +17,18 @@ class OrganizationPermission
             ->whereHas('role.permissions', fn ($query) => $query->where('key', $permission))
             ->exists();
     }
+
+    /** @return array<int, string> */
+    public function allPermissions(User $user, Organization $organization): array
+    {
+        return $user->memberships()
+            ->where('organization_id', $organization->getKey())
+            ->where('status', 'active')
+            ->with('role.permissions')
+            ->get()
+            ->flatMap(fn ($membership): iterable => $membership->role?->permissions->pluck('key') ?? collect())
+            ->unique()
+            ->values()
+            ->all();
+    }
 }

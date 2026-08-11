@@ -15,6 +15,7 @@ use App\Http\Controllers\App\GscImportController;
 use App\Http\Controllers\App\GscMetricsController;
 use App\Http\Controllers\App\GscOAuthController;
 use App\Http\Controllers\App\GscPropertyController;
+use App\Http\Controllers\App\MarketingLeadController;
 use App\Http\Controllers\App\MoneyPageController;
 use App\Http\Controllers\App\OpportunityController;
 use App\Http\Controllers\App\OrganizationOnboardingController;
@@ -122,6 +123,11 @@ Route::middleware(['auth', 'current.organization', 'client.portal'])->prefix('cl
 
 Route::middleware(['auth', 'current.organization'])->group(function (): void {
     Route::get('/app/dashboard', DashboardController::class)->name('app.dashboard');
+
+    Route::get('/app/marketing', [MarketingLeadController::class, 'index'])->name('app.marketing.index');
+    Route::get('/app/marketing/leads/{lead}', [MarketingLeadController::class, 'show'])->name('app.marketing.leads.show');
+    Route::put('/app/marketing/leads/{lead}/status', [MarketingLeadController::class, 'updateStatus'])->name('app.marketing.leads.status')->middleware('throttle:20,1');
+    Route::post('/app/marketing/leads/{lead}/notes', [MarketingLeadController::class, 'storeNote'])->name('app.marketing.leads.notes')->middleware('throttle:20,1');
     Route::put('/app/current-organization/{organization}', [CurrentOrganizationController::class, 'update'])->name('app.current-organization.update');
 
     Route::get('/app/sites', [SiteController::class, 'index'])->name('app.sites.index');

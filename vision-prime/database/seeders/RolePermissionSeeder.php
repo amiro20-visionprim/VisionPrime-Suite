@@ -24,6 +24,7 @@ class RolePermissionSeeder extends Seeder
             'command.execute.assigned', 'command.stop.assigned', 'rollback.view.assigned', 'rollback.execute.assigned',
             'automation_policy.view.assigned', 'automation_policy.manage.assigned', 'report.view.assigned', 'report.generate.assigned',
             'report.publish.assigned', 'report.export.assigned', 'audit.view.organization', 'billing.view.organization', 'billing.manage.organization',
+            'marketing.view.organization', 'marketing.manage.organization',
         ];
 
         foreach ($permissions as $key) {
@@ -43,6 +44,7 @@ class RolePermissionSeeder extends Seeder
             'developer' => ['name' => 'Developer', 'description' => 'مدیریت اتصال و اجرای فنی', 'permissions' => $this->matching($permissions, ['site.view', 'connector.', 'command.view', 'command.execute', 'command.stop', 'rollback.', 'report.view'])],
             'client-viewer' => ['name' => 'Client Viewer', 'description' => 'مشاهده خروجی‌های مشتری', 'permissions' => $this->matching($permissions, ['report.view', 'intelligence.view'])],
             'client-approver' => ['name' => 'Client Approver', 'description' => 'مشاهده و تأیید موارد مشتری', 'permissions' => $this->matching($permissions, ['report.view', 'intelligence.view', 'review.view', 'review.decide'])],
+            'marketing-manager' => ['name' => 'Marketing Manager', 'description' => 'مدیریت بازاریابی، لیدها و داده‌های تبلیغات', 'permissions' => $this->matching($permissions, ['marketing.', 'member.view.organization', 'report.view', 'intelligence.view'])],
         ];
 
         foreach ($roles as $key => $attributes) {

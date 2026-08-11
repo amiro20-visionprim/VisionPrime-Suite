@@ -13,7 +13,7 @@ interface NavigationGroup {
   items: NavigationItem[]
 }
 
-const groups: NavigationGroup[] = [
+const baseGroups: NavigationGroup[] = [
   { label: 'نمای کلی', items: [{ label: 'داشبورد', href: '/app/dashboard', exact: true }] },
   {
     label: 'فضای کاری',
@@ -51,7 +51,22 @@ const groups: NavigationGroup[] = [
   },
 ]
 
-const page = usePage()
+const page = usePage<{ permissions?: string[] }>()
+const canViewMarketing = computed(
+  () => page.props.permissions?.includes('marketing.view.organization') ?? false,
+)
+
+const groups = computed<NavigationGroup[]>(() => {
+  const groupsList = [...baseGroups]
+  if (canViewMarketing.value) {
+    groupsList.splice(1, 0, {
+      label: 'بازاریابی',
+      items: [{ label: 'لیدها و دادهٔ تبلیغات', href: '/app/marketing' }],
+    })
+  }
+  return groupsList
+})
+
 const currentPath = computed(() => page.url.split('?')[0])
 
 function isActive(item: NavigationItem): boolean {

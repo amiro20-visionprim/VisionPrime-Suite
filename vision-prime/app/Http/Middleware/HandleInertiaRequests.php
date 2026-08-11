@@ -7,6 +7,7 @@ namespace App\Http\Middleware;
 use App\Domains\Organization\Contracts\CurrentOrganization;
 use App\Domains\Workspace\Contracts\CurrentClient;
 use App\Domains\Workspace\Services\ClientAccessScope;
+use App\Domains\Workspace\Services\OrganizationPermission;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -60,6 +61,8 @@ class HandleInertiaRequests extends Middleware
                 'publicId' => app(CurrentClient::class)->get()->public_id,
                 'name' => app(CurrentClient::class)->get()->name,
             ] : null,
+            'permissions' => fn (): array => $request->user() === null || ! app(CurrentOrganization::class)->has() ? [] : app(OrganizationPermission::class)
+                ->allPermissions($request->user(), app(CurrentOrganization::class)->get()),
             'app' => [
                 'name' => config('app.name'),
                 'locale' => config('vision-prime.default_locale'),

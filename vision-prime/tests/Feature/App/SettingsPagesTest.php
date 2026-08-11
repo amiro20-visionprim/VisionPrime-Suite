@@ -55,7 +55,7 @@ class SettingsPagesTest extends TestCase
                 ->component('App/Settings/Organization')
                 ->has('members', 2)
                 ->where('members.0.roleKey', 'agency-admin')
-                ->has('roles', 8)
+                ->has('roles', 9)
                 ->where('roles.0.key', 'agency-admin')
                 ->where('canManage', true));
     }

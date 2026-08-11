@@ -30,9 +30,13 @@ export function formatTechnicalNumber(value: number): string {
 }
 
 export function formatJalaliDate(
-  value: Date | string,
+  value: Date | string | null,
   digits: DigitPreference = 'persian',
 ): string {
+  if (value === null) {
+    return '—'
+  }
+
   const date = toDate(value)
   const jalali = toJalaali(date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate())
   const year = formatInteger(jalali.jy, digits)
@@ -40,6 +44,25 @@ export function formatJalaliDate(
   const day = formatInteger(jalali.jd, digits).padStart(2, digits === 'persian' ? '۰' : '0')
 
   return `${year}/${month}/${day}`
+}
+
+export function formatJalaliDateTime(
+  value: Date | string | null,
+  digits: DigitPreference = 'persian',
+): string {
+  if (value === null) {
+    return '—'
+  }
+
+  const date = toDate(value)
+  const jalali = toJalaali(date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate())
+  const year = formatInteger(jalali.jy, digits)
+  const month = formatInteger(jalali.jm, digits).padStart(2, digits === 'persian' ? '۰' : '0')
+  const day = formatInteger(jalali.jd, digits).padStart(2, digits === 'persian' ? '۰' : '0')
+  const hours = formatInteger(date.getUTCHours(), digits).padStart(2, digits === 'persian' ? '۰' : '0')
+  const minutes = formatInteger(date.getUTCMinutes(), digits).padStart(2, digits === 'persian' ? '۰' : '0')
+
+  return `${year}/${month}/${day} ${hours}:${minutes}`
 }
 
 export function formatLocalizedDate(
