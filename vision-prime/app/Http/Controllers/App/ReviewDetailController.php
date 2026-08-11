@@ -50,14 +50,68 @@ class ReviewDetailController extends Controller
             'audit' => ['id' => $audit->id, 'score' => $audit->score, 'summary' => json_decode($audit->summary ?? '{}', true), 'auditedAt' => $audit->audited_at],
             'issues' => $issues->map(fn ($i) => ['key' => $i->key, 'severity' => $i->severity, 'explanation' => $i->explanation])->values(),
             'url' => $profile?->canonical_url,
+            'urlProfileId' => $profile?->id,
+            'drafts' => $profile === null ? [] : $this->profileDrafts((int) $profile->id, (string) $profile->canonical_url),
         ];
+    }
+
+    private function profileDrafts(int $urlProfileId, string $canonicalUrl): array
+    {
+        $siteId = \DB::table('url_profiles')->where('id', $urlProfileId)->value('site_id');
+
+        return \DB::table('ai_generations')
+            ->join('ai_generation_versions', 'ai_generation_versions.id', '=', 'ai_generations.current_version_id')
+            ->where('ai_generations.site_id', $siteId)
+            ->orderByDesc('ai_generations.id')
+            ->limit(50)
+            ->get([
+                'ai_generations.id',
+                'ai_generations.input_redacted',
+                'ai_generations.output_status',
+                'ai_generations.created_at',
+                'ai_generation_versions.output',
+            ])
+            ->filter(fn (object $row): bool => (($json = json_decode($row->input_redacted, true)) !== null) && ($json['url'] ?? null) === $canonicalUrl)
+            ->map(function (object $row): array {
+                $output = json_decode($row->output, true) ?? [];
+
+                return [
+                    'id' => (int) $row->id,
+                    'kind' => $output['kind'] ?? '',
+                    'text' => (string) ($output['text'] ?? ''),
+                    'model' => (string) ($output['model'] ?? ''),
+                    'source' => (string) ($output['source'] ?? ''),
+                    'status' => $row->output_status,
+                    'createdAt' => $row->created_at,
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     private function aiGeneration(int $id): array
     {
         $generation = \DB::table('ai_generations')->where('id', $id)->first();
+        if ($generation === null) {
+            return ['kind' => 'ai_generation', 'generation' => null];
+        }
 
-        return ['kind' => 'ai_generation', 'generation' => $generation === null ? null : ['id' => $generation->id, 'input' => $generation->input_redacted, 'status' => $generation->output_status, 'usage' => json_decode($generation->usage ?? '{}', true), 'createdAt' => $generation->created_at]];
+        $version = \DB::table('ai_generation_versions')->where('id', $generation->current_version_id)->first();
+        $output = $version === null ? [] : (json_decode($version->output, true) ?? []);
+
+        return [
+            'kind' => 'ai_generation',
+            'generation' => [
+                'id' => $generation->id,
+                'input' => $generation->input_redacted,
+                'text' => (string) ($output['text'] ?? ''),
+                'model' => (string) ($output['model'] ?? ''),
+                'source' => (string) ($output['source'] ?? ''),
+                'status' => $generation->output_status,
+                'usage' => json_decode($generation->usage ?? '{}', true),
+                'createdAt' => $generation->created_at,
+            ],
+        ];
     }
 
     private function command(int $id): array

@@ -52,7 +52,16 @@ class IntegrationsSettingsController extends Controller
         $aiProviders = DB::table('ai_provider_settings')
             ->where('organization_id', $organizationId)
             ->where('status', 'active')
-            ->pluck('provider');
+            ->get(['provider', 'encrypted_config', 'updated_at'])
+            ->map(function (object $setting): array {
+                $config = json_decode(\Illuminate\Support\Facades\Crypt::decryptString($setting->encrypted_config), true) ?? [];
+
+                return [
+                    'provider' => $setting->provider,
+                    'model' => $config['model'] ?? '',
+                    'updatedAt' => $setting->updated_at,
+                ];
+            });
 
         return Inertia::render('App/Settings/Integrations', [
             'gsc' => [

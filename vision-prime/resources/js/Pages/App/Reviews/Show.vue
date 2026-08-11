@@ -24,16 +24,37 @@ interface ReviewDecision {
   decided_at: string
 }
 
+interface Draft {
+  id: number
+  kind: string
+  text: string
+  model: string
+  source: string
+  status: string
+  createdAt: string
+}
+
 interface MoneyPageAuditSubject {
   kind: 'money_page_audit'
   audit: { id: number; score: number; summary: Record<string, unknown> | null; auditedAt: string } | null
   issues: { key: string; severity: string; explanation: string }[]
   url: string | null
+  urlProfileId: number | null
+  drafts: Draft[]
 }
 
 interface AiGenerationSubject {
   kind: 'ai_generation'
-  generation: { id: number; input: string | null; status: string; usage: Record<string, unknown> | null; createdAt: string } | null
+  generation: {
+    id: number
+    input: string | null
+    text: string
+    model: string
+    source: string
+    status: string
+    usage: Record<string, unknown> | null
+    createdAt: string
+  } | null
 }
 
 interface CommandSubject {
@@ -58,6 +79,21 @@ const f = useForm({ decision: 'approved', note: '' })
 
 function decide() {
   f.post(`/app/reviews/${p.item.id}/decision`)
+}
+
+const draftForm = useForm({ url_profile_id: 0, kind: 'meta_title' })
+
+function generateDraft(kind: 'meta_title' | 'meta_description'): void {
+  if (p.subject?.kind !== 'money_page_audit' || !p.subject.urlProfileId) return
+  draftForm.clearErrors()
+  draftForm.url_profile_id = p.subject.urlProfileId
+  draftForm.kind = kind
+  draftForm.post('/app/ai-drafts', { preserveScroll: true })
+}
+
+const draftKindLabels: Record<string, string> = {
+  meta_title: 'عنوان متا',
+  meta_description: 'توضیحات متا',
 }
 
 const issueSeverityLabels: Record<string, string> = {
@@ -113,6 +149,44 @@ function payloadRows(payload: Record<string, unknown> | null): [string, unknown]
             </div>
           </div>
           <p v-else class="text-ink-muted text-sm">مشکلی ثبت نشده است.</p>
+
+          <div v-if="p.subject.urlProfileId" class="border-line mt-4 border-t pt-4">
+            <p class="text-ink-strong mb-2 text-sm font-semibold">تولید پیشنویس با هوش مصنوعی</p>
+            <div class="flex flex-wrap gap-2">
+              <VButton size="sm" :loading="draftForm.processing && draftForm.kind === 'meta_title'" @click="generateDraft('meta_title')">
+                پیشنویس عنوان متا
+              </VButton>
+              <VButton
+                size="sm"
+                variant="secondary"
+                :loading="draftForm.processing && draftForm.kind === 'meta_description'"
+                @click="generateDraft('meta_description')"
+              >
+                پیشنویس توضیحات متا
+              </VButton>
+            </div>
+            <p class="text-ink-muted mt-2 text-xs">
+              پیشنویس تولیدشده وارد صف «بررسی و تأییدها» می‌شود.
+            </p>
+          </div>
+
+          <div v-if="p.subject.drafts.length" class="mt-5 space-y-3">
+            <p class="text-ink-strong text-sm font-semibold">پیشنویس‌های تولیدشده برای این صفحه</p>
+            <div
+              v-for="draft in p.subject.drafts"
+              :key="draft.id"
+              class="border-line rounded-ui border p-3"
+            >
+              <div class="flex items-center justify-between gap-2">
+                <VBadge tone="info">{{ draftKindLabels[draft.kind] ?? draft.kind }}</VBadge>
+                <span class="text-ink-muted text-xs">{{ formatJalaliDate(draft.createdAt) }}</span>
+              </div>
+              <p class="text-ink-strong mt-2 text-sm leading-6">{{ draft.text }}</p>
+              <p class="text-ink-muted mt-1 text-xs" dir="ltr">
+                {{ draft.source === 'ai' ? draft.model : 'پیشنویس داخلی' }}
+              </p>
+            </div>
+          </div>
         </div>
         <p v-else class="text-ink-muted text-sm">محتوا در دسترس نیست.</p>
       </template>
@@ -120,12 +194,16 @@ function payloadRows(payload: Record<string, unknown> | null): [string, unknown]
       <!-- ai_generation -->
       <template v-else-if="p.subject?.kind === 'ai_generation'">
         <div v-if="p.subject.generation" class="space-y-3">
-          <p v-if="p.subject.generation.input" class="text-ink-strong text-sm whitespace-pre-wrap">
+          <p v-if="p.subject.generation.text" class="text-ink-strong text-sm leading-7 whitespace-pre-wrap">
+            {{ p.subject.generation.text }}
+          </p>
+          <p v-else-if="p.subject.generation.input" class="text-ink-strong text-sm whitespace-pre-wrap">
             {{ p.subject.generation.input }}
           </p>
           <p class="text-ink-muted text-sm">
             وضعیت: {{ p.subject.generation.status }} · ایجاد در
             {{ formatJalaliDate(p.subject.generation.createdAt) }}
+            <span v-if="p.subject.generation.model" dir="ltr">· {{ p.subject.generation.model }}</span>
           </p>
         </div>
         <p v-else class="text-ink-muted text-sm">محتوا در دسترس نیست.</p>

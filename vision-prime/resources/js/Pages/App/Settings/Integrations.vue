@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { Head } from '@inertiajs/vue3'
+import { Head, useForm } from '@inertiajs/vue3'
 
 import AppLayout from '@/app/layouts/AppLayout.vue'
 import { formatLocalizedDate } from '@/lib/locale'
 import VBadge from '@/shared/ui/VBadge.vue'
 import VButton from '@/shared/ui/VButton.vue'
 import VCard from '@/shared/ui/VCard.vue'
+import VInput from '@/shared/ui/VInput.vue'
 import VPageHeader from '@/shared/ui/VPageHeader.vue'
+import VSelect from '@/shared/ui/VSelect.vue'
 
 interface GscAccount {
   email: string
@@ -21,6 +23,12 @@ interface SiteConnection {
   lastSeenAt: string | null
 }
 
+interface AiProvider {
+  provider: string
+  model: string
+  updatedAt: string | null
+}
+
 defineProps<{
   gsc: {
     connected: number
@@ -33,10 +41,42 @@ defineProps<{
     sites: SiteConnection[]
   }
   ai: {
-    providers: string[]
+    providers: AiProvider[]
     isConfigured: boolean
   }
 }>()
+
+const providerOptions = [
+  { label: 'OpenAI', value: 'openai' },
+  { label: 'OpenRouter', value: 'openrouter' },
+  { label: 'Anthropic (Claude)', value: 'anthropic' },
+]
+
+const providerLabels: Record<string, string> = {
+  openai: 'OpenAI',
+  openrouter: 'OpenRouter',
+  anthropic: 'Anthropic',
+}
+
+const aiForm = useForm({
+  provider: 'openai',
+  api_key: '',
+  model: '',
+})
+
+function saveAiProvider(): void {
+  aiForm.post('/app/settings/ai-provider', {
+    preserveScroll: true,
+    onSuccess: () => {
+      aiForm.reset('api_key')
+    },
+  })
+}
+
+function removeAiProvider(provider: string): void {
+  if (!window.confirm(`پیکربندی ${providerLabels[provider] ?? provider} حذف شود؟`)) return
+  aiForm.delete(`/app/settings/ai-provider/${provider}`, { preserveScroll: true })
+}
 </script>
 
 <template>
@@ -138,17 +178,58 @@ defineProps<{
           <VBadge :tone="ai.isConfigured ? 'success' : 'warning'">
             {{ ai.isConfigured ? 'پیکربندی شده' : 'پیکربندی نشده' }}
           </VBadge>
-          <VBadge v-for="provider in ai.providers" :key="provider" tone="info" dir="ltr">{{
-            provider
-          }}</VBadge>
         </div>
+
+        <div v-if="ai.providers.length" class="mt-4 space-y-2">
+          <div
+            v-for="provider in ai.providers"
+            :key="provider.provider"
+            class="border-line flex items-center justify-between gap-3 rounded-ui border px-4 py-3"
+          >
+            <div>
+              <p class="text-ink-strong text-sm font-semibold" dir="ltr">{{ provider.provider }}</p>
+              <p class="text-ink-muted text-xs" dir="ltr">{{ provider.model || 'مدل پیش‌فرض' }}</p>
+            </div>
+            <VButton size="sm" variant="danger" @click="removeAiProvider(provider.provider)">حذف</VButton>
+          </div>
+        </div>
+
         <p class="text-ink-muted mt-4 max-w-2xl text-sm leading-6">
           {{
             ai.isConfigured
-              ? 'سرویس هوش مصنوعی برای این سازمان فعال است و در جریان تولید پیشنهادها استفاده می‌شود.'
-              : 'برای استفاده از هوش مصنوعی، ابتدا provider و کلید آن در تنظیمات سازمان پیکربندی شود. تا آن زمان، پیشنهادها به‌صورت دستی قابل تولید هستند.'
+              ? 'سرویس هوش مصنوعی برای این سازمان فعال است و در تولید پیشنویس‌ها استفاده می‌شود.'
+              : 'کلید سرویس را وارد کنید؛ تا آن زمان پیشنویس‌ها با موتور داخلی (بدون نیاز به کلید) تولید می‌شوند.'
           }}
         </p>
+
+        <form class="border-line mt-5 grid gap-4 border-t pt-5 sm:grid-cols-3" @submit.prevent="saveAiProvider">
+          <VSelect
+            v-model="aiForm.provider"
+            label="سرویس"
+            :options="providerOptions"
+            :error="aiForm.errors.provider"
+          />
+          <VInput
+            v-model="aiForm.api_key"
+            label="کلید API"
+            type="password"
+            dir="ltr"
+            placeholder="sk-..."
+            hint="رمزنگاری‌شده ذخیره می‌شود."
+            :error="aiForm.errors.api_key"
+          />
+          <VInput
+            v-model="aiForm.model"
+            label="مدل (اختیاری)"
+            type="text"
+            dir="ltr"
+            placeholder="gpt-4o-mini"
+            :error="aiForm.errors.model"
+          />
+          <div class="sm:col-span-3">
+            <VButton type="submit" :loading="aiForm.processing">ذخیره پیکربندی هوش مصنوعی</VButton>
+          </div>
+        </form>
       </VCard>
     </div>
   </AppLayout>

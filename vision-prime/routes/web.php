@@ -23,6 +23,8 @@ use App\Http\Controllers\App\ReportController;
 use App\Http\Controllers\App\ReviewController;
 use App\Http\Controllers\App\ReviewDecisionController;
 use App\Http\Controllers\App\ReviewDetailController;
+use App\Http\Controllers\App\AiDraftController;
+use App\Http\Controllers\App\Settings\AiSettingsController;
 use App\Http\Controllers\App\Settings\AuditLogSettingsController;
 use App\Http\Controllers\App\Settings\IntegrationsSettingsController;
 use App\Http\Controllers\App\Settings\OrganizationSettingsController;
@@ -183,7 +185,11 @@ Route::middleware(['auth', 'current.organization'])->group(function (): void {
     Route::put('/app/settings/organization/members/{membership}', [OrganizationSettingsController::class, 'update'])->name('app.settings.organization.members.update');
     Route::delete('/app/settings/organization/members/{membership}', [OrganizationSettingsController::class, 'destroy'])->name('app.settings.organization.members.destroy');
     Route::get('/app/settings/integrations', [IntegrationsSettingsController::class, 'index'])->name('app.settings.integrations');
+    Route::post('/app/settings/ai-provider', [AiSettingsController::class, 'store'])->name('app.settings.ai-provider.store')->middleware('throttle:20,1');
+    Route::delete('/app/settings/ai-provider/{provider}', [AiSettingsController::class, 'destroy'])->name('app.settings.ai-provider.destroy');
     Route::get('/app/settings/audit-log', [AuditLogSettingsController::class, 'index'])->name('app.settings.audit-log');
+
+    Route::post('/app/ai-drafts', [AiDraftController::class, 'store'])->name('app.ai-drafts.store')->middleware('throttle:10,1');
 });
 
 if (app()->environment(['local', 'testing'])) {
