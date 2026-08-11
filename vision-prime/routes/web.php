@@ -153,6 +153,7 @@ Route::middleware(['auth', 'current.organization'])->group(function (): void {
     Route::get('/app/recommendations/create', [RecommendationController::class, 'create'])->name('app.recommendations.create');
     Route::post('/app/recommendations', [RecommendationController::class, 'store'])->name('app.recommendations.store');
     Route::put('/app/recommendations/{recommendation}', [RecommendationController::class, 'update'])->name('app.recommendations.update');
+    Route::post('/app/recommendations/{recommendation}/command', [RecommendationController::class, 'toCommand'])->name('app.recommendations.command')->middleware('throttle:10,1');
     Route::get('/app/reviews', [ReviewController::class, 'index'])->name('app.reviews.index');
     Route::get('/app/reviews/{review}', [ReviewDetailController::class, 'show'])->name('app.reviews.show');
     Route::post('/app/reviews/{review}/decision', [ReviewDecisionController::class, 'store'])->name('app.reviews.decision');

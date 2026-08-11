@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\App;
 
 use App\Domains\Audit\Actions\RecordAuditLog;
+use App\Domains\Automation\Actions\ConvertRecommendationToCommand;
 use App\Domains\Organization\Contracts\CurrentOrganization;
 use App\Domains\Seo\Models\Recommendation;
 use App\Domains\Workspace\Models\Site;
@@ -37,6 +38,10 @@ class RecommendationController extends Controller
                 'createdAt' => $r->created_at?->toIso8601String(),
                 'site' => $r->site === null ? null : ['id' => $r->site->getKey(), 'name' => $r->site->name],
                 'owner' => $r->owner === null ? null : ['id' => $r->owner->getKey(), 'name' => $r->owner->name],
+                'targetUrl' => $this->resolveTargetUrl($r),
+                'commandId' => $r->source_type === 'opportunity'
+                    ? DB::table('commands')->where('source_type', 'recommendation')->where('source_id', $r->getKey())->value('id')
+                    : null,
             ]);
 
         return Inertia::render('App/Recommendations/Index', [
@@ -158,6 +163,56 @@ class RecommendationController extends Controller
 
         return redirect()->route('app.recommendations.index')
             ->with('status', 'فرصت به پیشنهاد تبدیل شد؛ از دکمه ویرایش، مالک و مهلت را تعیین کنید.');
+    }
+
+    public function toCommand(Request $request, int $recommendation, CurrentOrganization $org, ConvertRecommendationToCommand $converter): RedirectResponse
+    {
+        $siteIds = Site::query()->where('organization_id', $org->id())->pluck('id');
+        $item = Recommendation::query()
+            ->whereIn('site_id', $siteIds)
+            ->where('id', $recommendation)
+            ->firstOrFail();
+
+        if (! in_array($item->status, ['active', 'draft'], true)) {
+            return back()->with('error', 'فقط پیشنهادهای فعال یا پیش‌نویس به تغییر اجرایی تبدیل می‌شوند.');
+        }
+
+        $data = $request->validate([
+            'type' => ['required', 'in:'.implode(',', ConvertRecommendationToCommand::SUPPORTED_TYPES)],
+            'target_url' => ['required', 'url', 'max:2048'],
+            'new_value' => ['required', 'string', 'max:2000'],
+        ]);
+
+        $alreadyConverted = DB::table('commands')
+            ->where('site_id', $item->site_id)
+            ->where('source_type', 'recommendation')
+            ->where('source_id', $item->id)
+            ->exists();
+
+        $converter->handle($item, $data['type'], $data['target_url'], $data['new_value']);
+
+        return back()->with(
+            'status',
+            $alreadyConverted
+                ? 'این پیشنهاد قبلاً به تغییر اجرایی تبدیل شده است.'
+                : 'تغییر اجرایی ساخته شد و برای تأیید مشتری ارسال گردید.'
+        );
+    }
+
+    private function resolveTargetUrl(Recommendation $recommendation): ?string
+    {
+        $profileId = match ($recommendation->source_type) {
+            'opportunity' => DB::table('opportunities')->where('id', $recommendation->source_id)->value('url_profile_id'),
+            'conversion_risk' => DB::table('conversion_risks')->where('id', $recommendation->source_id)->value('url_profile_id'),
+            'money_page_audit' => DB::table('money_page_audits')->where('id', $recommendation->source_id)->value('url_profile_id'),
+            default => null,
+        };
+
+        if ($profileId === null) {
+            return null;
+        }
+
+        return DB::table('url_profiles')->where('id', $profileId)->value('canonical_url');
     }
 
     /** @return array<int, array{id: int, name: string}> */
