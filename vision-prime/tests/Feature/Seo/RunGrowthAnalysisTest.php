@@ -156,12 +156,17 @@ class RunGrowthAnalysisTest extends TestCase
         $this->assertSame(1, $result['recommendations']);
         $this->assertDatabaseHas('recommendations', ['site_id' => $site->id, 'source_type' => 'conversion_risk']);
 
+        // flagged money page audit -> review item (review queue is fed by analysis)
+        $this->assertSame(1, $result['review_items']);
+        $this->assertDatabaseHas('review_items', ['site_id' => $site->id, 'subject_type' => 'money_page_audit', 'status' => 'pending_review']);
+
         // idempotent: a second run must not duplicate rows
         app(RunGrowthAnalysis::class)->handle($site);
         $this->assertSame(2, \DB::table('url_profiles')->where('site_id', $site->id)->count());
         $this->assertSame(3, \DB::table('keyword_insights')->where('site_id', $site->id)->count());
         $this->assertSame(1, \DB::table('money_page_audits')->count());
         $this->assertSame(1, \DB::table('conversion_risks')->count());
+        $this->assertSame(1, \DB::table('review_items')->where('site_id', $site->id)->count());
     }
 
     public function test_analyze_route_dispatches_analysis_job_for_own_property(): void
