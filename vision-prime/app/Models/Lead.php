@@ -16,6 +16,13 @@ class Lead extends Model
         'message',
         'source',
         'status',
+        'utm_source',
+        'utm_medium',
+        'utm_campaign',
+        'utm_term',
+        'utm_content',
+        'landing_page',
+        'referrer',
         'metadata',
     ];
 

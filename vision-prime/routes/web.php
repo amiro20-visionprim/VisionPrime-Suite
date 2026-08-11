@@ -51,6 +51,7 @@ use App\Http\Controllers\Client\ClientReportController;
 use App\Http\Controllers\Client\ClientSiteHealthController;
 use App\Http\Controllers\Client\CurrentClientController;
 use App\Http\Controllers\Connector\HealthCheckController;
+use App\Http\Controllers\Marketing\AssistantController;
 use App\Http\Controllers\Marketing\LeadController;
 use App\Http\Controllers\Connector\CommandResultController;
 use App\Http\Controllers\Connector\PairSiteController;
@@ -77,6 +78,10 @@ Route::get('/features', fn () => Inertia::render('Marketing/Features'))->name('m
 Route::get('/pricing', fn () => Inertia::render('Marketing/Pricing'))->name('marketing.pricing');
 Route::get('/demo', fn () => Inertia::render('Marketing/Demo'))->name('marketing.demo');
 Route::post('/demo', [LeadController::class, 'store'])->name('marketing.lead')->middleware('throttle:10,1');
+
+Route::get('/assistant/knowledge', [AssistantController::class, 'knowledge'])->name('marketing.assistant.knowledge');
+Route::post('/assistant/chat', [AssistantController::class, 'chat'])->name('marketing.assistant.chat')->middleware('throttle:30,1');
+Route::post('/assistant/contact', [AssistantController::class, 'contact'])->name('marketing.assistant.contact')->middleware('throttle:5,1');
 Route::get('/security', fn () => Inertia::render('Marketing/Security'))->name('marketing.security');
 Route::get('/about', fn () => Inertia::render('Marketing/About'))->name('marketing.about');
 Route::get('/contact', fn () => Inertia::render('Marketing/Contact'))->name('marketing.contact');

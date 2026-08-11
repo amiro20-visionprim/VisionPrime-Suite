@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AssistantWidget from '@/marketing/components/AssistantWidget.vue'
 import MarketingFooter from '@/marketing/components/MarketingFooter.vue'
 import MarketingHeader from '@/marketing/components/MarketingHeader.vue'
 </script>
@@ -8,5 +9,6 @@ import MarketingHeader from '@/marketing/components/MarketingHeader.vue'
     <MarketingHeader />
     <slot />
     <MarketingFooter />
+    <AssistantWidget />
   </div>
 </template>

@@ -28,7 +28,7 @@ function submit(): void {
 
 <template>
   <AuthLayout
-    title="ساخت حساب رایگان"
+    title="ساخت حساب"
     description="در کمتر از یک دقیقه حساب بسازید و فضای کاری خود را شروع کنید."
   >
     <form class="space-y-5" @submit.prevent="submit">

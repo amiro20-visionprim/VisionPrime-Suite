@@ -52,8 +52,8 @@ const modules = [
               اثر هر تصمیم را به زبان روشن نشان می‌دهد.
             </p>
             <div class="mt-8 flex flex-wrap gap-3">
-              <VButton href="/register" size="lg">شروع رایگان</VButton>
-              <VButton href="/demo" size="lg" variant="secondary">درخواست دموی اختصاصی</VButton>
+              <VButton href="/demo" size="lg">درخواست دموی اختصاصی</VButton>
+              <VButton href="/pricing" size="lg" variant="secondary">مشاهدهٔ قیمت‌گذاری</VButton>
             </div>
             <p class="text-ink-muted mt-5 text-sm">
               بدون انتشار مستقیم AI و بدون تغییر پرریسک خارج از سیاست سایت.
@@ -146,8 +146,12 @@ const modules = [
               </p>
             </div>
             <div class="mt-8 flex flex-wrap gap-3">
-              <VButton href="/register" size="lg">ساخت حساب رایگان</VButton>
-              <VButton href="/demo" size="lg" variant="secondary">درخواست دمو</VButton>
+              <VButton href="/demo" size="lg" variant="secondary">درخواست دموی اختصاصی</VButton>
+              <a
+                href="/pricing"
+                class="transition-ui rounded-ui inline-flex min-h-12 items-center justify-center gap-2 border border-white/25 bg-white/10 px-5 text-base font-semibold text-white whitespace-nowrap hover:bg-white/20"
+                >مشاهدهٔ قیمت‌گذاری</a
+              >
             </div>
           </div>
         </div>
