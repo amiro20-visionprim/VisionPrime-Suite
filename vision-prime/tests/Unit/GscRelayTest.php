@@ -26,7 +26,8 @@ class GscRelayTest extends TestCase
     public function test_relay_target_url_roundtrips_the_original_url(): void
     {
         $proxy = 'https://visionprime-gsc-proxy.user.workers.dev';
-        $target = 'https://www.googleapis.com/webmasters/v3/sites/sc-domain%3Aliuna.ir/searchAnalytics/query?startDate=2026-08-01';        $relayed = GscHttp::relayTargetUrl($target, $proxy);
+        $target = 'https://www.googleapis.com/webmasters/v3/sites/sc-domain%3Aliuna.ir/searchAnalytics/query?startDate=2026-08-01';
+        $relayed = GscHttp::relayTargetUrl($target, $proxy);
         $this->assertStringStartsWith($proxy.'/relay?target=', $relayed);
         $encoded = substr($relayed, strlen($proxy.'/relay?target='));
         $b64 = strtr($encoded, '-_', '+/');

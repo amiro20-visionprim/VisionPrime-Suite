@@ -12,6 +12,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Lead;
 use App\Models\LeadNote;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -75,15 +76,28 @@ class MarketingLeadController extends Controller
             ->map(fn (Lead $lead): array => $this->leadItem($lead))
             ->values();
 
+        // یک کوئری تجمیعی واحد برای تمام KPIها — به‌جای ۸ شمارش جداگانه فقط یک بار دیتابیس خوانده می‌شود.
+        $kpi = Lead::query()
+            ->toBase()
+            ->selectRaw('count(*) as total')
+            ->selectRaw('sum(case when created_at >= ? then 1 else 0 end) as this_week', [now()->subDays(7)])
+            ->selectRaw("sum(case when status = 'new' then 1 else 0 end) as status_new")
+            ->selectRaw("sum(case when status = 'contacted' then 1 else 0 end) as status_contacted")
+            ->selectRaw("sum(case when status = 'qualified' then 1 else 0 end) as status_qualified")
+            ->selectRaw("sum(case when status = 'unqualified' then 1 else 0 end) as status_unqualified")
+            ->selectRaw("sum(case when source = 'demo' then 1 else 0 end) as source_demo")
+            ->selectRaw("sum(case when source = 'support' then 1 else 0 end) as source_support")
+            ->first();
+
         $stats = [
-            'total' => Lead::query()->count(),
-            'thisWeek' => Lead::query()->where('created_at', '>=', now()->subDays(7))->count(),
-            'byStatus' => collect(Lead::STATUS_LABELS)->mapWithKeys(
-                fn (string $label, string $key): array => [$key => Lead::query()->where('status', $key)->count()]
+            'total' => (int) ($kpi->total ?? 0),
+            'thisWeek' => (int) ($kpi->this_week ?? 0),
+            'byStatus' => collect(Lead::STATUS_LABELS)->keys()->mapWithKeys(
+                fn (string $key): array => [$key => (int) ($kpi->{'status_'.$key} ?? 0)]
             )->all(),
             'bySource' => [
-                'demo' => Lead::query()->where('source', 'demo')->count(),
-                'support' => Lead::query()->where('source', 'support')->count(),
+                'demo' => (int) ($kpi->source_demo ?? 0),
+                'support' => (int) ($kpi->source_support ?? 0),
             ],
             'topCampaigns' => Lead::query()
                 ->whereNotNull('utm_campaign')
@@ -104,6 +118,27 @@ class MarketingLeadController extends Controller
                 ->limit(5)
                 ->get()
                 ->map(fn ($row): array => ['source' => (string) $row->source, 'count' => (int) $row->count])
+                ->all(),
+            'funnel' => $this->funnelForQuery(Lead::query()),
+            'filteredFunnel' => $this->funnelForQuery($query),
+            'campaignFunnel' => Lead::query()
+                ->whereNotNull('utm_campaign')
+                ->where('utm_campaign', '!=', '')
+                ->selectRaw('utm_campaign as campaign')
+                ->selectRaw('count(*) as total')
+                ->selectRaw("sum(case when status in ('contacted', 'qualified') then 1 else 0 end) as contacted")
+                ->selectRaw("sum(case when status = 'qualified' then 1 else 0 end) as qualified")
+                ->groupBy('utm_campaign')
+                ->orderByDesc('total')
+                ->limit(8)
+                ->get()
+                ->map(fn ($row): array => $this->funnelItem(
+                    (string) $row->campaign,
+                    (int) $row->total,
+                    (int) $row->contacted,
+                    (int) $row->qualified,
+                ))
+                ->values()
                 ->all(),
         ];
 
@@ -195,6 +230,44 @@ class MarketingLeadController extends Controller
         );
 
         return back()->with('status', 'یادداشت ثبت شد.');
+    }
+
+    /** @return array{total: int, contacted: int, qualified: int, leadToContactedRate: ?float, contactedToQualifiedRate: ?float, qualifiedRate: ?float} */
+    private function funnelForQuery(Builder $query): array
+    {
+        // یک کوئری تجمیعی واحد — به‌جای سه شمارش جداگانه فقط یک بار دیتابیس خوانده می‌شود.
+        $row = (clone $query)
+            ->reorder()
+            ->toBase()
+            ->selectRaw('count(*) as total')
+            ->selectRaw("sum(case when status in ('contacted', 'qualified') then 1 else 0 end) as contacted")
+            ->selectRaw("sum(case when status = 'qualified' then 1 else 0 end) as qualified")
+            ->first();
+
+        return $this->funnelItem(
+            '',
+            (int) ($row->total ?? 0),
+            (int) ($row->contacted ?? 0),
+            (int) ($row->qualified ?? 0),
+        );
+    }
+
+    /** @return array{total: int, contacted: int, qualified: int, leadToContactedRate: ?float, contactedToQualifiedRate: ?float, qualifiedRate: ?float} */
+    private function funnelItem(string $campaign, int $total, int $contacted, int $qualified): array
+    {
+        $leadToContactedRate = $total > 0 ? round($contacted / $total * 100, 1) : null;
+        $contactedToQualifiedRate = $contacted > 0 ? round($qualified / $contacted * 100, 1) : null;
+        $qualifiedRate = $total > 0 ? round($qualified / $total * 100, 1) : null;
+
+        return [
+            'campaign' => $campaign,
+            'total' => $total,
+            'contacted' => $contacted,
+            'qualified' => $qualified,
+            'leadToContactedRate' => $leadToContactedRate,
+            'contactedToQualifiedRate' => $contactedToQualifiedRate,
+            'qualifiedRate' => $qualifiedRate,
+        ];
     }
 
     /** @return array<string, mixed> */

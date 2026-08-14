@@ -159,7 +159,7 @@ const faqs = [
       <div class="rounded-panel border-line bg-surface border p-6 text-center sm:p-8">
         <p class="text-ink-muted text-sm font-medium">قبل از مقایسهٔ قیمت‌ها، این را بدانید:</p>
         <p class="text-ink-strong font-display mt-3 text-xl font-bold leading-9 sm:text-2xl">
-          یک سئوکار تمام‌وقت در ایران از <span class="text-brand-700">۲۰ میلیون تومان در ماه</span>{{
+          یک سئوکار تمام‌وقت در ایران از <span class="text-gradient-brand">۲۰ میلیون تومان در ماه</span>{{
             ' '
           }}شروع می‌شود — با ابزارهای جداگانه، گزارش‌های دستی و بدون کنترل شما.
         </p>
@@ -206,16 +206,22 @@ const faqs = [
     <section class="mx-auto max-w-7xl px-5 py-12 sm:px-8 lg:px-10">
       <div class="grid gap-5 lg:grid-cols-3">
         <div
-          v-for="plan in plans"
+          v-for="(plan, index) in plans"
           :key="plan.id"
-          class="rounded-panel border flex flex-col p-6 sm:p-7"
+          v-reveal="{ delay: index * 100 }"
+          class="rounded-panel relative flex flex-col overflow-hidden border p-6 sm:p-7"
           :class="
             plan.featured
               ? 'bg-brand-900 text-white shadow-panel border-brand-900'
               : 'border-line bg-surface'
           "
         >
-          <div class="flex items-center justify-between gap-3">
+          <div
+            v-if="plan.featured"
+            aria-hidden="true"
+            class="pointer-events-none absolute -top-20 -left-20 size-56 rounded-full bg-white/15 blur-2xl"
+          />
+          <div class="relative flex items-center justify-between gap-3">
             <h2 class="font-display text-ink-strong text-xl font-bold" :class="{ 'text-white': plan.featured }">
               {{ plan.title }}
             </h2>
@@ -234,7 +240,7 @@ const faqs = [
             </p>
           </div>
 
-          <ul class="mt-6 flex-1 space-y-2.5">
+          <ul class="relative mt-6 flex-1 space-y-2.5">
             <li
               v-for="feature in plan.features"
               :key="feature"
@@ -250,7 +256,7 @@ const faqs = [
 
           <VButton
             :href="plan.href"
-            class="mt-7 w-full"
+            class="relative mt-7 w-full"
             size="lg"
             :variant="plan.featured ? 'secondary' : 'primary'"
             >{{ plan.cta }}</VButton
@@ -292,13 +298,15 @@ const faqs = [
     <!-- Comparison table -->
     <section class="border-line bg-surface border-y">
       <div class="mx-auto max-w-7xl px-5 py-16 sm:px-8 lg:px-10 lg:py-20">
-        <h2 class="font-display text-ink-strong text-2xl font-bold sm:text-3xl">
-          مقایسهٔ کامل پلن‌ها
-        </h2>
-        <p class="text-ink-muted mt-3 max-w-2xl leading-7">
-          برای اینکه دقیقاً بدانید روی چه چیزی حساب می‌کنید — بدون ابهام و سورپرایز.
-        </p>
-        <div class="rounded-panel border-line mt-8 overflow-x-auto border bg-white">
+        <div v-reveal>
+          <h2 class="font-display text-ink-strong text-2xl font-bold sm:text-3xl">
+            مقایسهٔ کامل پلن‌ها
+          </h2>
+          <p class="text-ink-muted mt-3 max-w-2xl leading-7">
+            برای اینکه دقیقاً بدانید روی چه چیزی حساب می‌کنید — بدون ابهام و سورپرایز.
+          </p>
+        </div>
+        <div v-reveal class="rounded-panel border-line mt-8 overflow-x-auto border bg-white">
           <table class="w-full min-w-[640px] border-collapse text-sm">
             <thead>
               <tr class="border-line border-b bg-surface-muted/60">
@@ -331,9 +339,11 @@ const faqs = [
 
     <!-- FAQ -->
     <section class="mx-auto max-w-4xl px-5 py-16 sm:px-8 lg:px-10 lg:py-20">
-      <h2 class="font-display text-ink-strong text-center text-2xl font-bold sm:text-3xl">
-        سؤالاتی که معمولاً می‌پرسند
-      </h2>
+      <div v-reveal>
+        <h2 class="font-display text-ink-strong text-center text-2xl font-bold sm:text-3xl">
+          سؤالاتی که معمولاً می‌پرسند
+        </h2>
+      </div>
       <div class="mt-10 space-y-3">
         <details
           v-for="faq in faqs"
@@ -355,7 +365,19 @@ const faqs = [
 
     <!-- Final CTA -->
     <section class="mx-auto max-w-7xl px-5 pb-16 sm:px-8 lg:px-10 lg:pb-20">
-      <div class="rounded-panel bg-brand-900 px-6 py-10 text-center text-white sm:px-10 sm:py-14">
+      <div
+        v-reveal
+        class="rounded-panel relative overflow-hidden bg-brand-900 px-6 py-10 text-center text-white sm:px-10 sm:py-14"
+      >
+        <div
+          aria-hidden="true"
+          class="pointer-events-none absolute -top-24 left-1/4 size-72 rounded-full bg-violet-500/30 blur-3xl"
+        />
+        <div
+          aria-hidden="true"
+          class="pointer-events-none absolute -bottom-28 right-1/4 size-72 rounded-full bg-indigo-500/30 blur-3xl"
+        />
+        <div class="relative">
         <h2 class="font-display text-2xl font-bold leading-relaxed sm:text-3xl">
           مطمئن نیستید کدام پلن مناسب شماست؟
         </h2>
@@ -364,12 +386,13 @@ const faqs = [
           می‌دهیم — بدون هیچ تعهدی.
         </p>
         <div class="mt-8 flex flex-wrap justify-center gap-3">
-          <VButton href="/demo" size="lg" variant="secondary">درخواست دموی اختصاصی</VButton>
+          <VButton href="/demo" size="lg" variant="secondary" class="relative">درخواست دموی اختصاصی</VButton>
           <a
             href="/contact"
             class="transition-ui rounded-ui inline-flex min-h-12 items-center justify-center gap-2 border border-white/25 bg-white/10 px-5 text-base font-semibold text-white whitespace-nowrap hover:bg-white/20"
             >تماس با تیم فروش</a
           >
+          </div>
         </div>
       </div>
     </section>

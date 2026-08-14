@@ -6,7 +6,9 @@ namespace Tests\Feature\Gsc;
 
 use App\Domains\Gsc\Actions\UpsertGscMetric;
 use App\Domains\Gsc\Jobs\ImportGscMetrics;
+use App\Domains\Gsc\Services\GscHttp;
 use App\Domains\Gsc\Services\GscMetricsClient;
+use App\Domains\Gsc\Services\GscTokenService;
 use App\Domains\Organization\Models\Organization;
 use App\Domains\Workspace\Models\Client;
 use App\Domains\Workspace\Models\Project;
@@ -28,11 +30,11 @@ class GscImportJobTest extends TestCase
         $a = \DB::table('gsc_accounts')->insertGetId(['organization_id' => $o->id, 'google_subject' => 'sub', 'email' => 'a@test', 'token_ciphertext' => 'x', 'status' => 'connected', 'created_at' => now(), 'updated_at' => now()]);
         $property = \DB::table('gsc_properties')->insertGetId(['site_id' => $s->id, 'gsc_account_id' => $a, 'property_uri' => 'https://e.ir', 'property_type' => 'url-prefix', 'created_at' => now(), 'updated_at' => now()]);
         $run = \DB::table('gsc_import_runs')->insertGetId(['gsc_property_id' => $property, 'date_start' => '2026-01-01', 'date_end' => '2026-01-02', 'status' => 'queued', 'created_at' => now(), 'updated_at' => now()]);
-        $fake = new class(app(\App\Domains\Gsc\Services\GscTokenService::class)) extends GscMetricsClient
+        $fake = new class(app(GscTokenService::class)) extends GscMetricsClient
         {
-            public function __construct(\App\Domains\Gsc\Services\GscTokenService $tokens)
+            public function __construct(GscTokenService $tokens)
             {
-                parent::__construct($tokens, app(\App\Domains\Gsc\Services\GscHttp::class));
+                parent::__construct($tokens, app(GscHttp::class));
             }
 
             public function query(object $a, string $p, string $s, string $e, array $d): array

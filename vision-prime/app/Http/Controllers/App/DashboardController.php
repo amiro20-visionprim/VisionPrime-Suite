@@ -21,7 +21,7 @@ class DashboardController extends Controller
         $id = $c->id();
         $siteIds = Site::query()->where('organization_id', $id)->pluck('id');
 
-        return Inertia::render('App/DashboardPlaceholder', [
+        return Inertia::render('App/Dashboard', [
             'counts' => [
                 'clients' => Client::query()->where('organization_id', $id)->count(),
                 'projects' => Project::query()->where('organization_id', $id)->count(),

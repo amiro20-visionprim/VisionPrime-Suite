@@ -26,6 +26,9 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
             'flash' => [
                 'status' => fn (): ?string => $request->session()->get('status'),
+                // One-time pairing token shown right after creation on the connector page.
+                'pairingToken' => fn (): ?string => $request->session()->get('pairingToken'),
+                'pairingTokenExpiresAt' => fn (): ?string => $request->session()->get('pairingTokenExpiresAt'),
             ],
             'auth' => [
                 'user' => fn (): ?array => $request->user() === null ? null : [

@@ -9,6 +9,7 @@ use App\Domains\Gsc\Services\SearchConsoleClient;
 use App\Domains\Organization\Contracts\CurrentOrganization;
 use App\Domains\Workspace\Models\Site;
 use App\Http\Controllers\Controller;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -24,7 +25,7 @@ class GscPropertyController extends Controller
         foreach ($accounts as $a) {
             try {
                 $properties[$a->id] = $client->properties($a);
-            } catch (\Illuminate\Http\Client\RequestException $e) {
+            } catch (RequestException $e) {
                 $properties[$a->id] = [];
                 $status = $e->response->status();
                 $googleErrors[$a->id] = $status === 403

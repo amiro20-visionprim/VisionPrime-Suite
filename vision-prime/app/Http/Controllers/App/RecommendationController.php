@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\App;
 
 use App\Domains\Audit\Actions\RecordAuditLog;
+use App\Domains\Automation\Actions\AutoPublish;
 use App\Domains\Automation\Actions\ConvertRecommendationToCommand;
 use App\Domains\Organization\Contracts\CurrentOrganization;
 use App\Domains\Seo\Models\Recommendation;
@@ -165,7 +166,7 @@ class RecommendationController extends Controller
             ->with('status', 'فرصت به پیشنهاد تبدیل شد؛ از دکمه ویرایش، مالک و مهلت را تعیین کنید.');
     }
 
-    public function toCommand(Request $request, int $recommendation, CurrentOrganization $org, ConvertRecommendationToCommand $converter): RedirectResponse
+    public function toCommand(Request $request, int $recommendation, CurrentOrganization $org, ConvertRecommendationToCommand $converter, AutoPublish $autoPublish): RedirectResponse
     {
         $siteIds = Site::query()->where('organization_id', $org->id())->pluck('id');
         $item = Recommendation::query()
@@ -189,13 +190,22 @@ class RecommendationController extends Controller
             ->where('source_id', $item->id)
             ->exists();
 
-        $converter->handle($item, $data['type'], $data['target_url'], $data['new_value']);
+        $commandId = $converter->handle($item, $data['type'], $data['target_url'], $data['new_value']);
+
+        // خط لولهٔ D-013 گام ۴–۵: PolicyEvaluator تصمیم می‌گیرد و AutoPublish اجرا می‌کند.
+        // بدون confidence_score (فعلاً null) همه‌چیز fail-closed به تأیید انسانی می‌رود؛
+        // با فعال‌شدن موتور امتیازدهی (فاز ۳) مسیر انتشار خودکار باز می‌شود.
+        $auto = $autoPublish->handle($commandId);
+        $autoNote = $auto['decision'] === 'auto_publish'
+            ? 'تغییر اجرایی طبق سیاست خودکارسازی منتشر شد.'
+            : null;
 
         return back()->with(
             'status',
-            $alreadyConverted
+            $autoNote
+            ?? ($alreadyConverted
                 ? 'این پیشنهاد قبلاً به تغییر اجرایی تبدیل شده است.'
-                : 'تغییر اجرایی ساخته شد و برای تأیید مشتری ارسال گردید.'
+                : 'تغییر اجرایی ساخته شد و برای تأیید مشتری ارسال گردید.')
         );
     }
 

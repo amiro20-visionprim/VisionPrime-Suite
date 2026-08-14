@@ -33,6 +33,16 @@ export interface LeadNote {
   user: { name: string; email: string } | null
 }
 
+export interface ConversionFunnel {
+  campaign: string
+  total: number
+  contacted: number
+  qualified: number
+  leadToContactedRate: number | null
+  contactedToQualifiedRate: number | null
+  qualifiedRate: number | null
+}
+
 export interface MarketingStats {
   total: number
   thisWeek: number
@@ -40,6 +50,9 @@ export interface MarketingStats {
   bySource: { demo: number; support: number }
   topCampaigns: { campaign: string; count: number }[]
   topSources: { source: string; count: number }[]
+  funnel: ConversionFunnel
+  filteredFunnel: ConversionFunnel
+  campaignFunnel: ConversionFunnel[]
 }
 
 export interface MarketingFilters {

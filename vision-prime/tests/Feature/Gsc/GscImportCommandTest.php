@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Gsc;
 
+use App\Domains\Gsc\Jobs\ImportGscMetrics;
 use App\Domains\Organization\Models\Organization;
 use App\Domains\Workspace\Models\Client;
 use App\Domains\Workspace\Models\Project;
@@ -40,7 +41,7 @@ class GscImportCommandTest extends TestCase
             ->expectsOutputToContain('2 import در صف قرار گرفت')
             ->assertExitCode(0);
 
-        Queue::assertPushed(\App\Domains\Gsc\Jobs\ImportGscMetrics::class, 2);
+        Queue::assertPushed(ImportGscMetrics::class, 2);
         $this->assertDatabaseHas('gsc_import_runs', ['gsc_property_id' => \DB::table('gsc_properties')->where('site_id', $a->id)->value('id'), 'status' => 'queued']);
         $this->assertDatabaseHas('gsc_import_runs', ['gsc_property_id' => \DB::table('gsc_properties')->where('site_id', $b->id)->value('id'), 'status' => 'queued']);
     }
@@ -54,7 +55,7 @@ class GscImportCommandTest extends TestCase
 
         $this->artisan('gsc:import', ['--site' => (string) $a->id, '--days' => 3])->assertExitCode(0);
 
-        Queue::assertPushed(\App\Domains\Gsc\Jobs\ImportGscMetrics::class, 1);
+        Queue::assertPushed(ImportGscMetrics::class, 1);
         $this->assertDatabaseCount('gsc_import_runs', 1);
     }
 

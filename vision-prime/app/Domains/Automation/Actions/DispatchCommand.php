@@ -17,6 +17,10 @@ class DispatchCommand
         $command = \DB::table('commands')->where('id', $commandId)->firstOrFail();
         abort_unless($command->status === 'approved', 422);
         abort_unless(now()->lt($command->expires_at), 422);
+        // بند Acceptance سند ۰۱: هر command در لحظهٔ dispatch با Policy فعلی دوباره ارزیابی می‌شود.
+        // توقف اضطراری، dispatch را برای همهٔ دستورها (انسانی یا سیستمی) مسدود می‌کند.
+        $policy = \DB::table('site_automation_policies')->where('site_id', $command->site_id)->first();
+        abort_if($policy !== null && ! empty($policy->emergency_stopped_at), 423, 'Automation is emergency-stopped for this site.');
         $connection = \DB::table('site_connections')->where('site_id', $command->site_id)->where('status', 'connected')->firstOrFail();
         $timestamp = (string) now()->timestamp;
         $nonce = (string) Str::uuid();

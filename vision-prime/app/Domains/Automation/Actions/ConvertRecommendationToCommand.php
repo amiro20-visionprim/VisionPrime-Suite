@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Automation\Actions;
 
 use App\Domains\Audit\Actions\RecordAuditLog;
+use App\Domains\Automation\Services\CommandConfidenceAssessor;
 use App\Domains\Seo\Models\Recommendation;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -20,7 +21,10 @@ class ConvertRecommendationToCommand
 {
     public const SUPPORTED_TYPES = ['update_meta_title', 'update_meta_description'];
 
-    public function __construct(private readonly RecordAuditLog $audit) {}
+    public function __construct(
+        private readonly RecordAuditLog $audit,
+        private readonly CommandConfidenceAssessor $assessor,
+    ) {}
 
     /** @return int The command id (existing or newly created). */
     public function handle(Recommendation $recommendation, string $type, string $targetUrl, string $newValue): int
@@ -46,6 +50,9 @@ class ConvertRecommendationToCommand
             default => 'R2',
         };
 
+        // D-013 گام ۳: امتیاز اطمینان از سیگنال‌های GSC + توافق منابع + سابقهٔ یادگیری.
+        $confidence = $this->assessor->assess($recommendation, $type);
+
         $commandId = DB::table('commands')->insertGetId([
             'site_id' => $recommendation->site_id,
             'source_type' => 'recommendation',
@@ -55,6 +62,8 @@ class ConvertRecommendationToCommand
             'payload' => json_encode(['url' => $targetUrl, $payloadKey => $newValue], JSON_UNESCAPED_UNICODE),
             'idempotency_key' => (string) Str::uuid(),
             'status' => 'pending_approval',
+            'confidence_score' => $confidence['score'],
+            'confidence_factors' => json_encode($confidence['factors'], JSON_UNESCAPED_UNICODE),
             'expires_at' => now()->addDays(7),
             'policy_version' => 1,
             'created_at' => now(),
@@ -68,7 +77,13 @@ class ConvertRecommendationToCommand
         $this->audit->handle(
             action: 'command.created_from_recommendation',
             subject: $recommendation,
-            after: ['command_id' => $commandId, 'recommendation_id' => $recommendation->id, 'type' => $type, 'risk_tier' => $riskTier],
+            after: [
+                'command_id' => $commandId,
+                'recommendation_id' => $recommendation->id,
+                'type' => $type,
+                'risk_tier' => $riskTier,
+                'confidence_score' => $confidence['score'],
+            ],
         );
 
         return (int) $commandId;

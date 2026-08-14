@@ -10,6 +10,7 @@ use App\Domains\Workspace\Services\OrganizationPermission;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -54,7 +55,7 @@ class IntegrationsSettingsController extends Controller
             ->where('status', 'active')
             ->get(['provider', 'encrypted_config', 'updated_at'])
             ->map(function (object $setting): array {
-                $config = json_decode(\Illuminate\Support\Facades\Crypt::decryptString($setting->encrypted_config), true) ?? [];
+                $config = json_decode(Crypt::decryptString($setting->encrypted_config), true) ?? [];
 
                 return [
                     'provider' => $setting->provider,

@@ -14,6 +14,7 @@ use App\Domains\Workspace\Models\Site;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -92,7 +93,7 @@ class GscImportTriggerTest extends TestCase
 
     public function test_admin_can_dispatch_import_for_owned_property(): void
     {
-        \Illuminate\Support\Facades\Queue::fake();
+        Queue::fake();
 
         $this->actingAs($this->admin)
             ->post('/app/gsc/import', [
@@ -106,7 +107,7 @@ class GscImportTriggerTest extends TestCase
             'gsc_property_id' => $this->propertyId,
             'status' => 'queued',
         ]);
-        \Illuminate\Support\Facades\Queue::assertPushed(ImportGscMetrics::class);
+        Queue::assertPushed(ImportGscMetrics::class);
     }
 
     public function test_import_for_another_organizations_property_is_rejected(): void

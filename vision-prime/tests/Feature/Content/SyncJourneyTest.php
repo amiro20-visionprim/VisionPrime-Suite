@@ -16,6 +16,7 @@ use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -97,7 +98,7 @@ class SyncJourneyTest extends TestCase
 
         Http::fake(['https://wp.test/*' => Http::response('boom', 500)]);
 
-        \Illuminate\Support\Facades\Queue::fake();
+        Queue::fake();
         $this->actingAs($user)
             ->post("/app/sites/{$site->id}/sync")
             ->assertRedirect();

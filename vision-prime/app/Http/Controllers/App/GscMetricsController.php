@@ -7,6 +7,7 @@ namespace App\Http\Controllers\App;
 use App\Domains\Organization\Contracts\CurrentOrganization;
 use App\Domains\Workspace\Models\Site;
 use App\Http\Controllers\Controller;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -80,7 +81,7 @@ class GscMetricsController extends Controller
         return $value;
     }
 
-    /** @param  \Illuminate\Database\Query\Builder  $query
+    /** @param  Builder  $query
      * @param  array<string, string|null>  $filters
      */
     private function applyFilters($query, array $filters, string $dateColumn): void

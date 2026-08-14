@@ -16,7 +16,7 @@ withDefaults(
 
 <template>
   <div :class="centered ? 'mx-auto max-w-2xl text-center' : 'max-w-2xl'">
-    <p v-if="eyebrow" class="text-brand-700 text-sm font-bold tracking-wide">{{ eyebrow }}</p>
+    <p v-if="eyebrow" class="text-gradient-brand text-sm font-bold tracking-wide">{{ eyebrow }}</p>
     <h2 class="text-section-title font-display text-ink-strong mt-3 font-bold sm:text-3xl">
       {{ title }}
     </h2>

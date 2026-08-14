@@ -9,9 +9,9 @@ use App\Domains\Gsc\Services\GscTokenService;
 use App\Domains\Gsc\Services\SearchConsoleClient;
 use App\Domains\Organization\Models\Organization;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class GscTokenRefreshTest extends TestCase

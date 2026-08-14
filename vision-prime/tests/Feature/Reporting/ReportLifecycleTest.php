@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Reporting;
 
+use App\Domains\Automation\Actions\ExecuteCommand;
 use App\Domains\Identity\Models\Role;
 use App\Domains\Organization\Models\Membership;
 use App\Domains\Organization\Models\Organization;
@@ -78,7 +79,7 @@ class ReportLifecycleTest extends TestCase
             ['site_id' => $site->id, 'type' => 'growth_report', 'period_start' => '2026-07-01', 'period_end' => '2026-07-31', 'status' => 'published', 'content' => json_encode(['opportunities' => 4, 'high_risks' => 0, 'recommendations' => 5, 'impact_events' => 2]), 'published_at' => now(), 'created_at' => now(), 'updated_at' => now()],
         ]);
 
-        $this->actingAs($clientUser)->withSession(['current_client_id' => \App\Domains\Workspace\Models\Client::first()->id])
+        $this->actingAs($clientUser)->withSession(['current_client_id' => Client::first()->id])
             ->get('/client/reports')
             ->assertOk()
             ->assertInertia(fn ($page) => $page
@@ -134,7 +135,7 @@ class ReportLifecycleTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        $result = app(\App\Domains\Automation\Actions\ExecuteCommand::class)->handle($commandId);
+        $result = app(ExecuteCommand::class)->handle($commandId);
 
         $this->assertSame(200, $result['http_status']);
         $this->assertDatabaseHas('commands', ['id' => $commandId, 'status' => 'executed']);

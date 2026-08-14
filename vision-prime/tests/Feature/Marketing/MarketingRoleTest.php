@@ -113,6 +113,59 @@ class MarketingRoleTest extends TestCase
         $this->assertStringContainsString('وایتدلیبل', (string) $note->body);
     }
 
+    public function test_marketing_dashboard_reports_conversion_funnel_per_campaign(): void
+    {
+        $organization = $this->organization();
+        $user = User::factory()->create();
+        $this->membership($user, $organization, 'marketing-manager');
+
+        // کمپین A: ۲ لید — یکی جدید، یکی واجد شرایط
+        Lead::query()->create($this->leadAttributes(['email' => 'a1@test.ir', 'utm_campaign' => 'camp_a', 'status' => 'new']));
+        Lead::query()->create($this->leadAttributes(['email' => 'a2@test.ir', 'utm_campaign' => 'camp_a', 'status' => 'qualified']));
+        // کمپین B: ۱ لید — تماس‌گرفته‌شده
+        Lead::query()->create($this->leadAttributes(['email' => 'b1@test.ir', 'utm_campaign' => 'camp_b', 'status' => 'contacted']));
+
+        $this->actingAs($user)
+            ->get('/app/marketing')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('stats.funnel.total', 3)
+                ->where('stats.funnel.contacted', 2)
+                ->where('stats.funnel.qualified', 1)
+                ->where('stats.funnel.leadToContactedRate', 66.7)
+                ->where('stats.funnel.contactedToQualifiedRate', 50)
+                ->where('stats.funnel.qualifiedRate', 33.3)
+                ->where('stats.campaignFunnel.0.campaign', 'camp_a')
+                ->where('stats.campaignFunnel.0.total', 2)
+                ->where('stats.campaignFunnel.0.contacted', 1)
+                ->where('stats.campaignFunnel.0.qualified', 1)
+                ->where('stats.campaignFunnel.0.leadToContactedRate', 50)
+                ->where('stats.campaignFunnel.0.contactedToQualifiedRate', 100)
+                ->where('stats.campaignFunnel.1.campaign', 'camp_b')
+                ->where('stats.campaignFunnel.1.contacted', 1)
+                ->where('stats.campaignFunnel.1.leadToContactedRate', 100)
+                ->where('stats.campaignFunnel.1.contactedToQualifiedRate', 0));
+    }
+
+    public function test_filtered_funnel_reacts_to_status_filter(): void
+    {
+        $organization = $this->organization();
+        $user = User::factory()->create();
+        $this->membership($user, $organization, 'marketing-manager');
+
+        Lead::query()->create($this->leadAttributes(['email' => 'a@test.ir', 'status' => 'new']));
+        Lead::query()->create($this->leadAttributes(['email' => 'b@test.ir', 'status' => 'qualified']));
+
+        $this->actingAs($user)
+            ->get('/app/marketing?status=qualified')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('stats.filteredFunnel.total', 1)
+                ->where('stats.filteredFunnel.contacted', 1)
+                ->where('stats.filteredFunnel.qualified', 1)
+                ->where('stats.filteredFunnel.qualifiedRate', 100));
+    }
+
     public function test_lead_detail_requires_marketing_permission(): void
     {
         $organization = $this->organization();

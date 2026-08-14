@@ -2,6 +2,7 @@ import '../css/app.css'
 import { createInertiaApp } from '@inertiajs/vue3'
 import { createApp, h, type DefineComponent } from 'vue'
 
+import { vReveal } from '@/directives/reveal'
 import { syncDocumentLocale } from '@/lib/locale'
 import type { AppPageProps } from '@/types/app'
 
@@ -24,6 +25,7 @@ createInertiaApp({
 
     createApp({ render: () => h(App, props) })
       .use(plugin)
+      .directive('reveal', vReveal)
       .mount(el)
   },
 })

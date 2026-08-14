@@ -41,7 +41,7 @@ function closeMenu(): void {
         aria-label="Vision Prime، صفحه اصلی"
       >
         <span
-          class="rounded-ui bg-brand-700 flex size-9 items-center justify-center text-sm font-bold text-white"
+          class="bg-gradient-brand shadow-md shadow-indigo-500/25 flex size-9 items-center justify-center rounded-xl text-sm font-bold text-white"
           >VP</span
         >
         <span class="font-display text-lg font-bold tracking-tight">Vision Prime</span>

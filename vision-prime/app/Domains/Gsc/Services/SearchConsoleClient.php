@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Gsc\Services;
 
 use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Support\Facades\Crypt;
 
 class SearchConsoleClient
 {
@@ -19,7 +20,7 @@ class SearchConsoleClient
             ->get('https://www.googleapis.com/webmasters/v3/sites');
 
         if ($response->status() === 401) {
-            $token = json_decode(\Illuminate\Support\Facades\Crypt::decryptString($account->token_ciphertext), true);
+            $token = json_decode(Crypt::decryptString($account->token_ciphertext), true);
             $response = $this->client($this->tokens->refresh($account, $token))
                 ->get('https://www.googleapis.com/webmasters/v3/sites');
         }

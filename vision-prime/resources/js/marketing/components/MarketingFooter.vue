@@ -7,6 +7,14 @@ const productLinks = [
   { label: 'قیمت‌گذاری', href: '/pricing' },
 ]
 
+const audienceLinks = [
+  { label: 'آژانس‌های SEO', href: '/for-agencies' },
+  { label: 'فروشگاه‌های اینترنتی', href: '/for-ecommerce' },
+  { label: 'کلینیک‌ها', href: '/for-clinics' },
+  { label: 'مراکز آموزشی', href: '/for-education' },
+  { label: 'سفر و هتلداری', href: '/for-hospitality' },
+]
+
 const companyLinks = [
   { label: 'امنیت', href: '/security' },
   { label: 'درباره ما', href: '/about' },
@@ -24,7 +32,7 @@ const contactLinks = [
 <template>
   <footer class="border-line bg-surface border-t">
     <div
-      class="mx-auto grid max-w-7xl gap-10 px-5 py-12 sm:px-8 md:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1.1fr] lg:px-10"
+      class="mx-auto grid max-w-7xl gap-10 px-5 py-12 sm:px-8 md:grid-cols-2 lg:grid-cols-[1.3fr_1fr_1fr_1fr_1.1fr] lg:px-10"
     >
       <div>
         <Link href="/" class="text-ink-strong inline-flex items-center gap-2.5">
@@ -42,6 +50,14 @@ const contactLinks = [
         <h2 class="text-ink-strong text-sm font-bold">محصول</h2>
         <ul class="mt-4 space-y-3 text-sm">
           <li v-for="item in productLinks" :key="item.href">
+            <Link :href="item.href" class="text-ink hover:text-brand-700">{{ item.label }}</Link>
+          </li>
+        </ul>
+      </div>
+      <div>
+        <h2 class="text-ink-strong text-sm font-bold">برای تیم‌ها</h2>
+        <ul class="mt-4 space-y-3 text-sm">
+          <li v-for="item in audienceLinks" :key="item.href">
             <Link :href="item.href" class="text-ink hover:text-brand-700">{{ item.label }}</Link>
           </li>
         </ul>

@@ -13,6 +13,7 @@ use App\Domains\Workspace\Models\Site;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
@@ -119,7 +120,7 @@ class CommandDispatchEndpointTest extends TestCase
             ->post("/app/commands/{$this->commandId}/dispatch")
             ->assertRedirect();
 
-        Http::assertSent(function (\Illuminate\Http\Client\Request $request): bool {
+        Http::assertSent(function (Request $request): bool {
             $headers = $request->headers();
             $signature = $headers['X-VP-Signature'][0] ?? '';
             $timestamp = $headers['X-VP-Timestamp'][0] ?? '';

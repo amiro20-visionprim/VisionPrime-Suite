@@ -25,7 +25,7 @@ class ReviewDetailController extends Controller
         ]);
     }
 
-    private function subject(object $item): array|null
+    private function subject(object $item): ?array
     {
         return match ($item->subject_type) {
             'money_page_audit' => $this->moneyPageAudit((int) $item->subject_id),

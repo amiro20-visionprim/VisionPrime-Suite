@@ -4,7 +4,10 @@ defined('ABSPATH') || exit;
 
 final class VP_Request_Verifier {
     public static function verify(WP_REST_Request $request): bool|WP_Error {
-        $settings = get_option('vision_prime_connector', []);
+        if (VP_Guard::tampered()) {
+            return new WP_Error('vision_prime_tampered', 'Connector integrity check failed.', ['status' => 403]);
+        }
+        $settings = VP_Secret::unlock(get_option('vision_prime_connector', []));
         $secret = $settings['secret'] ?? '';
         $timestamp = (string) $request->get_header('x-vp-timestamp');
         $nonce = (string) $request->get_header('x-vp-nonce');

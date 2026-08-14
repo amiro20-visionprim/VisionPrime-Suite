@@ -2,19 +2,22 @@
 /**
  * Plugin Name: Vision Prime Connector
  * Description: Secure connection between WordPress and Vision Prime.
- * Version: 0.2.0
+ * Version: 1.2.0
  * Requires PHP: 8.2
  */
 
 defined('ABSPATH') || exit;
 
-define('VISION_PRIME_CONNECTOR_VERSION', '0.2.0');
+define('VISION_PRIME_CONNECTOR_VERSION', '1.2.0');
+define('VISION_PRIME_OPTION', 'vision_prime_connector');
 
+require_once __DIR__ . '/includes/class-vp-guard.php';
+require_once __DIR__ . '/includes/class-vp-secret.php';
 require_once __DIR__ . '/includes/class-vp-api-client.php';
 require_once __DIR__ . '/includes/class-vp-request-verifier.php';
 
 final class Vision_Prime_Connector {
-    private const OPTION = 'vision_prime_connector';
+    private const OPTION = VISION_PRIME_OPTION;
 
     public function __construct() {
         add_action('admin_menu', [$this, 'settings_page']);
@@ -33,13 +36,23 @@ final class Vision_Prime_Connector {
     }
 
     public function settings_page(): void {
-        add_options_page('Vision Prime', 'Vision Prime', 'manage_options', 'vision-prime', [$this, 'render_settings']);
+        // Top-level menu with the brand icon so the plugin is visible in the
+        // admin sidebar (WP 7 no longer renders icons for self-hosted plugins
+        // anywhere else — not in the plugins list, not in the details modal).
+        add_menu_page('Vision Prime', 'Vision Prime', 'manage_options', 'vision-prime', [$this, 'render_settings'], self::menu_icon(), 3);
+    }
+
+    private static function menu_icon(): string
+    {
+        $svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><defs><linearGradient id="vp" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4338CA"/><stop offset="1" stop-color="#8B5CF6"/></linearGradient></defs><rect width="20" height="20" rx="4" fill="url(#vp)"/><text x="10" y="13.5" font-family="Arial,sans-serif" font-size="9" font-weight="bold" fill="#ffffff" text-anchor="middle">VP</text></svg>';
+
+        return 'data:image/svg+xml;base64,' . base64_encode($svg);
     }
 
     public function render_settings(): void {
         if (! current_user_can('manage_options')) return;
         $settings = get_option(self::OPTION, []); ?>
-        <div class="wrap"><h1>Vision Prime Connector</h1><?php if ($notice = get_transient('vision_prime_notice')) { delete_transient('vision_prime_notice'); echo '<div class="notice notice-info"><p>'.esc_html($notice).'</p></div>'; } ?><form method="post" action="options.php"><?php settings_fields('vision-prime'); ?><p><label>Platform URL <input class="regular-text" name="<?php echo esc_attr(self::OPTION); ?>[platform_url]" value="<?php echo esc_attr($settings['platform_url'] ?? ''); ?>"></label></p><p><label>Site ID <input name="<?php echo esc_attr(self::OPTION); ?>[site_id]" value="<?php echo esc_attr($settings['site_id'] ?? ''); ?>"></label></p><?php submit_button('Save connection settings'); ?></form><hr><h2>Pair site</h2><form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"><input type="hidden" name="action" value="vision_prime_pair"><?php wp_nonce_field('vision_prime_pair'); ?><p><label>Pairing Token <input class="regular-text" type="password" name="pairing_token" autocomplete="off"></label></p><?php submit_button('Pair with Vision Prime'); ?></form><p><strong>Status:</strong> <?php echo empty($settings['secret']) ? 'Not connected' : 'Connected'; ?></p><?php if (! empty($settings['secret'])) { ?><form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"><input type="hidden" name="action" value="vision_prime_health"><?php wp_nonce_field('vision_prime_health'); submit_button('Run signed health check', 'secondary', 'submit', false); ?></form><?php } ?></div><?php
+        <div class="wrap"><h1>Vision Prime Connector</h1><?php if ($notice = get_transient('vision_prime_notice')) { delete_transient('vision_prime_notice'); echo '<div class="notice notice-info"><p>'.esc_html($notice).'</p></div>'; } ?><form method="post" action="options.php"><?php settings_fields('vision-prime'); ?><p><label>Platform URL <input class="regular-text" name="<?php echo esc_attr(self::OPTION); ?>[platform_url]" value="<?php echo esc_attr($settings['platform_url'] ?? ''); ?>"></label></p><p><label>Site ID <input name="<?php echo esc_attr(self::OPTION); ?>[site_id]" value="<?php echo esc_attr($settings['site_id'] ?? ''); ?>"></label></p><?php submit_button('Save connection settings'); ?></form><hr><h2>Pair site</h2><form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"><input type="hidden" name="action" value="vision_prime_pair"><?php wp_nonce_field('vision_prime_pair'); ?><p><label>Pairing Token <input class="regular-text" type="password" name="pairing_token" autocomplete="off"></label></p><?php submit_button('Pair with Vision Prime'); ?></form><p><strong>Status:</strong> <?php echo empty($settings['secret']) ? 'Not connected' : 'Connected'; ?><?php if (VP_Guard::tampered()) { echo ' <strong style="color:#b32d2e;"> — integrity check FAILED</strong>'; } ?></p><?php if (! empty($settings['secret'])) { ?><form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"><input type="hidden" name="action" value="vision_prime_health"><?php wp_nonce_field('vision_prime_health'); submit_button('Run signed health check', 'secondary', 'submit', false); ?></form><?php } ?></div><?php
     }
 
     public function pair(): void {
@@ -49,19 +62,19 @@ final class Vision_Prime_Connector {
         $token = sanitize_text_field($_POST['pairing_token'] ?? '');
         $result = VP_API_Client::pair($settings, $token);
         if (is_wp_error($result)) { set_transient('vision_prime_notice', $result->get_error_message(), 60); }
-        else { $settings['secret'] = $result['secret']; update_option(self::OPTION, $settings, false); set_transient('vision_prime_notice', 'Connected successfully.', 60); }
-        wp_safe_redirect(admin_url('options-general.php?page=vision-prime'));
+        else { $settings['secret'] = VP_Secret::encrypt($result['secret']); update_option(self::OPTION, $settings, false); set_transient('vision_prime_notice', 'Connected successfully.', 60); }
+        wp_safe_redirect(admin_url('admin.php?page=vision-prime'));
         exit;
     }
 
     public function health_check(): void {
         if (! current_user_can('manage_options')) wp_die('Unauthorized.');
         check_admin_referer('vision_prime_health');
-        $settings = get_option(self::OPTION, []);
+        $settings = VP_Secret::unlock(get_option(self::OPTION, []));
         $result = empty($settings['secret']) ? new WP_Error('vision_prime_not_connected', 'Site is not paired.') : VP_API_Client::signed_health($settings);
         $message = is_wp_error($result) ? $result->get_error_message() : (wp_remote_retrieve_response_code($result) === 200 ? 'Health check succeeded.' : 'Health check failed.');
         set_transient('vision_prime_notice', $message, 60);
-        wp_safe_redirect(admin_url('options-general.php?page=vision-prime'));
+        wp_safe_redirect(admin_url('admin.php?page=vision-prime'));
         exit;
     }
 
@@ -69,10 +82,11 @@ final class Vision_Prime_Connector {
         register_rest_route('vision-prime/v1', '/health', ['methods' => 'GET', 'callback' => [$this, 'health'], 'permission_callback' => '__return_true']);
         register_rest_route('vision-prime/v1', '/content', ['methods' => 'GET', 'callback' => [$this, 'content'], 'permission_callback' => [VP_Request_Verifier::class, 'verify']]);
         register_rest_route('vision-prime/v1', '/commands', ['methods' => 'POST', 'callback' => [$this, 'commands'], 'permission_callback' => [VP_Request_Verifier::class, 'verify']]);
+        register_rest_route('vision-prime/v1', '/rollback', ['methods' => 'POST', 'callback' => [$this, 'rollback'], 'permission_callback' => [VP_Request_Verifier::class, 'verify']]);
     }
 
     public function health(): WP_REST_Response {
-        return new WP_REST_Response(['plugin_version' => VISION_PRIME_CONNECTOR_VERSION, 'wordpress_version' => get_bloginfo('version'), 'php_version' => PHP_VERSION, 'rest_api' => true]);
+        return new WP_REST_Response(['plugin_version' => VISION_PRIME_CONNECTOR_VERSION, 'wordpress_version' => get_bloginfo('version'), 'php_version' => PHP_VERSION, 'rest_api' => true, 'integrity_hash' => VP_Guard::file_hash(), 'tampered' => VP_Guard::is_tampered_flag()]);
     }
 
     public function content(WP_REST_Request $request): WP_REST_Response {
@@ -83,7 +97,7 @@ final class Vision_Prime_Connector {
             $content = (string) $post->post_content;
             preg_match_all('/<h[1-6][^>]*>(.*?)<\/h[1-6]>/is', $content, $matches);
             $headings = array_map('wp_strip_all_tags', $matches[1] ?? []);
-            return ['id' => $post->ID, 'title' => get_the_title($post), 'url' => get_permalink($post), 'slug' => $post->post_name, 'type' => $post->post_type, 'status' => $post->post_status, 'modified_at' => get_post_modified_time('c', true, $post), 'meta_title' => get_post_meta($post->ID, '_yoast_wpseo_title', true), 'meta_description' => get_post_meta($post->ID, '_yoast_wpseo_metadesc', true), 'headings' => $headings, 'word_count' => str_word_count(wp_strip_all_tags($content)), 'content_hash' => hash('sha256', $content), 'content' => $content];
+            return ['id' => $post->ID, 'title' => get_the_title($post), 'url' => get_permalink($post), 'slug' => $post->post_name, 'type' => $post->post_type, 'status' => $post->post_status, 'modified_at' => get_post_modified_time('c', true, $post), 'meta_title' => self::read_meta($post->ID, 'title'), 'meta_description' => self::read_meta($post->ID, 'description'), 'headings' => $headings, 'word_count' => str_word_count(wp_strip_all_tags($content)), 'content_hash' => hash('sha256', $content), 'content' => $content];
         }, $query->posts);
         return new WP_REST_Response(['data' => $items, 'page' => $page, 'per_page' => $per_page, 'total' => (int) $query->found_posts, 'total_pages' => (int) $query->max_num_pages]);
     }
@@ -96,8 +110,11 @@ final class Vision_Prime_Connector {
      * The result is reported back asynchronously to /connector/command-result.
      */
     public function commands(WP_REST_Request $request): WP_REST_Response {
+        if (VP_Guard::tampered()) {
+            return new WP_REST_Response(['error' => 'integrity check failed'], 403);
+        }
         $params = $request->get_json_params();
-        $settings = get_option(self::OPTION, []);
+        $settings = VP_Secret::unlock(get_option(self::OPTION, []));
         $idempotency_key = sanitize_key((string) ($params['idempotency_key'] ?? ''));
         $type = sanitize_key((string) ($params['type'] ?? ''));
         $payload = is_array($params['payload'] ?? null) ? $params['payload'] : [];
@@ -132,6 +149,94 @@ final class Vision_Prime_Connector {
     }
 
     /**
+     * Restore a previously executed change from its pre-change snapshot (D-013 auto rollback).
+     *
+     * Payload: { command_id, type, previous, post_id, idempotency_key }
+     * The `previous` value comes from the encrypted rollback_snapshots stored server-side.
+     * The result is reported back asynchronously with status=rolled_back so the platform
+     * can mark the command and measure the rollback in impact_events.
+     */
+    public function rollback(WP_REST_Request $request): WP_REST_Response {
+        if (VP_Guard::tampered()) {
+            return new WP_REST_Response(['error' => 'integrity check failed'], 403);
+        }
+        $params = $request->get_json_params();
+        $settings = VP_Secret::unlock(get_option(self::OPTION, []));
+        $idempotency_key = sanitize_key((string) ($params['idempotency_key'] ?? ''));
+        $dedupe_key = 'vision_prime_rb_' . md5($idempotency_key);
+        if ($idempotency_key !== '' && get_transient($dedupe_key)) {
+            return new WP_REST_Response(['status' => 'ack', 'deduplicated' => true], 200);
+        }
+
+        try {
+            $result = $this->restore_command((string) ($params['type'] ?? ''), is_array($params['previous'] ?? null) ? $params['previous'] : []);
+            $status = 'rolled_back';
+        } catch (Throwable $e) {
+            $result = ['error' => $e->getMessage()];
+            $status = 'failed';
+        }
+
+        if ($idempotency_key !== '') {
+            set_transient($dedupe_key, '1', DAY_IN_SECONDS);
+        }
+
+        VP_API_Client::send_command_result($settings, [
+            'site_id' => (int) $settings['site_id'],
+            'idempotency_key' => $idempotency_key,
+            'status' => $status,
+            'result' => $status === 'rolled_back' ? $result : null,
+            'error' => $status === 'failed' ? ($result['error'] ?? 'unknown error') : null,
+        ]);
+
+        return new WP_REST_Response(['status' => 'ack'], 200);
+    }
+
+    /**
+     * Restore the pre-change values of an executed command from its snapshot.
+     *
+     * @return array<string,mixed>
+     * @throws RuntimeException When the target post is missing or the type is unknown.
+     */
+    private function restore_command(string $type, array $previous): array {
+        $post_id = absint($previous['post_id'] ?? 0);
+        if ($post_id === 0) {
+            throw new RuntimeException('Rollback payload has no valid post_id.');
+        }
+        if (get_post($post_id) === null) {
+            throw new RuntimeException('Target post does not exist: ' . $post_id);
+        }
+        switch ($type) {
+            case 'update_meta_title':
+                $keys = self::meta_keys('title');
+                $restored = sanitize_text_field((string) ($previous['title'] ?? ''));
+                foreach ($keys as $key) { update_post_meta($post_id, $key, $restored); }
+                return ['post_id' => $post_id, 'restored' => true, 'meta_keys' => $keys];
+            case 'update_meta_description':
+                $keys = self::meta_keys('description');
+                $restored = sanitize_text_field((string) ($previous['description'] ?? ''));
+                foreach ($keys as $key) { update_post_meta($post_id, $key, $restored); }
+                return ['post_id' => $post_id, 'restored' => true, 'meta_keys' => $keys];
+            case 'update_content':
+            case 'update_product_description':
+                $content = (string) ($previous['content'] ?? '');
+                $updated = wp_update_post(['ID' => $post_id, 'post_content' => wp_kses_post($content)], true);
+                if (is_wp_error($updated) || (int) $updated === 0) {
+                    throw new RuntimeException('Failed to restore content for post ' . $post_id);
+                }
+                return ['post_id' => $post_id, 'restored' => true, 'content_length' => mb_strlen($content)];
+            case 'update_product_title':
+                $restored = sanitize_text_field((string) ($previous['title'] ?? ''));
+                $updated = wp_update_post(['ID' => $post_id, 'post_title' => $restored], true);
+                if (is_wp_error($updated) || (int) $updated === 0) {
+                    throw new RuntimeException('Failed to restore product title for post ' . $post_id);
+                }
+                return ['post_id' => $post_id, 'restored' => true];
+            default:
+                throw new RuntimeException('Unknown command type for rollback: ' . $type);
+        }
+    }
+
+    /**
      * @return array<string,mixed>
      * @throws RuntimeException When the target post is missing or the type is unknown.
      */
@@ -146,23 +251,131 @@ final class Vision_Prime_Connector {
         }
         switch ($type) {
             case 'update_meta_title':
-                $previous = get_post_meta($post_id, '_yoast_wpseo_title', true);
+                $keys = self::meta_keys('title');
+                $previous = self::read_meta($post_id, 'title');
                 $new = sanitize_text_field((string) ($payload['title'] ?? ''));
-                update_post_meta($post_id, '_yoast_wpseo_title', $new);
-                return ['post_id' => $post_id, 'previous' => $previous, 'new' => $new];
+                foreach ($keys as $key) { update_post_meta($post_id, $key, $new); }
+                return ['post_id' => $post_id, 'previous' => ['title' => $previous], 'new' => $new, 'meta_keys' => $keys];
             case 'update_meta_description':
-                $previous = get_post_meta($post_id, '_yoast_wpseo_metadesc', true);
+                $keys = self::meta_keys('description');
+                $previous = self::read_meta($post_id, 'description');
                 $new = sanitize_text_field((string) ($payload['description'] ?? ''));
-                update_post_meta($post_id, '_yoast_wpseo_metadesc', $new);
-                return ['post_id' => $post_id, 'previous' => $previous, 'new' => $new];
+                foreach ($keys as $key) { update_post_meta($post_id, $key, $new); }
+                return ['post_id' => $post_id, 'previous' => ['description' => $previous], 'new' => $new, 'meta_keys' => $keys];
+            case 'update_content':
+                $new = (string) ($payload['content'] ?? '');
+                if ($new === '') {
+                    throw new RuntimeException('Command payload has no content.');
+                }
+                $previous = get_post_field('post_content', $post_id);
+                $updated = wp_update_post(['ID' => $post_id, 'post_content' => wp_kses_post($new)], true);
+                if (is_wp_error($updated) || (int) $updated === 0) {
+                    throw new RuntimeException('Failed to update content for post ' . $post_id);
+                }
+                // Full previous content is required for a lossless rollback snapshot (D-013).
+                return ['post_id' => $post_id, 'previous' => ['content' => (string) $previous], 'new_length' => mb_strlen($new), 'updated' => (int) $updated];
+            case 'update_product_title':
+                $this->assert_product($post_id);
+                $new = sanitize_text_field((string) ($payload['title'] ?? ''));
+                if ($new === '') {
+                    throw new RuntimeException('Command payload has no title.');
+                }
+                $previous = get_post_field('post_title', $post_id);
+                $updated = wp_update_post(['ID' => $post_id, 'post_title' => $new], true);
+                if (is_wp_error($updated) || (int) $updated === 0) {
+                    throw new RuntimeException('Failed to update product title for post ' . $post_id);
+                }
+                return ['post_id' => $post_id, 'previous' => (string) $previous, 'new' => $new];
+            case 'update_product_description':
+                $this->assert_product($post_id);
+                $new = (string) ($payload['description'] ?? '');
+                if ($new === '') {
+                    throw new RuntimeException('Command payload has no description.');
+                }
+                $previous = get_post_field('post_content', $post_id);
+                $updated = wp_update_post(['ID' => $post_id, 'post_content' => wp_kses_post($new)], true);
+                if (is_wp_error($updated) || (int) $updated === 0) {
+                    throw new RuntimeException('Failed to update product description for post ' . $post_id);
+                }
+                // Full previous content is required for a lossless rollback snapshot (D-013).
+                return ['post_id' => $post_id, 'previous' => ['content' => (string) $previous], 'new_length' => mb_strlen($new)];
             default:
                 throw new RuntimeException('Unknown command type: ' . $type);
         }
     }
 
-    private function url_to_path(string $url): string {
+    /**
+     * Ensure the target is an existing product (WooCommerce) before a product mutation.
+     */
+    private function assert_product(int $post_id): void
+    {
+        if (get_post($post_id) === null) {
+            throw new RuntimeException('Target post does not exist: ' . $post_id);
+        }
+        if (get_post_type($post_id) !== 'product') {
+            throw new RuntimeException('Target post is not a product (type: ' . (get_post_type($post_id) ?: 'unknown') . ').');
+        }
+    }
+
+    private static function truncate(string $text, int $limit): string
+    {
+        if (mb_strlen($text) <= $limit) {
+            return $text;
+        }
+        return mb_substr($text, 0, $limit) . '…';
+    }
+
+    private function url_to_path(string $url): string
+    {
         $path = (string) wp_parse_url($url, PHP_URL_PATH);
         return trim($path, '/');
+    }
+
+    /**
+     * Which SEO engine(s) are installed and active on this site.
+     *
+     * Rank Math and Yoast store their meta under different keys; we write to
+     * every engine that is actually active so the platform's recommendations
+     * always land where the site owner can see them.
+     */
+    private static function seo_engine(): string
+    {
+        $rankMath = defined('RANK_MATH_VERSION') || class_exists('RankMath\\Helper');
+        $yoast = defined('WPSEO_VERSION') || class_exists('WPSEO_Options');
+        if ($rankMath && $yoast) { return 'both'; }
+        if ($rankMath) { return 'rank_math'; }
+        if ($yoast) { return 'yoast'; }
+        return 'none';
+    }
+
+    /**
+     * Meta keys to write for a field, according to the active SEO engine(s).
+     * Falls back to the Yoast keys when no engine is detected (backwards
+     * compatible with the original behaviour and bare WordPress installs).
+     */
+    private static function meta_keys(string $field): array
+    {
+        $rankMathKey = $field === 'title' ? 'rank_math_title' : 'rank_math_description';
+        $yoastKey = $field === 'title' ? '_yoast_wpseo_title' : '_yoast_wpseo_metadesc';
+        switch (self::seo_engine()) {
+            case 'rank_math': return [$rankMathKey];
+            case 'yoast': return [$yoastKey];
+            case 'both': return [$rankMathKey, $yoastKey];
+            default: return [$yoastKey];
+        }
+    }
+
+    /**
+     * Read the current meta value for a field, preferring Rank Math when set.
+     */
+    private static function read_meta(int $postId, string $field): string
+    {
+        $rankMathKey = $field === 'title' ? 'rank_math_title' : 'rank_math_description';
+        $yoastKey = $field === 'title' ? '_yoast_wpseo_title' : '_yoast_wpseo_metadesc';
+        $rankMath = get_post_meta($postId, $rankMathKey, true);
+        if (is_string($rankMath) && $rankMath !== '') { return $rankMath; }
+        $yoast = get_post_meta($postId, $yoastKey, true);
+        return is_string($yoast) ? $yoast : '';
     }
 }
 new Vision_Prime_Connector();

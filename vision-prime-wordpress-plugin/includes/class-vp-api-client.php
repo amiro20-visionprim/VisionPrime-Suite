@@ -27,9 +27,14 @@ final class VP_API_Client {
      * The platform verifies with Laravel's request->path(), which has NO leading slash,
      * so the path must be signed without one (e.g. `connector/health`).
      *
-     * @return array{headers: array, body: string}
+     * Refuses to sign when the connector file has been tampered with.
+     *
+     * @return array{headers: array, body: string}|WP_Error
      */
-    public static function signed_request(array $settings, string $method, string $path, array $body): array {
+    public static function signed_request(array $settings, string $method, string $path, array $body): array|WP_Error {
+        if (VP_Guard::tampered()) {
+            return new WP_Error('vision_prime_tampered', 'Connector integrity check failed; refusing to sign.');
+        }
         $timestamp = (string) time();
         $nonce = wp_generate_uuid4();
         $encoded = wp_json_encode($body);
@@ -48,7 +53,10 @@ final class VP_API_Client {
             'wordpress_version' => get_bloginfo('version'),
             'php_version' => PHP_VERSION,
             'rest_api' => true,
+            'integrity_hash' => VP_Guard::file_hash(),
+            'tampered' => VP_Guard::is_tampered_flag(),
         ]);
+        if (is_wp_error($signed)) return $signed;
         return wp_remote_post(rtrim($settings['platform_url'], '/') . '/connector/health', ['timeout' => 20, 'headers' => $signed['headers'], 'body' => $signed['body']]);
     }
 
@@ -60,7 +68,10 @@ final class VP_API_Client {
      * @return array|WP_Error wp_remote_post response.
      */
     public static function send_command_result(array $settings, array $result): array|WP_Error {
+        $result['integrity_hash'] = VP_Guard::file_hash();
+        $result['tampered'] = VP_Guard::is_tampered_flag();
         $signed = self::signed_request($settings, 'POST', 'connector/command-result', $result);
+        if (is_wp_error($signed)) return $signed;
         return wp_remote_post(rtrim($settings['platform_url'], '/') . '/connector/command-result', ['timeout' => 20, 'headers' => $signed['headers'], 'body' => $signed['body']]);
     }
 }

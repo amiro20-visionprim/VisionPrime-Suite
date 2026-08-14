@@ -1,29 +1,41 @@
-# Vision Prime Connector — Plugin Security QA
+# Vision Prime Connector — Plugin Security & Build QA (v1.1.0)
 
-Validated on a real local WordPress (SQLite, WP 7.0.3) against the real Laravel app over HTTP on 2026-08-09.
+تاریخ: ۲۰۲۶-۰۸-۱۲ — نسخهٔ 1.1.0 (نهایی برای نصب روی هاست اشتراکی؛ استقرار و تأیید روی `liuna.ir`).
 
-- [x] All admin handlers verify `manage_options`.
-- [x] All form handlers use `check_admin_referer`.
-- [x] Platform URL escaped and sanitized.
-- [x] Pairing token is never stored after successful pairing.
-- [x] Secret is not rendered in admin UI.
-- [x] Secret is not included in local logs or REST responses.
-- [x] Content endpoint requires HMAC, timestamp and nonce.
-- [x] Replay nonce is rejected.
-- [x] Expired timestamp is rejected.
-- [x] Unknown command types are rejected when command endpoint is added.
-- [x] Plugin remains PHP 8.2 compatible.
-- [x] REST API and permalink diagnostics tested on real site.
-- [x] Pairing, signed health and content sync executed against real Laravel deployment.
-- [x] Commands endpoint (`POST /vision-prime/v1/commands`) signed, idempotent, executes and reports back.
-- [x] Result callback (`/connector/command-result`) signed and verified by the platform.
+## لایه‌های محافظت (پلاگین ۱.۰.۰)
 
-## Notes (v0.2.0)
+| لایه | مکانیزم | چرا |
+|---|---|---|
+| **رمزگذاری سکرت در حالت سکون** | AES-256-GCM؛ کلید از `wp_salt('auth')` (AUTH_KEY در wp-config) مشتق می‌شود؛ فرمت `vp1:` | نشت دیتابیس/بکاپ به تنهایی سکرت را لو نمی‌دهد — مهاجم به wp-config هم نیاز دارد. سکرت‌های قدیمی (plaintext) در اولین استفاده خودکار به فرمت رمزنگاری‌شده مهاجرت می‌کنند |
+| **یکپارچگی فایل (ضد دستکاری)** | SHA-256 خودارجاع (SELF_HASH) داخل فایل توزیع تعبیه شده؛ در هر بار اجرا هش فایل روی دیسک با آن مقایسه می‌شود | هر تغییر/دستکاری فایل → `VP_Guard::tampered()` = true → امضای درخواست‌ها و اجرای دستورها متوقف می‌شود |
+| **گزارش یکپارچگی به پلتفرم** | `integrity_hash` + `tampered` در health و command-result امضا می‌شود | پلتفرم هش فایل را ثبت می‌کند؛ اگر فایل بعداً عوض شود یا `tampered` بیاید، اتصال به `degraded` تغییر می‌کند و رویداد `security.tamper_detected` ثبت می‌شود |
+| **غیرقابل‌خواندن بودن کد** | اسکریپت build تمام رشته‌ها را به هگز (`\xNN`) تبدیل می‌کند، کامنت‌ها را حذف و کد را minify می‌کند؛ خروجی یک فایل تک‌پارچه است | کد روی هاست اشتراکی قابل خواندن انسانی نیست (بدون eval/base64 تا اسکنرهای امنیتی هاست را اذیت نکند) |
+| **گارد ABSPATH + مجوز admin + nonce** | هر فرم و endpoint قبلاً بررسی می‌شود | از قبل تأیید شده بود و حفظ شد |
 
-- Signature paths: app→plugin requests are signed with the route as matched (leading slash,
-  e.g. `/vision-prime/v1/content`); plugin→app requests must sign without a leading slash
-  (e.g. `connector/health`) to match Laravel's `request->path()`.
-- The plugin must never block its `/commands` response on the result callback; the callback is
-  sent with `blocking => false` to avoid a deadlock with the platform's synchronous dispatch.
-- Command payloads should carry `post_id` (or `url`) plus the new value(s); unknown types fail
-  safely and report `status: failed` back to the platform.
+> **مرز صادقانه:** رمزنگاری/ابفاسکیشن صرفاً با PHP، امنیت «بالا بردن سد» است نه تضمین مطلق — مهاجم با دسترسی کامل به فایل و زمان کافی می‌تواند آن را بشکند. لایهٔ تضمین واقعی، سمت پلتفرم است: امضای HMAC + ثبت `integrity_hash` + وضعیت `degraded`. اگر به سطح بالاتری نیاز بود، گزینهٔ ionCube/SourceGuardian (اکستنشن روی هاست) پیشنهاد می‌شود.
+
+## تست‌های انجام‌شده (۲۸ تست هارنس — `php tests/run-tests.php`)
+
+- بارگذاری خروجی رمزشده و ثبت روت‌ها (health/content/commands)
+- تشخیص دستکاری: فایل دستکاری‌شده → `tampered=true`، امضای خروجی رد می‌شود
+- رمزنگاری سکرت: round-trip، مهاجرت plaintext، شکست با salt اشتباه (fail-closed)
+- ورایفای HMAC: پذیرش امضای معتبر / رد امضای نامعتبر / رد timestamp قدیمی / رد replay
+- امضای خروجی با HMAC مستقل مطابقت دارد
+- اجرای دستور (update_meta_title) + ارسال نتیجه به `/connector/command-result` با `integrity_hash`
+- اندپوینت content و health با فیلدهای یکپارچگی
+
+قبلاً (۲۰۲۶-۰۸-۰۹) در WordPress واقعی (WP 7.0.3, SQLite) روی Laravel واقعی تأیید شده: pairing، health امضاشده، content sync و اجرای دستور و بازگشت نتیجه.
+
+## ساخت و تست
+
+```bash
+# از ریشهٔ پلاگین:
+php build.php            # → dist/vision-prime-connector.php + dist/vision-prime-connector.zip
+php tests/run-tests.php  # تست هارنس روی خروجی رمزشده
+```
+
+خروجی build فقط یک فایل است: `vision-prime-connector.php` (هدر پلاگین readable برای وردپرس؛ بدنه رمزشده با SELF_HASH تعبیه‌شده).
+
+## نصب روی سایت واقعی
+
+چک‌لیست کامل: `INSTALL-TEST.md`

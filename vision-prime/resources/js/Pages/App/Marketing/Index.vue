@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 
 import AppLayout from '@/app/layouts/AppLayout.vue'
 import { formatJalaliDate } from '@/lib/locale'
@@ -36,6 +36,30 @@ const sourceLabels: Record<LeadSource, string> = {
   demo: 'درخواست دمو',
   support: 'پشتیبانی',
 }
+
+/** برچسب فارسی برای کمپین‌های لندینگ اختصاصی — سایر کمپین‌ها با مقدار خام نمایش داده می‌شوند. */
+const LANDING_CAMPAIGN_LABELS: Record<string, string> = {
+  landing_agencies: 'لندینگ آژانس‌ها',
+  landing_ecommerce: 'لندینگ فروشگاه اینترنتی',
+  landing_clinics: 'لندینگ کلینیک',
+  landing_education: 'لندینگ مرکز آموزشی',
+  landing_hospitality: 'لندینگ سفر و هتلداری',
+}
+
+const campaignOptions = computed(() => {
+  const seen = new Set<string>()
+  const options: { value: string; label: string }[] = []
+  const sources = [
+    ...Object.keys(LANDING_CAMPAIGN_LABELS),
+    ...props.stats.topCampaigns.map((c) => c.campaign),
+  ]
+  for (const value of sources) {
+    if (value === '' || seen.has(value)) continue
+    seen.add(value)
+    options.push({ value, label: LANDING_CAMPAIGN_LABELS[value] ?? value })
+  }
+  return options
+})
 
 const draft = ref<MarketingFilters>({ ...props.filters })
 
@@ -75,12 +99,46 @@ function changeStatus(lead: MarketingLead, status: string): void {
   router.put(`/app/marketing/leads/${lead.id}/status`, { status }, { preserveScroll: true })
 }
 
+const hasActiveFilters = computed(() => {
+  return (
+    props.filters.status !== '' ||
+    props.filters.source !== '' ||
+    props.filters.campaign !== '' ||
+    props.filters.q !== '' ||
+    props.filters.from !== '' ||
+    props.filters.to !== ''
+  )
+})
+
+const funnelToShow = computed(() => (hasActiveFilters.value ? props.stats.filteredFunnel : props.stats.funnel))
+
+function funnelBarWidth(prev: number, current: number): number {
+  if (prev <= 0) return 0
+  return Math.max(8, Math.round((current / prev) * 100))
+}
+
+function campaignLabel(value: string): string {
+  return LANDING_CAMPAIGN_LABELS[value] ?? value
+}
+
 function contactLabel(lead: MarketingLead): string {
   return lead.contact ?? lead.email ?? '—'
 }
 
 const maxCampaignCount = Math.max(1, ...props.stats.topCampaigns.map((c) => c.count))
 const maxSourceCount = Math.max(1, ...props.stats.topSources.map((s) => s.count))
+
+const maxFunnelTotal = Math.max(1, ...props.stats.campaignFunnel.map((f) => f.total))
+
+function pct(value: number | null): string {
+  if (value === null) return '—'
+  return `${value}٪`
+}
+
+function funnelWidth(count: number): string {
+  // نسبت به بزرگ‌ترین کمپین برای مقایسهٔ نسبی بین کمپین‌ها
+  return `${Math.max(4, Math.round((count / maxFunnelTotal) * 100))}%`
+}
 </script>
 
 <template>
@@ -115,6 +173,81 @@ const maxSourceCount = Math.max(1, ...props.stats.topSources.map((s) => s.count)
       </div>
     </div>
 
+    <!-- Conversion funnel -->
+    <div class="mt-6 grid gap-5 lg:grid-cols-2">
+      <!-- Overall funnel -->
+      <div class="rounded-panel border-line bg-surface border p-5">
+        <div class="flex items-center justify-between">
+          <h2 class="text-ink-strong text-sm font-bold">قیف تبدیل</h2>
+          <span v-if="hasActiveFilters" class="text-ink-muted text-xs">بر اساس فیلترهای فعلی</span>
+        </div>
+        <div class="mt-5 space-y-2">
+          <div>
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-ink font-semibold">لید</span>
+              <span class="text-ink-muted text-xs">{{ funnelToShow.total }} لید</span>
+            </div>
+            <div class="bg-brand-600 mt-1.5 h-9 rounded-lg opacity-90" :style="{ width: '100%' }" />
+          </div>
+          <div class="text-brand-700 text-xs font-bold">↓ {{ pct(funnelToShow.leadToContactedRate) }} تماس گرفته شد</div>
+          <div>
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-ink font-semibold">تماس گرفته‌شده</span>
+              <span class="text-ink-muted text-xs">{{ funnelToShow.contacted }} لید</span>
+            </div>
+            <div class="bg-brand-500 mt-1.5 h-9 rounded-lg" :style="{ width: `${funnelBarWidth(funnelToShow.total, funnelToShow.contacted)}%` }" />
+          </div>
+          <div class="text-brand-700 text-xs font-bold">↓ {{ pct(funnelToShow.contactedToQualifiedRate) }} واجد شرایط شد</div>
+          <div>
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-ink font-semibold">واجد شرایط</span>
+              <span class="text-ink-muted text-xs">{{ funnelToShow.qualified }} لید</span>
+            </div>
+            <div class="bg-success-500 mt-1.5 h-9 rounded-lg" :style="{ width: `${funnelBarWidth(funnelToShow.contacted, funnelToShow.qualified)}%` }" />
+          </div>
+        </div>
+        <p class="text-ink-muted mt-4 border-t border-dashed pt-3 text-xs">
+          نرخ تبدیل نهایی: <span class="text-success-700 font-bold">{{ pct(funnelToShow.qualifiedRate) }}</span> از کل لیدها به مشتریِ واجد شرایط رسیدند.
+        </p>
+      </div>
+
+      <!-- Per-campaign funnel -->
+      <div class="rounded-panel border-line bg-surface border p-5">
+        <h2 class="text-ink-strong text-sm font-bold">قیف تبدیل هر کمپین</h2>
+        <p class="text-ink-muted mt-1 text-xs">لید → تماس → واجد شرایط — کدام کمپین واقعاً مشتری می‌سازد؟</p>
+        <div v-if="stats.campaignFunnel.length" class="mt-4 space-y-4">
+          <div v-for="f in stats.campaignFunnel" :key="f.campaign">
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-ink font-semibold">{{ campaignLabel(f.campaign) }}</span>
+              <span class="text-ink-muted text-xs">{{ f.total }} لید</span>
+            </div>
+            <div class="mt-1.5 space-y-1">
+              <div class="bg-surface-muted h-2.5 overflow-hidden rounded-full">
+                <div class="bg-brand-600 h-full rounded-full" :style="{ width: funnelWidth(f.total) }" />
+              </div>
+              <div class="bg-surface-muted h-2.5 overflow-hidden rounded-full">
+                <div class="bg-brand-400 h-full rounded-full" :style="{ width: funnelWidth(f.contacted) }" />
+              </div>
+              <div class="bg-surface-muted h-2.5 overflow-hidden rounded-full">
+                <div class="bg-success-500 h-full rounded-full" :style="{ width: funnelWidth(f.qualified) }" />
+              </div>
+            </div>
+            <div class="text-ink-muted mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
+              <span class="inline-flex items-center gap-1">
+                <span class="bg-brand-600 size-2 rounded-full" />
+                {{ f.contacted }} تماس ({{ pct(f.leadToContactedRate) }})
+              </span>
+              <span class="inline-flex items-center gap-1">
+                <span class="bg-success-500 size-2 rounded-full" />
+                {{ f.qualified }} واجد شرایط ({{ pct(f.contactedToQualifiedRate) }} از تماس‌ها)
+              </span>
+            </div>
+          </div>
+        </div>
+        <p v-else class="text-ink-muted mt-4 text-sm">هنوز دادهٔ کمپینی ثبت نشده است.</p>
+      </div>
+    </div>
+
     <!-- Campaign / source breakdown -->
     <div class="mt-5 grid gap-5 lg:grid-cols-2">
       <div class="rounded-panel border-line bg-surface border p-5">
@@ -122,7 +255,7 @@ const maxSourceCount = Math.max(1, ...props.stats.topSources.map((s) => s.count)
         <div v-if="stats.topCampaigns.length" class="mt-4 space-y-3">
           <div v-for="item in stats.topCampaigns" :key="item.campaign">
             <div class="flex items-center justify-between text-sm">
-              <span class="text-ink font-semibold">{{ item.campaign }}</span>
+              <span class="text-ink font-semibold">{{ campaignLabel(item.campaign) }}</span>
               <span class="text-ink-muted text-xs">{{ item.count }} لید</span>
             </div>
             <div class="bg-surface-muted mt-1.5 h-2 overflow-hidden rounded-full">
@@ -167,15 +300,12 @@ const maxSourceCount = Math.max(1, ...props.stats.topSources.map((s) => s.count)
             { value: 'support', label: 'پشتیبانی' },
           ]"
         />
-        <label class="block">
-          <span class="text-ink-muted block text-xs font-bold">کمپین</span>
-          <input
-            v-model="draft.campaign"
-            type="text"
-            class="border-line bg-surface text-ink-strong mt-1 w-full rounded-ui border px-3 py-2 text-sm outline-none"
-            placeholder="launch_1405"
-          />
-        </label>
+        <VSelect
+          v-model="draft.campaign"
+          label="کمپین لندینگ"
+          placeholder="همه"
+          :options="campaignOptions"
+        />
         <label class="block">
           <span class="text-ink-muted block text-xs font-bold">جستجو</span>
           <input
@@ -240,7 +370,7 @@ const maxSourceCount = Math.max(1, ...props.stats.topSources.map((s) => s.count)
             <td class="px-4 py-3.5 text-center">
               <VBadge :tone="lead.source === 'demo' ? 'info' : 'warning'">{{ sourceLabels[lead.source] }}</VBadge>
             </td>
-            <td class="text-ink px-4 py-3.5 text-center">{{ lead.utmCampaign ?? '—' }}</td>
+            <td class="text-ink px-4 py-3.5 text-center">{{ lead.utmCampaign ? campaignLabel(lead.utmCampaign) : '—' }}</td>
             <td class="text-ink px-4 py-3.5 text-center">{{ lead.utmSource ?? (lead.referrer ? 'referrer' : 'direct') }}</td>
             <td class="px-4 py-3.5 text-center">
               <VBadge v-if="lead.score !== null" :tone="scoreTone(lead.score)">{{ lead.score }}/۱۰۰</VBadge>

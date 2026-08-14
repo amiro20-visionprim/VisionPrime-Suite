@@ -48,7 +48,7 @@ class DashboardTest extends TestCase
             ->get('/app/dashboard')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->component('App/DashboardPlaceholder')
+                ->component('App/Dashboard')
                 ->where('counts.clients', 1)
                 ->where('counts.projects', 1)
                 ->where('counts.sites', 1)

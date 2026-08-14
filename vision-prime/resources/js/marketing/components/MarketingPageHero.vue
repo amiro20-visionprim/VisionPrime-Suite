@@ -12,9 +12,17 @@ withDefaults(
 </script>
 
 <template>
-  <section class="border-line bg-canvas border-b">
-    <div class="mx-auto max-w-7xl px-5 py-16 sm:px-8 sm:py-20 lg:px-10 lg:py-24">
-      <p class="text-brand-700 text-sm font-bold tracking-wide">{{ eyebrow }}</p>
+  <section class="relative overflow-hidden border-b border-line bg-canvas">
+    <div aria-hidden="true" class="pointer-events-none absolute inset-0">
+      <div class="bg-radial-fade bg-hero-grid absolute inset-0" />
+      <div class="absolute -top-32 right-[-10%] size-[420px] rounded-full bg-brand-200/50 blur-3xl" />
+      <div class="absolute top-20 left-[-12%] size-[380px] rounded-full bg-violet-200/40 blur-3xl" />
+    </div>
+    <div
+      v-reveal
+      class="relative mx-auto max-w-7xl px-5 py-16 sm:px-8 sm:py-20 lg:px-10 lg:py-24"
+    >
+      <p class="text-gradient-brand text-sm font-bold tracking-wide">{{ eyebrow }}</p>
       <h1 class="font-display text-display text-ink-strong mt-4 max-w-3xl font-bold sm:text-5xl">
         {{ title }}
       </h1>

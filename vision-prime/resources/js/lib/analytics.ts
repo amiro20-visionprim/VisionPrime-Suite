@@ -89,3 +89,25 @@ export function readTrafficAttributes(): TrafficAttributes {
     return {}
   }
 }
+
+/**
+ * Append a utm_campaign to a URL so demo requests can be attributed to the
+ * landing page they came from. The Demo form captures UTM params and stores
+ * them on the lead (see Marketing\Demo.vue and LeadController).
+ */
+export function withUtm(href: string, campaign: string): string {
+  const separator = href.includes('?') ? '&' : '?'
+  return `${href}${separator}utm_campaign=${encodeURIComponent(campaign)}`
+}
+
+/**
+ * Track an audience-landing CTA click with the segment slug so the real
+ * conversion rate per audience can be measured in the leads funnel.
+ */
+export function trackAudienceCta(slug: string, label = 'demo'): void {
+  trackEvent('audience_cta_click', {
+    audience: slug,
+    cta: label,
+    landing_page: readTrafficAttributes().landing_page ?? '',
+  })
+}

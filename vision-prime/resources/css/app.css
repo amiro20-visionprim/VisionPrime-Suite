@@ -48,8 +48,31 @@
   --radius-panel: 1rem;
   --shadow-card: 0 4px 16px rgb(22 59 104 / 6%);
   --shadow-panel: 0 12px 32px rgb(22 59 104 / 8%);
+  --shadow-float: 0 18px 48px rgb(79 70 229 / 18%);
   --ease-ui: cubic-bezier(0.2, 0, 0, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --duration-ui: 180ms;
+
+  /* Brand gradient (indigo → violet, matches the plugin icon identity) */
+  --color-grad-from: #245c9b;
+  --color-grad-via: #4f46e5;
+  --color-grad-to: #7c3aed;
+  --color-glow-brand: rgb(79 70 229 / 22%);
+  --color-glow-violet: rgb(124 58 237 / 20%);
+
+  /* Scroll-reveal animation */
+  --animate-float: vp-float 7s var(--ease-in-out, ease-in-out) infinite;
+  --animate-float-slow: vp-float 10s var(--ease-in-out, ease-in-out) infinite;
+}
+
+@keyframes vp-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
 }
 
 :root {
@@ -89,4 +112,61 @@
 @utility transition-ui {
   transition-duration: var(--duration-ui);
   transition-timing-function: var(--ease-ui);
+}
+
+@utility bg-gradient-brand {
+  background-image: linear-gradient(
+    120deg,
+    var(--color-grad-from) 0%,
+    var(--color-grad-via) 55%,
+    var(--color-grad-to) 100%
+  );
+}
+
+@utility text-gradient-brand {
+  background-image: linear-gradient(
+    120deg,
+    var(--color-grad-from) 0%,
+    var(--color-grad-via) 55%,
+    var(--color-grad-to) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@utility bg-hero-grid {
+  background-image:
+    linear-gradient(to right, rgb(30 78 134 / 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(30 78 134 / 0.05) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+
+@utility bg-radial-fade {
+  -webkit-mask-image: radial-gradient(ellipse 75% 65% at 50% 35%, black 35%, transparent 78%);
+  mask-image: radial-gradient(ellipse 75% 65% at 50% 35%, black 35%, transparent 78%);
+}
+
+/* Scroll-reveal: paired with the v-reveal directive */
+@utility vp-reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition:
+    opacity 0.75s var(--ease-out),
+    transform 0.75s var(--ease-out);
+  transition-delay: var(--vp-reveal-delay, 0ms);
+  will-change: opacity, transform;
+}
+
+@utility vp-revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vp-reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
 }

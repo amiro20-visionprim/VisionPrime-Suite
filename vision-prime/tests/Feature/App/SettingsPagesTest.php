@@ -7,6 +7,9 @@ namespace Tests\Feature\App;
 use App\Domains\Identity\Models\Role;
 use App\Domains\Organization\Models\Membership;
 use App\Domains\Organization\Models\Organization;
+use App\Domains\Workspace\Models\Client;
+use App\Domains\Workspace\Models\Project;
+use App\Domains\Workspace\Models\Site;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -165,20 +168,20 @@ class SettingsPagesTest extends TestCase
 
     public function test_integrations_page_renders_connection_statuses(): void
     {
-        $client = \App\Domains\Workspace\Models\Client::query()->create([
+        $client = Client::query()->create([
             'organization_id' => $this->organization->getKey(),
             'public_id' => (string) Str::ulid(),
             'name' => 'مشتری',
             'status' => 'active',
         ]);
-        $project = \App\Domains\Workspace\Models\Project::query()->create([
+        $project = Project::query()->create([
             'organization_id' => $this->organization->getKey(),
             'client_id' => $client->getKey(),
             'public_id' => (string) Str::ulid(),
             'name' => 'پروژه',
             'status' => 'active',
         ]);
-        $site = \App\Domains\Workspace\Models\Site::query()->create([
+        $site = Site::query()->create([
             'organization_id' => $this->organization->getKey(),
             'project_id' => $project->getKey(),
             'public_id' => (string) Str::ulid(),

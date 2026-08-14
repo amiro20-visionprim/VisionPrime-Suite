@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\App\AiDraftController;
+use App\Http\Controllers\App\AutomationPolicyController;
 use App\Http\Controllers\App\ClientController;
 use App\Http\Controllers\App\CommandController;
 use App\Http\Controllers\App\CommandDecisionController;
@@ -9,8 +11,8 @@ use App\Http\Controllers\App\CommandDispatchController;
 use App\Http\Controllers\App\ConversionRiskController;
 use App\Http\Controllers\App\CurrentOrganizationController;
 use App\Http\Controllers\App\DashboardController;
-use App\Http\Controllers\App\GscDashboardController;
 use App\Http\Controllers\App\GscAnalyzeController;
+use App\Http\Controllers\App\GscDashboardController;
 use App\Http\Controllers\App\GscImportController;
 use App\Http\Controllers\App\GscMetricsController;
 use App\Http\Controllers\App\GscOAuthController;
@@ -27,7 +29,6 @@ use App\Http\Controllers\App\ReportPublishController;
 use App\Http\Controllers\App\ReviewController;
 use App\Http\Controllers\App\ReviewDecisionController;
 use App\Http\Controllers\App\ReviewDetailController;
-use App\Http\Controllers\App\AiDraftController;
 use App\Http\Controllers\App\Settings\AiSettingsController;
 use App\Http\Controllers\App\Settings\AuditLogSettingsController;
 use App\Http\Controllers\App\Settings\IntegrationsSettingsController;
@@ -41,8 +42,8 @@ use App\Http\Controllers\App\SiteSyncStatusController;
 use App\Http\Controllers\App\UrlProfileController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\NewPasswordController;
-use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
+use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Client\ClientActivityController;
 use App\Http\Controllers\Client\ClientDashboardController;
 use App\Http\Controllers\Client\ClientDecisionController;
@@ -52,11 +53,13 @@ use App\Http\Controllers\Client\ClientPrioritiesController;
 use App\Http\Controllers\Client\ClientReportController;
 use App\Http\Controllers\Client\ClientSiteHealthController;
 use App\Http\Controllers\Client\CurrentClientController;
+use App\Http\Controllers\Connector\CommandResultController;
 use App\Http\Controllers\Connector\HealthCheckController;
+use App\Http\Controllers\Connector\PairSiteController;
 use App\Http\Controllers\Marketing\AssistantController;
 use App\Http\Controllers\Marketing\LeadController;
-use App\Http\Controllers\Connector\CommandResultController;
-use App\Http\Controllers\Connector\PairSiteController;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -64,10 +67,10 @@ Route::post('/connector/pair', PairSiteController::class)->name('connector.pair'
 Route::post('/connector/health', HealthCheckController::class)->name('connector.health');
 Route::post('/connector/command-result', CommandResultController::class)->name('connector.command-result');
 
-Route::get('/up', function (): \Illuminate\Http\JsonResponse {
+Route::get('/up', function (): JsonResponse {
     try {
-        \Illuminate\Support\Facades\DB::select('select 1');
-    } catch (\Throwable) {
+        DB::select('select 1');
+    } catch (Throwable) {
         abort(503);
     }
 
@@ -75,6 +78,11 @@ Route::get('/up', function (): \Illuminate\Http\JsonResponse {
 })->name('health');
 
 Route::get('/', fn () => Inertia::render('Home'))->name('home');
+Route::get('/for-agencies', fn () => Inertia::render('Marketing/ForAgencies'))->name('marketing.for-agencies');
+Route::get('/for-ecommerce', fn () => Inertia::render('Marketing/ForEcommerce'))->name('marketing.for-ecommerce');
+Route::get('/for-clinics', fn () => Inertia::render('Marketing/ForClinics'))->name('marketing.for-clinics');
+Route::get('/for-education', fn () => Inertia::render('Marketing/ForEducation'))->name('marketing.for-education');
+Route::get('/for-hospitality', fn () => Inertia::render('Marketing/ForHospitality'))->name('marketing.for-hospitality');
 Route::get('/product', fn () => Inertia::render('Marketing/Product'))->name('marketing.product');
 Route::get('/features', fn () => Inertia::render('Marketing/Features'))->name('marketing.features');
 Route::get('/pricing', fn () => Inertia::render('Marketing/Pricing'))->name('marketing.pricing');
@@ -149,6 +157,14 @@ Route::middleware(['auth', 'current.organization'])->group(function (): void {
     Route::get('/app/sites/{site}/edit', [SiteController::class, 'edit'])->name('app.sites.edit');
     Route::put('/app/sites/{site}', [SiteController::class, 'update'])->name('app.sites.update');
     Route::delete('/app/sites/{site}', [SiteController::class, 'destroy'])->name('app.sites.destroy');
+
+    Route::get('/app/sites/{site}/automation', [AutomationPolicyController::class, 'show'])->name('app.sites.automation');
+    Route::get('/app/sites/{site}/automation/trust', [AutomationPolicyController::class, 'trust'])->name('app.sites.automation.trust');
+    Route::put('/app/sites/{site}/automation', [AutomationPolicyController::class, 'update'])->name('app.sites.automation.update');
+    Route::post('/app/sites/{site}/automation/routes', [AutomationPolicyController::class, 'updateRoutes'])->name('app.sites.automation.routes');
+    Route::post('/app/sites/{site}/automation/profiles/copy', [AutomationPolicyController::class, 'copyProfile'])->name('app.sites.automation.profiles.copy');
+    Route::post('/app/sites/{site}/automation/emergency-stop', [AutomationPolicyController::class, 'emergencyStop'])->name('app.sites.automation.emergency-stop');
+    Route::post('/app/sites/{site}/automation/resume', [AutomationPolicyController::class, 'resume'])->name('app.sites.automation.resume');
 
     Route::get('/app/gsc', GscDashboardController::class)->name('app.gsc.index');
     Route::get('/app/gsc/connect', [GscOAuthController::class, 'redirect'])->name('app.gsc.connect');

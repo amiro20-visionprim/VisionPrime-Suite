@@ -30,6 +30,28 @@ class HealthCheckTest extends TestCase
         $this->assertDatabaseHas('connector_events', ['site_id' => $site->id, 'type' => 'health.checked']);
     }
 
+    public function test_tampered_health_report_marks_connection_degraded_and_audits(): void
+    {
+        [$site, $secret] = $this->siteAndConnection();
+        $body = json_encode([
+            'site_id' => $site->id,
+            'plugin_version' => '1.0.0',
+            'wordpress_version' => '6.7',
+            'php_version' => '8.2',
+            'rest_api' => true,
+            'integrity_hash' => str_repeat('a', 64),
+            'tampered' => true,
+        ]);
+        $timestamp = (string) now()->timestamp;
+        $nonce = 'health-tampered-'.Str::random(24);
+        $payload = "POST\nconnector/health\n{$timestamp}\n{$nonce}\n".hash('sha256', $body);
+        $signature = hash_hmac('sha256', $payload, $secret);
+        $this->withHeaders(['Content-Type' => 'application/json', 'X-VP-Timestamp' => $timestamp, 'X-VP-Nonce' => $nonce, 'X-VP-Signature' => $signature])->postJson('/connector/health', json_decode($body, true))
+            ->assertOk();
+        $this->assertDatabaseHas('site_connections', ['site_id' => $site->id, 'status' => 'degraded']);
+        $this->assertDatabaseHas('connector_events', ['site_id' => $site->id, 'type' => 'security.tamper_detected']);
+    }
+
     private function siteAndConnection(): array
     {
         $org = Organization::query()->create(['public_id' => (string) Str::ulid(), 'name' => 'O', 'slug' => 'o-'.Str::random(6), 'status' => 'active']);
