@@ -19,7 +19,14 @@ use Illuminate\Support\Str;
  */
 class ConvertRecommendationToCommand
 {
-    public const SUPPORTED_TYPES = ['update_meta_title', 'update_meta_description'];
+    public const SUPPORTED_TYPES = ['update_meta_title', 'update_meta_description', 'update_content'];
+
+    /** حداکثر طول مقدار برای هر نوع کامند (محتوا می‌تواند طولانی باشد، متا کوتاه). */
+    public const VALUE_MAX_LENGTH = [
+        'update_meta_title' => 2000,
+        'update_meta_description' => 2000,
+        'update_content' => 100_000,
+    ];
 
     public function __construct(
         private readonly RecordAuditLog $audit,
@@ -43,7 +50,11 @@ class ConvertRecommendationToCommand
             return (int) $existing->id;
         }
 
-        $payloadKey = $type === 'update_meta_title' ? 'title' : 'description';
+        $payloadKey = match ($type) {
+            'update_meta_title' => 'title',
+            'update_content' => 'content',
+            default => 'description',
+        };
         $riskTier = match ($recommendation->priority) {
             'high' => 'R3',
             'low' => 'R1',
@@ -58,6 +69,7 @@ class ConvertRecommendationToCommand
             'source_type' => 'recommendation',
             'source_id' => $recommendation->id,
             'type' => $type,
+            'content_type' => $this->contentTypeFor($type),
             'risk_tier' => $riskTier,
             'payload' => json_encode(['url' => $targetUrl, $payloadKey => $newValue], JSON_UNESCAPED_UNICODE),
             'idempotency_key' => (string) Str::uuid(),
@@ -87,5 +99,14 @@ class ConvertRecommendationToCommand
         );
 
         return (int) $commandId;
+    }
+
+    private function contentTypeFor(string $type): string
+    {
+        return match (true) {
+            str_starts_with($type, 'update_meta_') => 'meta',
+            str_starts_with($type, 'update_product_') => 'product',
+            default => 'article',
+        };
     }
 }

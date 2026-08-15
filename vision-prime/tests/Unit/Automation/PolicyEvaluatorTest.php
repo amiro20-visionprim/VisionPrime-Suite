@@ -30,6 +30,7 @@ class PolicyEvaluatorTest extends TestCase
                 'rules' => json_encode(['max_risk_tier' => 'R2', 'allowed_command_types' => ['update_meta_title', 'update_meta_description', 'update_product_title']]),
                 'emergency_stopped_at' => null,
                 'active_profile_id' => 1,
+                'auto_publish_scope' => 'meta',
             ],
             'profile' => (object) [
                 'id' => 1,
@@ -195,6 +196,7 @@ class PolicyEvaluatorTest extends TestCase
                 'rules' => json_encode(['max_risk_tier' => 'R1', 'ai_policy' => 'bounded_auto', 'confidence_threshold' => 80]),
                 'emergency_stopped_at' => null,
                 'active_profile_id' => null,
+                'auto_publish_scope' => 'meta',
             ],
             'profile' => null,
             'command' => ['type' => 'update_meta_title', 'risk_tier' => 'R1', 'confidence_score' => 85],
@@ -208,7 +210,7 @@ class PolicyEvaluatorTest extends TestCase
         $l2Profile = (object) ['id' => 2, 'automation_level' => 2, 'ai_policy' => 'bounded_auto', 'confidence_threshold' => 80, 'high_risk_threshold' => 90, 'risk_tier_max' => 'R2'];
         $l3Article = (object) ['id' => 3, 'automation_level' => 3, 'ai_policy' => 'bounded_auto', 'confidence_threshold' => 90, 'high_risk_threshold' => 95, 'risk_tier_max' => 'R3', 'enabled_content_types' => json_encode(['article'], JSON_UNESCAPED_UNICODE)];
         $base = $this->context([
-            'policy' => (object) ['level' => 2, 'rules' => '{}', 'emergency_stopped_at' => null, 'active_profile_id' => 2],
+            'policy' => (object) ['level' => 2, 'rules' => '{}', 'emergency_stopped_at' => null, 'active_profile_id' => 2, 'auto_publish_scope' => 'all'],
             'profile' => $l2Profile,
         ]);
 
@@ -239,5 +241,133 @@ class PolicyEvaluatorTest extends TestCase
         $this->assertSame('bounded_auto', $result['snapshot']['ai_policy']);
         $this->assertSame(80, $result['snapshot']['confidence_threshold']);
         $this->assertSame(85, $result['snapshot']['confidence_score']);
+    }
+
+    // ---------- گیت‌های هاردکد فاز ۰ (scope / warm-up / quality) ----------
+
+    public function test_default_scope_none_blocks_auto_publish(): void
+    {
+        $result = $this->evaluator->evaluate($this->context([
+            'policy' => (object) [
+                'level' => 2,
+                'rules' => '{}',
+                'emergency_stopped_at' => null,
+                'active_profile_id' => 1,
+                'auto_publish_scope' => 'none',
+            ],
+        ]));
+
+        $this->assertSame(PolicyEvaluator::DECISION_PENDING_APPROVAL, $result['decision']);
+        $this->assertStringContainsString('scope', $result['reason']);
+    }
+
+    public function test_scope_meta_blocks_article_auto_publish(): void
+    {
+        $result = $this->evaluator->evaluate($this->context([
+            'policy' => (object) [
+                'level' => 2,
+                'rules' => json_encode(['max_risk_tier' => 'R2']),
+                'emergency_stopped_at' => null,
+                'active_profile_id' => 1,
+                'auto_publish_scope' => 'meta',
+            ],
+            'command' => ['type' => 'update_content', 'risk_tier' => 'R2', 'confidence_score' => 95, 'content_type' => 'article'],
+            'profile' => (object) ['id' => 1, 'automation_level' => 3, 'ai_policy' => 'bounded_auto', 'confidence_threshold' => 80, 'high_risk_threshold' => 90, 'risk_tier_max' => 'R3', 'enabled_content_types' => json_encode(['meta', 'article'], JSON_UNESCAPED_UNICODE)],
+            'warmup' => ['content_type' => 'article', 'successful_count' => 5],
+        ]));
+
+        $this->assertSame(PolicyEvaluator::DECISION_PENDING_APPROVAL, $result['decision']);
+        $this->assertStringContainsString('scope', $result['reason']);
+    }
+
+    public function test_warmup_not_satisfied_routes_to_approval(): void
+    {
+        $result = $this->evaluator->evaluate($this->context([
+            'warmup' => ['content_type' => 'meta', 'successful_count' => 1],
+        ]));
+
+        $this->assertSame(PolicyEvaluator::DECISION_PENDING_APPROVAL, $result['decision']);
+        $this->assertStringContainsString('Warm-up', $result['reason']);
+        $this->assertSame(3, $result['snapshot']['warmup_required']);
+    }
+
+    public function test_warmup_satisfied_allows_auto(): void
+    {
+        $result = $this->evaluator->evaluate($this->context([
+            'warmup' => ['content_type' => 'meta', 'successful_count' => 3],
+        ]));
+
+        $this->assertSame(PolicyEvaluator::DECISION_AUTO_PUBLISH, $result['decision']);
+    }
+
+    public function test_quality_failure_routes_to_approval(): void
+    {
+        $result = $this->evaluator->evaluate($this->context([
+            'warmup' => ['content_type' => 'meta', 'successful_count' => 3],
+            'quality' => ['passed' => false, 'score' => 40, 'failures' => ['word_count:10 below min:600']],
+        ]));
+
+        $this->assertSame(PolicyEvaluator::DECISION_PENDING_APPROVAL, $result['decision']);
+        $this->assertStringContainsString('quality gates failed', strtolower($result['reason']));
+        $this->assertSame(40, $result['snapshot']['quality_score']);
+    }
+
+    public function test_new_article_auto_requires_explicit_scope_and_level3(): void
+    {
+        // publish_new_article (R3) با scope=article و L3 → خودکار (گیت‌های سخت‌تر رد شده‌اند)
+        $result = $this->evaluator->evaluate($this->context([
+            'policy' => (object) [
+                'level' => 3,
+                'rules' => json_encode(['max_risk_tier' => 'R3']),
+                'emergency_stopped_at' => null,
+                'active_profile_id' => 1,
+                'auto_publish_scope' => 'article',
+            ],
+            'profile' => (object) ['id' => 1, 'automation_level' => 3, 'ai_policy' => 'bounded_auto', 'confidence_threshold' => 85, 'high_risk_threshold' => 92, 'risk_tier_max' => 'R3', 'enabled_content_types' => json_encode(['article'], JSON_UNESCAPED_UNICODE)],
+            'command' => ['type' => 'publish_new_article', 'risk_tier' => 'R3', 'confidence_score' => 95, 'content_type' => 'article'],
+            'warmup' => ['content_type' => 'article', 'successful_count' => 5],
+            'quality' => ['passed' => true, 'score' => 90, 'failures' => []],
+        ]));
+
+        $this->assertSame(PolicyEvaluator::DECISION_AUTO_PUBLISH, $result['decision']);
+    }
+
+    public function test_new_article_auto_without_warmup_routes_to_approval(): void
+    {
+        $result = $this->evaluator->evaluate($this->context([
+            'policy' => (object) [
+                'level' => 3,
+                'rules' => json_encode(['max_risk_tier' => 'R3']),
+                'emergency_stopped_at' => null,
+                'active_profile_id' => 1,
+                'auto_publish_scope' => 'article',
+            ],
+            'profile' => (object) ['id' => 1, 'automation_level' => 3, 'ai_policy' => 'bounded_auto', 'confidence_threshold' => 85, 'high_risk_threshold' => 92, 'risk_tier_max' => 'R3', 'enabled_content_types' => json_encode(['article'], JSON_UNESCAPED_UNICODE)],
+            'command' => ['type' => 'publish_new_article', 'risk_tier' => 'R3', 'confidence_score' => 95, 'content_type' => 'article'],
+            'warmup' => ['content_type' => 'article', 'successful_count' => 2],
+            'quality' => ['passed' => true, 'score' => 90, 'failures' => []],
+        ]));
+
+        $this->assertSame(PolicyEvaluator::DECISION_PENDING_APPROVAL, $result['decision']);
+        $this->assertStringContainsString('Warm-up', $result['reason']);
+    }
+
+    public function test_r3_meta_never_auto_publishes_even_with_scope(): void
+    {
+        // scope=meta ولی R3 (غیر publish_new_article) → همیشه انسانی
+        $result = $this->evaluator->evaluate($this->context([
+            'policy' => (object) [
+                'level' => 3,
+                'rules' => json_encode(['max_risk_tier' => 'R3']),
+                'emergency_stopped_at' => null,
+                'active_profile_id' => 1,
+                'auto_publish_scope' => 'meta',
+            ],
+            'command' => ['type' => 'update_meta_title', 'risk_tier' => 'R3', 'confidence_score' => 99, 'content_type' => 'meta'],
+            'profile' => (object) ['id' => 1, 'automation_level' => 3, 'ai_policy' => 'bounded_auto', 'confidence_threshold' => 80, 'high_risk_threshold' => 90, 'risk_tier_max' => 'R3', 'enabled_content_types' => json_encode(['meta'], JSON_UNESCAPED_UNICODE)],
+        ]));
+
+        $this->assertSame(PolicyEvaluator::DECISION_PENDING_APPROVAL, $result['decision']);
+        $this->assertStringContainsString('R3', $result['reason']);
     }
 }

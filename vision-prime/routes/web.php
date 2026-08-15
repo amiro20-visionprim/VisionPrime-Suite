@@ -227,6 +227,10 @@ Route::middleware(['auth', 'current.organization'])->group(function (): void {
     Route::get('/app/settings/audit-log', [AuditLogSettingsController::class, 'index'])->name('app.settings.audit-log');
 
     Route::post('/app/ai-drafts', [AiDraftController::class, 'store'])->name('app.ai-drafts.store')->middleware('throttle:10,1');
+    Route::get('/app/ai-drafts/article/create', [AiDraftController::class, 'createArticle'])->name('app.ai-drafts.article.create');
+    Route::post('/app/ai-drafts/article', [AiDraftController::class, 'storeArticle'])->name('app.ai-drafts.article')->middleware('throttle:10,1');
+    Route::get('/app/ai-drafts/product/create', [AiDraftController::class, 'createProduct'])->name('app.ai-drafts.product.create');
+    Route::post('/app/ai-drafts/product', [AiDraftController::class, 'storeProduct'])->name('app.ai-drafts.product')->middleware('throttle:10,1');
 });
 
 if (app()->environment(['local', 'testing'])) {

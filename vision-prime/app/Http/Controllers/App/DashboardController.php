@@ -6,6 +6,7 @@ namespace App\Http\Controllers\App;
 
 use App\Domains\Audit\Actions\ProjectDashboardActivity;
 use App\Domains\Organization\Contracts\CurrentOrganization;
+use App\Domains\Reporting\Actions\BuildContentImpactSummary;
 use App\Domains\Workspace\Models\Client;
 use App\Domains\Workspace\Models\Project;
 use App\Domains\Workspace\Models\Site;
@@ -30,6 +31,7 @@ class DashboardController extends Controller
                 'gscConnectedSites' => DB::table('gsc_properties')->whereIn('site_id', $siteIds)->distinct()->count('site_id'),
                 'openOpportunities' => DB::table('opportunities')->whereIn('site_id', $siteIds)->where('status', 'open')->count(),
             ],
+            'contentImpact' => app(BuildContentImpactSummary::class)->handle($siteIds->all()),
             'activities' => $activities->forOrganization($id),
         ]);
     }

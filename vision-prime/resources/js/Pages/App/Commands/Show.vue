@@ -15,10 +15,12 @@ import VBadge from '@/shared/ui/VBadge.vue'
 import VButton from '@/shared/ui/VButton.vue'
 import VCard from '@/shared/ui/VCard.vue'
 import VPageHeader from '@/shared/ui/VPageHeader.vue'
+import VTrendChart from '@/shared/ui/VTrendChart.vue'
 import type {
   Command,
   CommandApproval,
   CommandExecutionLog,
+  PublishImpactReport,
   RollbackSnapshot,
 } from '@/types/automation'
 
@@ -27,6 +29,7 @@ const props = defineProps<{
   approvals: CommandApproval[]
   logs: CommandExecutionLog[]
   snapshots: RollbackSnapshot[]
+  impact: PublishImpactReport | null
 }>()
 
 const page = usePage<{ flash?: { status?: string; error?: string } }>()
@@ -44,6 +47,19 @@ const toneFor = (status: string) =>
     : status === 'failed' || status === 'cancelled' || status === 'rejected'
       ? 'danger'
       : 'warning'
+
+const impactVerdictLabels: Record<string, string> = {
+  improved: 'بهبود',
+  declined: 'افت',
+  stable: 'بدون تغییر',
+}
+
+const impactStatusLabels: Record<string, string> = {
+  ready: 'آماده',
+  not_applicable: 'قابل اعمال نیست',
+  not_published: 'منتشر نشده',
+  insufficient_data: 'دادهٔ ناکافی',
+}
 </script>
 <template>
   <Head title="جزئیات تغییر اجرایی" />
@@ -108,6 +124,69 @@ const toneFor = (status: string) =>
         </div>
       </div>
       <p v-else class="text-ink-muted">هنوز اجرایی انجام نشده است.</p>
+    </VCard>
+
+    <VCard v-if="impact" class="mt-6" title="گزارش تأثیر پس از انتشار (GSC)">
+      <template v-if="impact.status === 'ready' && impact.delta">
+        <div class="mb-3 flex flex-wrap items-center gap-3">
+          <VBadge
+            :tone="
+              impact.verdict === 'improved'
+                ? 'success'
+                : impact.verdict === 'declined'
+                  ? 'danger'
+                  : 'info'
+            "
+          >
+            {{ impactVerdictLabels[impact.verdict ?? 'stable'] ?? impact.verdict }}
+          </VBadge>
+          <span class="text-ink-muted text-sm" dir="ltr">{{ impact.url }}</span>
+        </div>
+        <div v-if="impact.series && impact.series.length" class="mt-2">
+          <p class="text-ink-strong mb-2 text-sm font-semibold">روند روزانه (قبل/بعد انتشار)</p>
+          <VTrendChart
+            :points="impact.series"
+            :publish-date="impact.published_at ?? ''"
+          />
+        </div>
+        <div class="border-line overflow-x-auto rounded-ui border">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-line border-b bg-surface-muted text-start">
+                <th class="px-3 py-2 text-start">معیار</th>
+                <th class="px-3 py-2 text-start">پیش از انتشار ({{ impact.window_days }} روز)</th>
+                <th class="px-3 py-2 text-start">پس از انتشار</th>
+                <th class="px-3 py-2 text-start">تغییر</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="border-line border-b">
+                <td class="px-3 py-2">میانگین جایگاه</td>
+                <td class="px-3 py-2">{{ impact.before?.avg_position ?? '—' }}</td>
+                <td class="px-3 py-2">{{ impact.after?.avg_position ?? '—' }}</td>
+                <td class="px-3 py-2">{{ impact.delta.position }}</td>
+              </tr>
+              <tr class="border-line border-b">
+                <td class="px-3 py-2">کلیک</td>
+                <td class="px-3 py-2">{{ impact.before?.clicks ?? 0 }}</td>
+                <td class="px-3 py-2">{{ impact.after?.clicks ?? 0 }}</td>
+                <td class="px-3 py-2">{{ impact.delta.clicks }}</td>
+              </tr>
+              <tr>
+                <td class="px-3 py-2">نمایش</td>
+                <td class="px-3 py-2">{{ impact.before?.impressions ?? 0 }}</td>
+                <td class="px-3 py-2">{{ impact.after?.impressions ?? 0 }}</td>
+                <td class="px-3 py-2">{{ impact.delta.impressions }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </template>
+      <p v-else class="text-ink-muted text-sm">
+        {{ impactStatusLabels[impact.status] ?? impact.status }}
+        <span v-if="impact.reason" dir="ltr" class="font-latin">({{ impact.reason }})</span>
+        — پس از جمع‌آوری دادهٔ کافی GSC، مقایسهٔ جایگاه/کلیک این صفحه نمایش داده می‌شود.
+      </p>
     </VCard>
 
     <VCard class="mt-6" title="عکس‌های بازگشت">

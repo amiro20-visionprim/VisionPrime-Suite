@@ -15,7 +15,11 @@
 | Auth | credential stuffing/session hijack | rate limit، secure session/cookie، password reset امن، 2FA roadmap | auth test + config review |
 | RBAC | bypass با URL/API یا UI hidden | server-side policies، permission tests | 403 matrix tests |
 | Connector pairing | token سرقت/استفاده مجدد | token hash، expiry کوتاه، single-use، audit | pairing replay test |
-| Connector request | forged/replayed request | HMAC، timestamp window، nonce store، constant-time compare | signature/nonce/timestamp tests |
+| Connector request | forged/replayed request | HMAC، timestamp window، nonce store، constant-time compare | **signature/nonce/timestamp tests — `ReplayAttackTest` واقعی: nonce دوباره و timestamp منقضی رد می‌شوند** |
+| Cross-tenant GSC | مشاهده/دستکاری property سازمان دیگر | `gsc_properties` محدود به سایت‌های همان سازمان؛ کوئری‌های organization-scoped | **`GscPropertyIsolationTest` (Feature)** |
+| Cross-tenant automation | استفاده از پروفایل/پیکربندی اتوماسیون سازمان دیگر | `automation_profiles.organization_id` — پروفایل‌های سفارشی org-scoped، سیستمی جهانی | **`ProfileIsolationTest` (Feature)** |
+| Rollback endpoint | بازگشت/بازگشت غیرمجاز | endpoint `/rollback` با HMAC + snapshot رمزنگاری‌شده + command در حالت مناسب | rollback integration test |
+| Mutation محتوایی | تغییر نوع/هدف اشتباه (مثلاً محصول روی پست عادی) | `assert_product` در پلاگین + target validation | update_product_* test |
 | Secret handling | leak در DB/log/UI | encryption/hashed secret، redaction، no secret responses | log inspection test |
 | Command | اجرای تغییر غیرمجاز | allowlist، schema validation، policy re-check at dispatch، idempotency | command bypass test |
 | Mutation | خرابی یا تغییر اشتباه WordPress | target validation، snapshot، rollback، rate/budget limits | rollback integration test |

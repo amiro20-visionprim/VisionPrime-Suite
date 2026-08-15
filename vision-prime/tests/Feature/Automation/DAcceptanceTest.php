@@ -64,19 +64,33 @@ class DAcceptanceTest extends TestCase
         \DB::table('site_automation_policies')->insert([
             'site_id' => $this->site->id, 'level' => 2,
             'rules' => json_encode(['allowed_command_types' => ['update_meta_title']], JSON_UNESCAPED_UNICODE),
-            'active_profile_id' => $this->profileId, 'created_at' => now(), 'updated_at' => now(),
+            'active_profile_id' => $this->profileId, 'auto_publish_scope' => 'meta',
+            'created_at' => now(), 'updated_at' => now(),
         ]);
+
+        // گرمایش: ۳ اجرای موفق انسانی از نوع meta
+        for ($i = 0; $i < 3; $i++) {
+            \DB::table('commands')->insert([
+                'site_id' => $this->site->id, 'source_type' => 'test', 'type' => 'update_meta_title',
+                'content_type' => 'meta', 'risk_tier' => 'R1', 'payload' => '{}',
+                'idempotency_key' => (string) Str::uuid(), 'status' => 'executed',
+                'decision_source' => 'manual',
+                'expires_at' => now()->addHours(2), 'policy_version' => 1,
+                'created_at' => now()->subDays(45 + $i), 'updated_at' => now(),
+            ]);
+        }
         Http::fake([
             '*/wp-json/vision-prime/v1/commands' => Http::response(['ok' => true, 'result' => ['post_id' => 1, 'previous' => ['title' => 'old'], 'new' => 'new']]),
-            '*/wp-json/vision-prime/v1/rollback' => Http::response(['status' => 'ack']),
+            '*/wp-json/vision-prime/v1/rollback' => Http::response(['status' => 'ack', 'restored' => true, 'result' => ['post_id' => 1, 'restored' => true]]),
         ]);
     }
 
     private function command(string $risk = 'R1', ?int $confidence = 85, string $status = 'pending_approval', ?Carbon $publishedAt = null): int
     {
         return (int) \DB::table('commands')->insertGetId([
-            'site_id' => $this->site->id, 'source_type' => 'test', 'type' => 'update_meta_title', 'risk_tier' => $risk,
-            'payload' => json_encode(['url' => 'https://e.ir/booking', 'title' => 'new'], JSON_UNESCAPED_UNICODE),
+            'site_id' => $this->site->id, 'source_type' => 'test', 'type' => 'update_meta_title',
+            'content_type' => 'meta', 'risk_tier' => $risk,
+            'payload' => json_encode(['url' => 'https://e.ir/booking', 'title' => 'بهترین خدمات سئو برای سایت شما'], JSON_UNESCAPED_UNICODE),
             'idempotency_key' => (string) Str::uuid(), 'status' => $status, 'confidence_score' => $confidence,
             'decision_source' => $status === 'executed' ? 'policy' : null,
             'published_at' => $publishedAt, 'expires_at' => now()->addHours(2), 'policy_version' => 1,

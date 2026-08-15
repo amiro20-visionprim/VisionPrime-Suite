@@ -38,6 +38,8 @@ const baseGroups: NavigationGroup[] = [
       { label: 'پیشنهادها', href: '/app/recommendations' },
       { label: 'بررسی و تأییدها', href: '/app/reviews' },
       { label: 'تغییرات اجرایی', href: '/app/commands' },
+      { label: 'تولید مقاله', href: '/app/ai-drafts/article/create' },
+      { label: 'تولید محصول', href: '/app/ai-drafts/product/create' },
       { label: 'گزارش‌ها', href: '/app/reports' },
     ],
   },

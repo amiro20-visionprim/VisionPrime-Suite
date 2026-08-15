@@ -89,6 +89,15 @@ class RollbackCommand
             return ['rolled_back' => false, 'reason' => 'http_'.$response->status()];
         }
 
+        // پلاگین نتیجهٔ واقعی بازگردانی را همگام برمی‌گرداند؛ بدون تأیید آن،
+        // علامت‌گذاری rolled_back گمراه‌کننده است (بازگشت می‌تواند روی وردپرس شکست خورده باشد).
+        $payload = $response->json();
+        if (! is_array($payload) || ($payload['restored'] ?? false) !== true) {
+            $this->audit->handle(action: 'command.rollback_failed', after: ['command_id' => $commandId, 'plugin_reason' => $payload['result']['error'] ?? 'restore_not_confirmed']);
+
+            return ['rolled_back' => false, 'reason' => 'restore_not_confirmed'];
+        }
+
         \DB::transaction(function () use ($command, $snapshot): void {
             \DB::table('commands')->where('id', $command->id)->update(['status' => 'rolled_back', 'updated_at' => now()]);
             \DB::table('rollback_snapshots')->where('id', $snapshot->id)->update(['status' => 'used', 'updated_at' => now()]);

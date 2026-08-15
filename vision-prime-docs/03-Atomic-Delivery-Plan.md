@@ -96,25 +96,25 @@
 - [ ] client-safe summary projection
 - [ ] explainability and override flows
 
-## Phase 9 — AI Gateway & Review
-- [ ] provider abstraction/settings encryption
-- [ ] prompt template versioning
-- [ ] usage/cost/audit logging
-- [ ] generation/version comparison
-- [ ] review queue/assignment/decision
-- [ ] AI output policy by site
-- [ ] no-direct-publish enforcement tests
+## Phase 9 — AI Gateway & Review ✅ (تا ۲۰۲۶-۰۸-۱۵)
+- [x] provider abstraction/settings encryption (AiClient + provider config)
+- [x] prompt template versioning
+- [x] usage/cost/audit logging (ai_generations.usage_json)
+- [x] generation/version comparison (ai_generation_versions)
+- [x] review queue/assignment/decision
+- [x] AI output policy by site + **تولید مقاله/محصول با استاندارد مؤثر (`content_standards`/StandardsKB) + اسکیما + تصویر شاخص + HTML پاک‌سازی‌شده**
+- [x] **بازنگری D-013/D-016:** مسیر مجاز انتشار مستقیم با اجازه‌نامه (بجای no-direct-publish مطلق) + گیت‌های scope/گرمایش/کیفیت (D-017) + تست‌های AutoPublishGuardrails
 
-## Phase 10 — Automation Governance & Commands
-- [ ] SiteAutomationPolicy schema/versioning
-- [ ] automation level configuration UI
-- [ ] command schema and allowlist
-- [ ] policy evaluation service
-- [ ] approval gating
-- [ ] snapshots/rollback
-- [ ] command lifecycle UI
-- [ ] emergency stop
-- [ ] security, idempotency and rollback tests
+## Phase 10 — Automation Governance & Commands ✅ (تا ۲۰۲۶-۰۸-۱۵)
+- [x] SiteAutomationPolicy schema/versioning (+ auto_publish_scope، active_profile_id، overrides_json)
+- [x] automation level configuration UI (داشبورد 2-4 + Trust + پروفایل‌های org-scoped)
+- [x] command schema and allowlist (شش نوع + publish_new_article + update_content)
+- [x] policy evaluation service (PolicyEvaluator + گرمایش + کیفیت + دامنه)
+- [x] approval gating (انسانی + سیستم با reviewer_type)
+- [x] snapshots/rollback (endpoint /rollback پلاگین + RollbackMonitor + بازگشت بدون‌اتلاف)
+- [x] command lifecycle UI (فهرست/جزئیات + وضعیت auto_publish + لینک پست)
+- [x] emergency stop (EmergencyStop/ResumeAutomation + گارد DispatchCommand)
+- [x] security, idempotency and rollback tests (ReplayAttackTest، DAcceptanceTest، Guardrails)
 
 ## Phase 11 — Client Portal, Reports & Impact
 - [ ] client navigation and data projection policies

@@ -30,10 +30,19 @@ class PolicyEvaluator
 
     private const RISK_RANK = ['R0' => 0, 'R1' => 1, 'R2' => 2, 'R3' => 3, 'R4' => 4];
 
+    /** آستانهٔ گرمایش — حداقل اجرای موفقِ انسانی از یک نوع تغییر پیش از باز شدن مسیر خودکار. */
+    public const WARMUP_REQUIRED = [
+        'meta' => 3,
+        'product' => 3,
+        'article' => 5,
+    ];
+
     /**
      * @param  array<string, mixed>  $context  کلیدها:
      *                                         policy (object|array|null)، profile (object|array|null)،
      *                                         command{type, risk_tier, confidence_score|null, content_type|null}،
+     *                                         quality{passed, score, failures} (اختیاری)،
+     *                                         warmup{content_type, successful_count} (اختیاری)،
      *                                         now (Carbon|null)، today_counts{daily_commands, daily_mutations}
      * @return array{decision: string, reason: string, snapshot: array<string, mixed>}
      */
@@ -44,6 +53,8 @@ class PolicyEvaluator
         $command = (array) ($context['command'] ?? []);
         $now = $context['now'] ?? Carbon::now();
         $counts = (array) ($context['today_counts'] ?? ['daily_commands' => 0, 'daily_mutations' => 0]);
+        $quality = $context['quality'] ?? null;
+        $warmup = $context['warmup'] ?? null;
 
         // فاز ۴: مسیریابی چندپروفایلی بر اساس نوع محتوا — اگر route برای content_type دستور باشد،
         // پروفایل همان route جایگزین پروفایل فعال می‌شود.
@@ -90,6 +101,7 @@ class PolicyEvaluator
         if (($this->rank($riskTier) ?? 99) > $this->rank($maxRisk)) {
             return $this->result(self::DECISION_REJECTED, "Risk tier {$riskTier} exceeds site maximum ({$maxRisk}).", $snapshot);
         }
+        $snapshot['max_risk_tier'] = $maxRisk;
 
         // ۴) whitelist نوع دستور
         $allowedTypes = $rules['allowed_command_types'] ?? null;
@@ -97,17 +109,30 @@ class PolicyEvaluator
             return $this->result(self::DECISION_REJECTED, "Command type {$type} is not allowed.", $snapshot);
         }
 
-        // ۵) whitelist نوع محتوا (پروفایل)
-        $enabled = isset($profile['enabled_content_types']) && $profile['enabled_content_types'] !== null
-            ? (array) json_decode((string) $profile['enabled_content_types'], true)
-            : null;
+        // ۵) whitelist نوع محتوا (پروفایل) — مقدار می‌تواند string (از دیتابیس) یا array (از overrides) باشد
+        $raw = $profile['enabled_content_types'] ?? null;
+        $enabled = match (true) {
+            is_array($raw) => $raw,
+            is_string($raw) && $raw !== '' => (array) json_decode($raw, true),
+            default => null,
+        };
         if ($contentType !== null && is_array($enabled) && $enabled !== [] && ! in_array($contentType, $enabled, true)) {
             return $this->result(self::DECISION_REJECTED, "Content type {$contentType} is not enabled in the active profile.", $snapshot);
         }
 
-        // ۶) R3 همیشه تأیید انسانی (Enterprise + تأیید صریح در فازهای بعدی)
-        if ($riskTier === 'R3') {
+        // ۶) R3 همیشه تأیید انسانی، مگر «انتشار مقاله/محصول جدید» که فقط با اجازهٔ صریح
+        //     auto_publish_scope (article|product) و سپس گیت‌های سخت‌گیرانه‌تر (گرمایش+کیفیت) باز می‌شود.
+        $contentType = $contentType ?? $this->contentTypeFor($type) ?? 'meta';
+        $scope = (string) ($policy['auto_publish_scope'] ?? 'none');
+        $newContentAuto = $riskTier === 'R3'
+            && $type === 'publish_new_article'
+            && in_array($contentType, ['article', 'product'], true)
+            && $this->scopeAllows($scope, $contentType);
+        if ($riskTier === 'R3' && ! $newContentAuto) {
             return $this->result(self::DECISION_PENDING_APPROVAL, 'R3 changes always require explicit human approval.', $snapshot);
+        }
+        if ($newContentAuto) {
+            $snapshot['new_article_auto'] = true;
         }
 
         // ۷) سقف روزانه
@@ -129,7 +154,37 @@ class PolicyEvaluator
             return $this->result(self::DECISION_DELAYED, 'Outside the configured execution window.', $snapshot);
         }
 
-        // ۹) آستانهٔ اطمینان (fail-closed بدون امتیاز)
+        // ۹) گیت‌های هاردکد انتشار خودکار (قابل غیرفعال‌سازی نیست):
+        //     (الف) دامنهٔ انتشار خودکار سایت (auto_publish_scope)
+        //     (ب) گرمایش — حداقل اجرای موفق انسانی از همان نوع
+        //     (ج) کیفیت محتوا — همهٔ گیت‌های StandardsKB باید پاس شده باشند
+        $snapshot['auto_publish_scope'] = $scope;
+        if ($scope === 'none' || ! $this->scopeAllows($scope, $contentType)) {
+            return $this->result(self::DECISION_PENDING_APPROVAL, "Auto-publish scope ({$scope}) does not allow {$contentType}.", $snapshot);
+        }
+
+        $snapshot['warmup_required'] = self::WARMUP_REQUIRED[$contentType] ?? 3;
+        $snapshot['warmup_count'] = isset($warmup['successful_count']) ? (int) $warmup['successful_count'] : 0;
+        if (is_array($warmup) && (int) ($warmup['successful_count'] ?? 0) < (int) ($snapshot['warmup_required'])) {
+            return $this->result(
+                self::DECISION_PENDING_APPROVAL,
+                "Warm-up not satisfied for {$contentType}: {$snapshot['warmup_count']}/{$snapshot['warmup_required']} human-approved executions.",
+                $snapshot,
+            );
+        }
+
+        if (is_array($quality) && ! (bool) ($quality['passed'] ?? false)) {
+            $snapshot['quality_score'] = $quality['score'] ?? 0;
+            $snapshot['quality_failures'] = $quality['failures'] ?? [];
+
+            return $this->result(
+                self::DECISION_PENDING_APPROVAL,
+                'Content quality gates failed: '.implode('; ', (array) ($quality['failures'] ?? [])),
+                $snapshot,
+            );
+        }
+
+        // ۱۰) آستانهٔ اطمینان (fail-closed بدون امتیاز)
         $threshold = $riskTier === 'R1' || $riskTier === 'R0'
             ? (int) ($profile['confidence_threshold'] ?? $rules['confidence_threshold'] ?? 80)
             : (int) ($profile['high_risk_threshold'] ?? $rules['high_risk_threshold'] ?? 90);
@@ -145,10 +200,11 @@ class PolicyEvaluator
             );
         }
 
-        // ۱۰) انتشار خودکار
+        // ۱۱) انتشار خودکار
         $autoAtLevel2 = $level === 2 && ($riskTier === 'R0' || $riskTier === 'R1');
         $autoAtLevel3Plus = $level >= 3 && in_array($riskTier, ['R0', 'R1', 'R2'], true);
-        if ($autoAtLevel2 || $autoAtLevel3Plus) {
+        $autoNewContent = $newContentAuto && $level >= 3; // R3 مقاله/محصول جدید فقط L3+ (گیت‌های سخت‌تر از قبل رد شده‌اند)
+        if ($autoAtLevel2 || $autoAtLevel3Plus || $autoNewContent) {
             return $this->result(self::DECISION_AUTO_PUBLISH, 'Policy allows automatic publication.', $snapshot);
         }
 
@@ -211,6 +267,21 @@ class PolicyEvaluator
     private function isMutation(string $riskTier): bool
     {
         return in_array($riskTier, ['R1', 'R2', 'R3'], true);
+    }
+
+    /** آیا دامنهٔ خودکار سایت این نوع محتوا را اجازه می‌دهد؟ */
+    private function scopeAllows(string $scope, string $contentType): bool
+    {
+        if ($scope === 'all') {
+            return true;
+        }
+
+        return match ($contentType) {
+            'meta' => $scope === 'meta',
+            'article' => $scope === 'article',
+            'product' => $scope === 'product',
+            default => false,
+        };
     }
 
     private function contentTypeFor(string $type): ?string

@@ -186,6 +186,78 @@ class RecommendationToCommandTest extends TestCase
         $this->assertDatabaseMissing('commands', ['source_id' => $recommendation->id]);
     }
 
+    public function test_recommendation_can_be_converted_to_content_command(): void
+    {
+        [$organization, $user, $site] = $this->setUpWorkspace();
+
+        $recommendation = Recommendation::query()->create([
+            'site_id' => $site->id,
+            'source_type' => 'manual',
+            'title' => 'بازنویسی محتوای صفحه خدمات',
+            'body' => 'محتوای عمیق‌تر با CTA واضح.',
+            'priority' => 'high',
+            'status' => 'active',
+        ]);
+
+        $content = '<h2>بخش جدید</h2><p>محتوای جایگزین صفحه برای تست جریان محتوایی.</p>';
+
+        $this->actingAs($user)->withSession(['current_organization_id' => $organization->id])
+            ->post("/app/recommendations/{$recommendation->id}/command", [
+                'type' => 'update_content',
+                'target_url' => 'https://example.ir/services',
+                'new_value' => $content,
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('status');
+
+        $command = DB::table('commands')
+            ->where('source_type', 'recommendation')
+            ->where('source_id', $recommendation->id)
+            ->first();
+
+        $this->assertNotNull($command);
+        $this->assertSame('update_content', $command->type);
+        $this->assertSame('pending_approval', $command->status);
+        $this->assertSame(
+            ['url' => 'https://example.ir/services', 'content' => $content],
+            json_decode($command->payload, true),
+        );
+    }
+
+    public function test_content_command_accepts_long_content_but_meta_is_length_limited(): void
+    {
+        [$organization, $user, $site] = $this->setUpWorkspace();
+
+        $long = str_repeat('م', 3000);
+        $recommendation = Recommendation::query()->create([
+            'site_id' => $site->id,
+            'source_type' => 'manual',
+            'title' => 'P',
+            'body' => '',
+            'priority' => 'low',
+            'status' => 'active',
+        ]);
+
+        // محتوای بلند (۳۰۰۰ کاراکتر) برای update_content مجاز است.
+        $this->actingAs($user)->withSession(['current_organization_id' => $organization->id])
+            ->post("/app/recommendations/{$recommendation->id}/command", [
+                'type' => 'update_content',
+                'target_url' => 'https://example.ir/services',
+                'new_value' => $long,
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('status');
+
+        // اما همان مقدار برای update_meta_title رد می‌شود.
+        $this->actingAs($user)->withSession(['current_organization_id' => $organization->id])
+            ->post("/app/recommendations/{$recommendation->id}/command", [
+                'type' => 'update_meta_title',
+                'target_url' => 'https://example.ir/services',
+                'new_value' => $long,
+            ])
+            ->assertSessionHasErrors('new_value');
+    }
+
     public function test_index_exposes_target_url_and_existing_command(): void
     {
         [$organization, $user, $site, $profileId] = $this->setUpWorkspace();

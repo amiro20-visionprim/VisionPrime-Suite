@@ -8,6 +8,9 @@ import VCard from '@/shared/ui/VCard.vue'
 import VEmptyState from '@/shared/ui/VEmptyState.vue'
 import VPageHeader from '@/shared/ui/VPageHeader.vue'
 
+import VAlert from '@/shared/ui/VAlert.vue'
+import type { ContentImpactSummary, ImpactSummaryEntry } from '@/types/automation'
+
 const props = defineProps<{
   counts: {
     clients: number
@@ -17,6 +20,7 @@ const props = defineProps<{
     gscConnectedSites: number
     openOpportunities: number
   }
+  contentImpact: ContentImpactSummary
   activities: {
     id: number
     action: string
@@ -26,6 +30,26 @@ const props = defineProps<{
     occurredAt: string | null
   }[]
 }>()
+
+const declinedEntries = computed(() => props.contentImpact.declines ?? [])
+
+const declineSummary = (entry: ImpactSummaryEntry) => {
+  const parts: string[] = []
+  if (entry.delta.clicks !== 0) parts.push(`کلیک ${entry.delta.clicks > 0 ? '+' : ''}${entry.delta.clicks}`)
+  if (entry.delta.position !== 0) parts.push(`جایگاه ${entry.delta.position > 0 ? '+' : ''}${entry.delta.position}`)
+  return parts.length ? parts.join(' · ') : 'بدون تغییر محسوس'
+}
+
+const sign = (n: number) => (n > 0 ? `+${n}` : String(n))
+
+const formatUrl = (url: string) => {
+  try {
+    return new URL(url).pathname
+  }
+  catch {
+    return url
+  }
+}
 
 const actionLabels: Record<string, string> = {
   'client.created': 'مشتری ایجاد شد',
@@ -130,6 +154,20 @@ const nextStep = computed(() => {
         ><VButton :href="nextStep.href">{{ nextStep.label }}</VButton></template
       ></VPageHeader
     >
+    <VAlert
+      v-if="declinedEntries.length"
+      class="mt-6"
+      tone="danger"
+      :title="`⚠️ هشدار افت عملکرد — ${declinedEntries.length} محتوا پس از انتشار افت کرده است`"
+    >
+      <ul class="list-inside list-disc space-y-1">
+        <li v-for="entry in declinedEntries" :key="entry.command_id" class="text-sm">
+          <span class="font-semibold">{{ entry.site_name ?? '—' }}</span>
+          <span class="font-latin" dir="ltr">{{ formatUrl(entry.url) }}</span>
+          <span class="text-ink-muted">— {{ declineSummary(entry) }}</span>
+        </li>
+      </ul>
+    </VAlert>
     <section class="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <VCard title="مشتریان"
         ><p class="text-ink-strong mt-2 text-2xl font-bold">{{ counts.clients }}</p>
@@ -156,6 +194,53 @@ const nextStep = computed(() => {
         @action="router.visit(nextStep.href)"
       />
     </div>
+    <VCard
+      class="mt-8"
+      title="📈 تأثیر محتوا پس از انتشار"
+      description="تأثیر GSC محتوای منتشرشدهٔ خودکار — فقط بر اساس دادهٔ واقعی سرچ کنسول، بدون تخمین."
+    >
+      <div v-if="contentImpact.reported > 0" class="grid gap-6 lg:grid-cols-3">
+        <div class="space-y-4">
+          <div class="flex items-baseline gap-2">
+            <p class="text-ink-strong text-3xl font-bold">{{ contentImpact.reported }}</p>
+            <p class="text-ink-muted text-sm">محتوا با دادهٔ GSC کافی</p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <span v-if="contentImpact.verdicts.improved > 0" class="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+              {{ contentImpact.verdicts.improved }} بهبود
+            </span>
+            <span v-if="contentImpact.verdicts.stable > 0" class="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-600">
+              {{ contentImpact.verdicts.stable }} پایدار
+            </span>
+            <span v-if="contentImpact.verdicts.declined > 0" class="rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-700">
+              {{ contentImpact.verdicts.declined }} افت
+            </span>
+          </div>
+          <p v-if="contentImpact.insufficient_data > 0" class="text-ink-muted text-xs">
+            {{ contentImpact.insufficient_data }} مورد دیگر دادهٔ کافی GSC ندارند.
+          </p>
+        </div>
+        <div v-if="contentImpact.best" class="rounded-xl border border-emerald-100 bg-emerald-50/50 p-4">
+          <p class="text-xs font-semibold text-emerald-700">🏆 بهترین بهبود</p>
+          <p class="text-ink-strong mt-2 text-sm font-semibold">{{ contentImpact.best.site_name ?? '—' }}</p>
+          <p class="text-ink-muted mt-1 truncate text-xs" :title="contentImpact.best.url">{{ formatUrl(contentImpact.best.url) }}</p>
+          <p class="text-ink-strong mt-3 text-sm">
+            جایگاه {{ sign(contentImpact.best.delta.position) }} · کلیک {{ sign(contentImpact.best.delta.clicks) }}
+          </p>
+        </div>
+        <div v-if="contentImpact.worst" class="rounded-xl border border-red-100 bg-red-50/50 p-4">
+          <p class="text-xs font-semibold text-red-700">⚠️ ضعیف‌ترین نتیجه</p>
+          <p class="text-ink-strong mt-2 text-sm font-semibold">{{ contentImpact.worst.site_name ?? '—' }}</p>
+          <p class="text-ink-muted mt-1 truncate text-xs" :title="contentImpact.worst.url">{{ formatUrl(contentImpact.worst.url) }}</p>
+          <p class="text-ink-strong mt-3 text-sm">
+            جایگاه {{ sign(contentImpact.worst.delta.position) }} · کلیک {{ sign(contentImpact.worst.delta.clicks) }}
+          </p>
+        </div>
+      </div>
+      <p v-else class="text-ink-muted text-sm leading-7">
+        هنوز محتوایی با دادهٔ کافی GSC منتشر نشده است — پس از اجرای چند انتشار خودکار و همگام‌سازی سرچ کنسول، تأثیر آن‌ها اینجا نمایش داده می‌شود.
+      </p>
+    </VCard>
     <VCard
       class="mt-8"
       title="فعالیت‌های اخیر"

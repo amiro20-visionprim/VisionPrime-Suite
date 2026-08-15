@@ -5,3 +5,6 @@ vision-prime-deploy/
 # Unrelated local composer artifacts
 .config/
 .local/
+
+# Local dev tooling (PHP/WordPress binaries) - never commit
+.tools/

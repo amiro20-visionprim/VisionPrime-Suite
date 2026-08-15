@@ -72,6 +72,8 @@ Vision Prime سه تجربه مجزا با یک Design System دارد:
 /app/ai
 /app/ai/templates
 /app/ai/generations
+/app/ai-drafts/article/create  ← تولید مقاله (اختیار سایت/پروفایل/زیرنوع)
+/app/ai-drafts/product/create  ← تولید محصول (اختیار سایت/پروفایل/زیرنوع)
 /app/reviews
 /app/reviews/{reviewItem}
 /app/commands
@@ -112,6 +114,8 @@ Vision Prime سه تجربه مجزا با یک Design System دارد:
 **Workflows**
 - پیشنهادها
 - بررسی و تأییدها
+- تولید مقاله (ArticleDraft)
+- تولید محصول (ProductDraft)
 - دستیار هوشمند
 - تغییرات اجرایی
 

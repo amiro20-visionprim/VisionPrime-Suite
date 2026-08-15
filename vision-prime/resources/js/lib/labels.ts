@@ -16,7 +16,10 @@ export const commandTypeLabels: Record<string, string> = {
 }
 
 export const commandStatusLabels: Record<string, string> = {
+  draft: 'پیش‌نویس',
   pending: 'در انتظار تأیید',
+  pending_approval: 'در انتظار تأیید انسانی',
+  queued: 'در صف',
   approved: 'تأیید شده',
   rejected: 'رد شده',
   cancelled: 'لغو شده',
@@ -25,6 +28,13 @@ export const commandStatusLabels: Record<string, string> = {
   executed: 'اجرا شده',
   failed: 'ناموفق',
   completed: 'تکمیل شده',
+  rolled_back: 'بازگشت خورده',
+}
+
+export const contentScopeLabels: Record<string, string> = {
+  meta: 'متا',
+  article: 'مقاله',
+  product: 'محصول',
 }
 
 export const riskTierLabels: Record<string, string> = {

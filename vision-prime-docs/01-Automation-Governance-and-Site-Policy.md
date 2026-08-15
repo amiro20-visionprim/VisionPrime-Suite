@@ -26,8 +26,14 @@
 | R0 اطلاع‌رسانی | Sync، تحلیل، تولید گزارش | خودکار در همه سطوح |
 | R1 کم‌ریسک | اصلاح meta title/description، excerpt، ایجاد draft، پاکسازی cache امن | L2 به بالا با policy ممکن است خودکار باشد |
 | R2 متوسط | ویرایش محتوای draft، افزودن internal link، تغییر CTA پیشنهادی در draft | L3 به بالا فقط با Rule و محدوده دقیق؛ در غیر این صورت Review |
-| R3 پرریسک | تغییر محتوای منتشرشده، تغییر slug، redirect، تغییر ساختار لینک | همیشه تأیید انسانی مشخص + snapshot + پنجره rollback |
+| R3 پرریسک | تغییر محتوای منتشرشده، **انتشار مقاله/محصول جدید (publish_new_article)**، تغییر slug، redirect، تغییر ساختار لینک | همیشه snapshot + rollback؛ انتشار مستقیم محتوا فقط با اجازه‌نامهٔ صریح و گیت‌های scope/گرمایش/کیفیت (زیر) — در غیر این صورت تأیید انسانی |
 | R4 ممنوع | اجرای کد، نصب plugin، حذف انبوه، تغییر نقش کاربر، تغییر credential | از طریق Vision Prime اجرا نمی‌شود |
+
+**دامنهٔ انتشار خودکار (`auto_publish_scope`):** انتشار مستقیم (بدون تأیید انسانی لحظه‌ای) فقط برای سایت‌هایی مجاز است که admin به‌صورت صریح opt-in کرده باشد: `none` (پیش‌فرض — همه‌چیز تأیید انسانی) | `meta` | `article` | `product` | `all`. این یک گیت fail-closed است: دامنهٔ بسته = بدون انتشار خودکار، حتی اگر پروفایل L3/L4 باشد.
+
+**گرمایش (warm-up):** سیستم قبل از اولین انتشار خودکار در هر نوع محتوا باید اعتماد ساخته باشد — تعداد مشخصی اجرای موفقِ انسانی از همان نوع روی همین سایت: متا=۳، محصول=۳، مقاله=۵. بدون گرمایش کامل، هرچقدر امتیاز اطمینان بالا باشد، انتشار خودکار نمی‌شود.
+
+**گیت کیفیت محتوا:** برای کامندهای محتوایی، خروجی با **استاندارد مؤثر همان پیش‌نویس** (از `content_standards` — طول، هدینگ، عناصر الزامی) ارزیابی می‌شود و نمرهٔ کیفیت در تصمیم خودکار لحاظ می‌شود؛ مقالهٔ ب‌کیفیت پایین هرچقدر GSC قوی داشته باشد نمرهٔ پایینی می‌گیرد.
 
 ## 3) ساختار Site Automation Policy
 هر Site یک نسخه Policy دارد و تغییر آن audit می‌شود.
@@ -48,22 +54,28 @@ SiteAutomationPolicy
 - reviewer_policy (none / one / specific roles / named users)
 - notification_policy
 - AI_policy (disabled / draft_only / approved_templates / bounded_auto)
+- auto_publish_scope (none | meta | article | product | all) ← دامنهٔ انتشار خودکار (opt-in صریح)
 - emergency_stop_enabled
+- active_profile_id + overrides_json (مدل سهلایهٔ D-015: Default ← Profile ← Override)
 - version
 - updated_by
 ```
 
 ## 4) Guardrails اجباری در تمام سطح‌ها
-- HMAC + timestamp + nonce + replay protection
+- HMAC + timestamp + nonce + replay protection (تست‌شده: nonce تکراری و timestamp منقضی رد می‌شوند)
 - idempotency key برای هر Command
 - expiration و cancelability
 - whitelist command type و schema validation
-- target validation: site، post type، post status و ownership
+- target validation: site، post type، post status و ownership (و `assert_product` برای محصولات)
 - rate limit و daily budget
-- pre-mutation snapshot در Commandهای قابل rollback
+- pre-mutation snapshot در Commandهای قابل rollback (بازگشت بدون‌اتلاف، snapshot کامل)
 - structured result و immutable execution log
 - emergency stop در سطح Site و Organization
 - notification در failure، anomaly و mutation حساس
+- **گرمایش**: N اجرای موفق انسانی از همان نوع پیش از انتشار خودکار (متا=۳، محصول=۳، مقاله=۵)
+- **دامنهٔ انتشار خودکار**: opt-in صریح admin (`auto_publish_scope`) — fail-closed
+- **کیفیت محتوا**: ارزیابی خروجی با استاندارد مؤثر پیش‌نویس (`content_standards`) قبل از انتشار خودکار
+- **تنها بودن بر دادهٔ واقعی**: گزارش تأثیر GSC هرگز عدد جعل نمی‌کند؛ بدون داده → `insufficient_data` با دلیل
 
 ## 5) UX تنظیمات Automation
 مسیر: `/app/sites/{site}/automation`

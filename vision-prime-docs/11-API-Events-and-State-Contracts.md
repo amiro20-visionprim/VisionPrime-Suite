@@ -37,6 +37,18 @@
 - filterها typed و documented هستند.
 - response list شامل `data`, `meta`, `links` است.
 
+## 3.5) Connector Endpoints (پلاگین وردپرس)
+
+| Endpoint | Method | Auth | کاربرد |
+|---|---|---|---|
+| `/wp-json/vision-prime/v1/health` | GET | — | health عمومی (نسخهٔ پلاگین، tamper check) |
+| `/wp-json/vision-prime/v1/content` | GET | HMAC | لیست پست‌ها/صفحات (sync محتوا) |
+| `/wp-json/vision-prime/v1/commands` | POST | HMAC | اجرای command (meta/content/product) |
+| `/wp-json/vision-prime/v1/rollback` | POST | HMAC | بازگشت snapshot قبلی (متا/تایتل/محتوا/حذف پست publish_new_article) |
+| `/wp-json/vision-prime/v1/product-info` | POST | HMAC | اطلاعات واقعی محصول ووکامرس (قیمت/موجودی/وضعیت — با post_id یا اسلاگ) |
+
+همهٔ درخواست‌های امضاشده: HMAC-SHA256 + timestamp window + nonce یک‌بارمصرف (replay rejection) + constant-time compare. امضای نادرست/تکرار nonce/timestamp منقضی → خطای ساخت‌یافته CONNECTOR_* بدون اجرا.
+
 ## 4) Lifecycle State Machines
 
 ### Site connection
@@ -54,8 +66,12 @@
 ### Command
 `draft → pending_approval → approved → queued → dispatched → executed`
 
+مسیر خودکار (D-013): وقتی Policy مجاز باشد، تأیید با `reviewer_type=system` + `policy_snapshot` ثبت می‌شود و `decision_source=policy`؛ وضعیت همچنان `approved → … → executed` است و `published_at` پر می‌شود (برای publish_new_article). مسیر غیرخودکار با تأیید انسانی `decision_source=manual`.
+
 Terminal/exception states:
 `failed | expired | cancelled | rolled_back | policy_denied`
+
+بازگشت خودکار R3: `executed → rolled_back` با snapshot کامل (رستور بدون‌اتلاف از طریق endpoint `/rollback` پلاگین).
 
 ### Report
 `draft → generating → ready → published | failed | archived`

@@ -83,6 +83,7 @@ final class Vision_Prime_Connector {
         register_rest_route('vision-prime/v1', '/content', ['methods' => 'GET', 'callback' => [$this, 'content'], 'permission_callback' => [VP_Request_Verifier::class, 'verify']]);
         register_rest_route('vision-prime/v1', '/commands', ['methods' => 'POST', 'callback' => [$this, 'commands'], 'permission_callback' => [VP_Request_Verifier::class, 'verify']]);
         register_rest_route('vision-prime/v1', '/rollback', ['methods' => 'POST', 'callback' => [$this, 'rollback'], 'permission_callback' => [VP_Request_Verifier::class, 'verify']]);
+        register_rest_route('vision-prime/v1', '/product-info', ['methods' => 'POST', 'callback' => [$this, 'product_info'], 'permission_callback' => [VP_Request_Verifier::class, 'verify']]);
     }
 
     public function health(): WP_REST_Response {
@@ -169,7 +170,9 @@ final class Vision_Prime_Connector {
         }
 
         try {
-            $result = $this->restore_command((string) ($params['type'] ?? ''), is_array($params['previous'] ?? null) ? $params['previous'] : []);
+            // The platform sends post_id at the TOP level of the rollback payload;
+            // restore_command also accepts it nested inside `previous` for compatibility.
+            $result = $this->restore_command((string) ($params['type'] ?? ''), is_array($params['previous'] ?? null) ? $params['previous'] : [], absint($params['post_id'] ?? 0));
             $status = 'rolled_back';
         } catch (Throwable $e) {
             $result = ['error' => $e->getMessage()];
@@ -188,7 +191,10 @@ final class Vision_Prime_Connector {
             'error' => $status === 'failed' ? ($result['error'] ?? 'unknown error') : null,
         ]);
 
-        return new WP_REST_Response(['status' => 'ack'], 200);
+        // Rollback is synchronous on the platform side: it needs the actual restore
+        // outcome here (not only the async command-result) so it can mark the command
+        // rolled_back only when WordPress confirms the mutation was really undone.
+        return new WP_REST_Response(['status' => 'ack', 'restored' => $status === 'rolled_back', 'result' => $result], 200);
     }
 
     /**
@@ -197,8 +203,11 @@ final class Vision_Prime_Connector {
      * @return array<string,mixed>
      * @throws RuntimeException When the target post is missing or the type is unknown.
      */
-    private function restore_command(string $type, array $previous): array {
+    private function restore_command(string $type, array $previous, int $fallback_post_id = 0): array {
         $post_id = absint($previous['post_id'] ?? 0);
+        if ($post_id === 0) {
+            $post_id = $fallback_post_id;
+        }
         if ($post_id === 0) {
             throw new RuntimeException('Rollback payload has no valid post_id.');
         }
@@ -231,6 +240,17 @@ final class Vision_Prime_Connector {
                     throw new RuntimeException('Failed to restore product title for post ' . $post_id);
                 }
                 return ['post_id' => $post_id, 'restored' => true];
+            case 'publish_new_article':
+                // بازگشت مقالهٔ جدید = حذف پست ساخته‌شده (فقط در صورتی که واقعاً توسط VP ساخته شده باشد).
+                $created_flag = (string) get_post_meta($post_id, '_vp_created_by', true);
+                if ($created_flag !== 'vision-prime') {
+                    throw new RuntimeException('Refusing to delete post ' . $post_id . ': not created by Vision Prime.');
+                }
+                $deleted = wp_delete_post($post_id, true);
+                if ($deleted === false || $deleted === null) {
+                    throw new RuntimeException('Failed to delete article post ' . $post_id);
+                }
+                return ['post_id' => $post_id, 'restored' => true, 'deleted' => true];
             default:
                 throw new RuntimeException('Unknown command type for rollback: ' . $type);
         }
@@ -246,7 +266,8 @@ final class Vision_Prime_Connector {
             $by_url = get_page_by_path($this->url_to_path((string) $payload['url']), OBJECT, ['post', 'page']);
             $post_id = $by_url instanceof WP_Post ? $by_url->ID : 0;
         }
-        if ($post_id === 0) {
+        // publish_new_article پستِ جدید می‌سازد و به post_id/url از قبل موجود نیاز ندارد.
+        if ($post_id === 0 && $type !== 'publish_new_article') {
             throw new RuntimeException('Command payload has no valid post_id or url target.');
         }
         switch ($type) {
@@ -285,7 +306,8 @@ final class Vision_Prime_Connector {
                 if (is_wp_error($updated) || (int) $updated === 0) {
                     throw new RuntimeException('Failed to update product title for post ' . $post_id);
                 }
-                return ['post_id' => $post_id, 'previous' => (string) $previous, 'new' => $new];
+                // previous باید آرایه باشد تا با قرارداد rollback (RollbackCommand و restore_command) سازگار بماند.
+                return ['post_id' => $post_id, 'previous' => ['title' => (string) $previous], 'new' => $new];
             case 'update_product_description':
                 $this->assert_product($post_id);
                 $new = (string) ($payload['description'] ?? '');
@@ -299,9 +321,112 @@ final class Vision_Prime_Connector {
                 }
                 // Full previous content is required for a lossless rollback snapshot (D-013).
                 return ['post_id' => $post_id, 'previous' => ['content' => (string) $previous], 'new_length' => mb_strlen($new)];
+            case 'publish_new_article':
+                $title = sanitize_text_field((string) ($payload['title'] ?? ''));
+                $content = (string) ($payload['content'] ?? '');
+                if ($title === '' || $content === '') {
+                    throw new RuntimeException('Command payload has no title or content.');
+                }
+                $slug = sanitize_title((string) ($payload['slug'] ?? ''));
+                // پیش‌نویس محصول → پست ووکامرس (post_type=product)؛ مقاله → پست معمولی
+                $content_type = (string) ($payload['content_type'] ?? 'article');
+                $post_type = $content_type === 'product' ? 'product' : 'post';
+                $post_id = wp_insert_post([
+                    'post_type' => $post_type,
+                    'post_status' => 'publish',
+                    'post_title' => $title,
+                    'post_content' => wp_kses_post($content),
+                    'post_name' => $slug !== '' ? $slug : null,
+                ], true);
+                if (is_wp_error($post_id) || (int) $post_id === 0) {
+                    throw new RuntimeException('Failed to create article post: ' . (is_wp_error($post_id) ? $post_id->get_error_message() : 'unknown'));
+                }
+                // علامت امنیت: پست‌هایی که VP ساخته — rollback فقط همین‌ها را حذف می‌کند.
+                update_post_meta((int) $post_id, '_vp_created_by', 'vision-prime');
+                // Meta SEO (title/description) را روی پست جدید می‌نویسیم تا همانجا دیده شود.
+                $meta_title = sanitize_text_field((string) ($payload['meta_title'] ?? ''));
+                if ($meta_title !== '') {
+                    foreach (self::meta_keys('title') as $key) { update_post_meta((int) $post_id, $key, $meta_title); }
+                }
+                // اسکیمای پیشنهادی (Article/FAQPage) را به‌صورت JSON-LD در meta ذخیره می‌کنیم.
+                $schema = is_array($payload['schema'] ?? null) ? $payload['schema'] : [];
+                if ($schema !== []) {
+                    update_post_meta((int) $post_id, '_vp_schema_jsonld', wp_json_encode($schema, JSON_UNESCAPED_UNICODE));
+                }
+                // Rollback برای مقاله/محصول جدید = حذف پست ساخته‌شده؛ snapshot فقط post_id را نگه می‌دارد.
+                return ['post_id' => (int) $post_id, 'previous' => ['created' => true, 'post_id' => (int) $post_id, 'post_type' => $post_type], 'new_length' => mb_strlen($content), 'new_title' => $title];
             default:
                 throw new RuntimeException('Unknown command type: ' . $type);
         }
+    }
+
+    /**
+     * Return real WooCommerce price/stock for a product (or a plain post), so
+     * reviewers can see the live values before approving a product publish.
+     *
+     * Payload: { post_id } or { slug } (WP post id or product slug).
+     * Responds synchronously (no async callback) with the product data.
+     */
+    public function product_info(WP_REST_Request $request): WP_REST_Response {
+        if (VP_Guard::tampered()) {
+            return new WP_REST_Response(['error' => 'integrity check failed'], 403);
+        }
+        $params = $request->get_json_params();
+        $post_id = absint($params['post_id'] ?? 0);
+        $slug = sanitize_title((string) ($params['slug'] ?? ''));
+        $post = $post_id > 0 ? get_post($post_id) : null;
+        if ($post === null && $slug !== '') {
+            $found = get_page_by_path($slug, OBJECT, ['product', 'post']);
+            if ($found instanceof WP_Post) {
+                $post = $found;
+                $post_id = (int) $found->ID;
+            }
+        }
+        if ($post === null) {
+            return new WP_REST_Response(['error' => 'product_not_found'], 404);
+        }
+
+        $is_product = get_post_type($post_id) === 'product';
+        $price = $regular_price = $sale_price = null;
+        $stock_quantity = null;
+        $stock_status = null;
+        $currency = null;
+        $in_stock = null;
+
+        // WooCommerce product — real price/stock from the product object.
+        if ($is_product && function_exists('wc_get_product')) {
+            $product = wc_get_product($post_id);
+            if ($product instanceof WC_Product) {
+                $price = $product->get_price();
+                $regular_price = $product->get_regular_price();
+                $sale_price = $product->get_sale_price();
+                $stock_quantity = $product->get_stock_quantity();
+                $stock_status = $product->get_stock_status();
+                $currency = get_woocommerce_currency();
+                $in_stock = $product->is_in_stock();
+            }
+        } elseif ($is_product) {
+            // No WooCommerce — fall back to raw post meta (still useful).
+            $price = get_post_meta($post_id, '_price', true);
+            $stock_quantity = get_post_meta($post_id, '_stock', true);
+            $stock_status = get_post_meta($post_id, '_stock_status', true);
+            $in_stock = $stock_status !== 'outofstock';
+        }
+
+        return new WP_REST_Response([
+            'post_id' => $post_id,
+            'title' => get_the_title($post_id),
+            'post_type' => get_post_type($post_id),
+            'url' => get_permalink($post_id),
+            'is_product' => $is_product,
+            'price' => $price !== null && $price !== '' ? (string) $price : null,
+            'regular_price' => $regular_price !== null && $regular_price !== '' ? (string) $regular_price : null,
+            'sale_price' => $sale_price !== null && $sale_price !== '' ? (string) $sale_price : null,
+            'currency' => $currency,
+            'stock_quantity' => $stock_quantity !== null && $stock_quantity !== '' ? (int) $stock_quantity : null,
+            'stock_status' => $stock_status,
+            'in_stock' => $in_stock,
+        ]);
     }
 
     /**

@@ -22,9 +22,14 @@ UrlProfile 1─* MoneyPageAudit 1─* MoneyPageIssue
 UrlProfile 1─* ConversionRisk 1─* ConversionRiskFactor
 Opportunity/MoneyPageAudit/ConversionRisk 1─* Recommendation
 Recommendation or AiGeneration 1─* ReviewItem 1─* ReviewDecision
-Site 1─1 SiteAutomationPolicy
+Site 1─1 SiteAutomationPolicy 1─* AutomationProfile (via site_profile_routes per content_type)
+AutomationProfile (system: org_id null / custom: organization_id)
 Site 1─* Command 1─* CommandExecutionLog
 Command 1─* CommandApproval / RollbackSnapshot
+Command 1─0..1 ContentStandard (via carried standard in payload)
+Site 1─* SiteContentStandardLearning (content_type × subtype)
+ContentStandard 1─* (versions: content_type × subtype × intent × version)
+Site 1─* AutomationLearningHistory (نرخ موفقیت هر نوع تغییر)
 Organization 1─* AuditLog
 ```
 
@@ -58,9 +63,11 @@ Organization 1─* AuditLog
 | gsc_accounts | organization_id, google_subject, email, token_ciphertext, token_expires_at, status | حساب OAuth |
 | gsc_properties | site_id, gsc_account_id, property_uri, property_type, status, selected_at | property متصل به Site |
 | gsc_import_runs | gsc_property_id, date_start, date_end, dimensions_json, status, summary_json, error_json | import قابل‌پیگیری |
-| gsc_page_metrics | property_id, date, page_url, clicks, impressions, ctr, position, device, country | performance صفحه |
-| gsc_query_metrics | property_id, date, query, clicks, impressions, ctr, position, device, country | performance query |
-| gsc_query_page_metrics | property_id, date, query, page_url, clicks, impressions, ctr, position | mapping query/page |
+| gsc_page_metrics | gsc_property_id, date, page_url, clicks, impressions, ctr, position, device, country | performance صفحه — ایمپورت روزانه با `php artisan gsc:import` (`--sync` برای اجرای هم‌گام بدون queue)؛ پایهٔ گزارش تأثیر پس از انتشار |
+| gsc_query_metrics | gsc_property_id, date, query, clicks, impressions, ctr, position, device, country | performance query |
+| gsc_query_page_metrics | gsc_property_id, date, query, page_url, clicks, impressions, ctr, position | mapping query/page |
+
+**جداسازی بین‌سازمانی GSC (اصلاح cross-tenant):** `gsc_properties` فقط به سایت‌های همان سازمان محدود می‌شود (تست Feature `GscPropertyIsolationTest`)؛ `gsc_accounts` از قبل organization-scoped است.
 | keyword_insights | site_id, query_normalized, latest_metrics_json, mapped_url_profile_id, status | نمای تجمیعی Keyword |
 | intent_classifications | keyword_insight_id, intent, confidence, method, explanation, rules_version | خروجی intent |
 | opportunities | site_id, url_profile_id, keyword_insight_id, type, score, confidence, status, explanation | فرصت اولویت‌دار |
@@ -76,11 +83,25 @@ Organization 1─* AuditLog
 | ai_generation_versions | generation_id, version, output_json, model_meta_json, status | نسخه‌های خروجی |
 | review_items | site_id, subject_type, subject_id, status, assigned_to, due_at, policy_snapshot_json | صف بررسی |
 | review_decisions | review_item_id, decision, note, decided_by, decided_at | تصمیم immutable |
-| site_automation_policies | site_id, version, level, rules_json, emergency_stopped_at, updated_by | سیاست L0-L4 |
-| commands | site_id, source_type, source_id, type, risk_tier, payload_json, idempotency_key, status, expires_at, policy_version | درخواست تغییر |
-| command_approvals | command_id, reviewer_id, decision, note, policy_snapshot_json | تأیید command |
+| site_automation_policies | site_id, version, level, rules_json, emergency_stopped_at, active_profile_id, overrides_json, auto_publish_scope (none/meta/article/product/all), updated_by | سیاست L0-L4 + مدل سهلایهٔ D-015 + دامنهٔ انتشار خودکار (D-017) |
+| automation_profiles | organization_id (nullable — system profiles جهانی، customهای org-scoped)، kind (system/custom)، scope، automation_level، ai_policy، confidence_threshold، risk_tier_max، enabled_content_types، daily limits، execution_window، rollback_hours، auto_rollback، alert_level، reviewer_policy، notification_policy، version | پروفایل آماده/سفارشی — جداسازی بین‌سازمانی با organization_id (تست `ProfileIsolationTest`) |
+| site_profile_routes | site_id, content_type → profile_id | مسیریابی چند پروفایل هم‌زمان per site (فاز ۴) |
+| automation_learning_history | site_id, content_type, period، total، successful، rate، computed_at | نرخ موفقیت هر نوع تغییر از حلقهٔ یادگیری |
+| commands | site_id, source_type, source_id, type, content_type (meta/article/product)، risk_tier, payload_json, idempotency_key, status, expires_at, policy_version, confidence_score (۰–۱۰۰), confidence_factors (JSON), decision_source (policy/manual), published_at | درخواست تغییر + امتیاز اطمینان و منبع تصمیم (D-013 فاز ۱) |
+| command_approvals | command_id, reviewer_id (nullable), reviewer_type (user/system), decision, note, policy_snapshot_json | تأیید command — reviewer خودکار (system) برای مسیر auto_publish |
 | command_execution_logs | command_id, attempt, status, request_redacted_json, response_redacted_json, executed_at | lifecycle اجرا |
-| rollback_snapshots | command_id, target_ref, snapshot_ciphertext/ref, expires_at, status | پیش‌نیاز rollback |
+| rollback_snapshots | command_id, target_ref, snapshot_ciphertext/ref, expires_at, status | پیش‌نیاز rollback — snapshot کامل و بدون‌اتلاف برای بازگشت دقیق |
+
+## Content Standards Domain (جدید — D-018)
+| Entity | فیلدهای اصلی | مسئولیت |
+|---|---|---|
+| content_standards | content_type (article/product/meta/landing)، subtype (tutorial/comparison/short_desc/…)، intent، word_min، word_max، min_headings، required_elements (JSON)، tone، keyword_guidance (JSON)، version، updated_by، source (seed/learned/manual/serp) | «دانش روز صنعت» نسخه‌دار — استاندارد مؤثر هر نوع/زیرنوع محتوا؛ unique (content_type, subtype, intent, version) |
+| site_content_standard_learnings | site_id, content_type, subtype, learned_word_min, learned_min_headings, version | یادگیری از دادهٔ واقعی سایت (نسخهٔ بعدی استاندارد) |
+
+## Reporting — Impact پس از انتشار (D-019)
+| Entity | فیلدهای اصلی | مسئولیت |
+|---|---|---|
+| (گزارش محاسبه‌شونده از gsc_page_metrics) | قبل/بعد: کلیک، نمایش، میانگین جایگاه در پنجرهٔ N روز | `BuildPublishImpactReport` — بدون جعل عدد؛ بدون داده → insufficient_data با دلیل؛ خروجی برای کارت داشبورد (`BuildContentImpactSummary`) و ویجت جزئیات بازبینی |
 
 ## Reporting, Audit, Commercial Domain
 | Entity | فیلدهای اصلی | مسئولیت |

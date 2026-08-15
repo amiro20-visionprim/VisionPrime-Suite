@@ -6,6 +6,9 @@ namespace App\Domains\Automation\Actions;
 
 use App\Domains\Audit\Actions\RecordAuditLog;
 use App\Domains\Automation\Services\PolicyEvaluator;
+use App\Domains\Content\Services\ContentProfiler;
+use App\Domains\Content\Services\ContentQualityGuard;
+use App\Domains\Content\Services\StandardsKB;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -26,6 +29,9 @@ class AutoPublish
         private readonly ExecuteCommand $execute,
         private readonly RecordAuditLog $audit,
         private readonly PolicyEvaluator $evaluator,
+        private readonly ContentProfiler $profiler,
+        private readonly ContentQualityGuard $qualityGuard,
+        private readonly StandardsKB $kb,
     ) {}
 
     /** @return array{decision: string, command_id: int, executed?: bool, reason?: string} */
@@ -47,6 +53,10 @@ class AutoPublish
             ? DB::table('automation_profiles')->where('id', $policy->active_profile_id)->first()
             : null;
 
+        $payload = json_decode((string) ($command->payload ?? '{}'), true) ?? [];
+        $quality = $this->quality($command, $payload);
+        $warmup = $this->warmup((int) $command->site_id, (string) ($command->content_type ?? $this->contentTypeFor($command->type)));
+
         $decision = $this->evaluator->evaluate([
             'policy' => $policy,
             'profile' => $profile,
@@ -58,6 +68,8 @@ class AutoPublish
                 'content_type' => $command->content_type ?? null,
                 'policy_version' => $command->policy_version,
             ],
+            'quality' => $quality,
+            'warmup' => $warmup,
             // سقف روزانه: دستورهای امروز که مصرف‌کنندهٔ بودجه‌اند (اجرا/در حال اجرا)
             'today_counts' => $this->todayCounts((int) $command->site_id),
         ]);
@@ -86,6 +98,116 @@ class AutoPublish
                 ];
             })
             ->all();
+    }
+
+    /**
+     * گیت کیفیت محتوا (لایهٔ ۲): برای هر کامند با payload محتوایی، خروجی را با استاندارد
+     * مؤثر StandardsKB ارزیابی می‌کند. اگر نوع/محتوای قابل‌ارزیابی نباشد، قبول (بدون گیت).
+     *
+     * @param  array<string, mixed>  $payload
+     * @return array{passed: bool, score: int, failures: array<int, string>, standard: array<string, mixed>}|null
+     */
+    private function quality(object $command, array $payload): ?array
+    {
+        $contentType = (string) ($command->content_type ?? $this->contentTypeFor($command->type));
+        $body = (string) ($payload['content'] ?? $payload['description'] ?? '');
+        $title = (string) ($payload['title'] ?? $payload['url'] ?? '');
+
+        // برای متا، متن اصلی همان مقدار title/description است (بدنهٔ جداگانه ندارد)
+        if ($contentType === 'meta') {
+            $metaValue = (string) ($payload['title'] ?? $payload['description'] ?? '');
+            $body = $metaValue !== '' ? $metaValue : $body;
+        }
+
+        // فقط برای کامندهای محتوایی که متن واقعی دارند گیت اجرا می‌شود
+        if ($body === '' && $title === '') {
+            return null;
+        }
+
+        // پیش‌نویس‌های تأییدشده، استاندارد و پروفایل مؤثر خود را حمل می‌کنند —
+        // گیت کیفیت دقیقاً با همان استانداردِ تولید ارزیابی می‌شود (نه سافت‌فلور عمومی).
+        $carriedStandard = is_array($payload['standard'] ?? null) ? $payload['standard'] : [];
+        $carriedProfile = is_array($payload['profile'] ?? null) ? $payload['profile'] : [];
+
+        if ($carriedStandard !== [] && $carriedProfile !== []) {
+            $evaluation = $this->qualityGuard->evaluate($carriedProfile, [
+                'title' => $title,
+                'body' => $body,
+                'keyword' => (string) ($payload['target_query'] ?? ''),
+                'headings' => $this->headings((string) $body),
+            ], (int) $command->site_id, $this->kb);
+
+            return [
+                'passed' => $evaluation['passed'],
+                'score' => $evaluation['score'],
+                'failures' => $evaluation['failures'],
+                'standard' => $evaluation['standard'],
+            ];
+        }
+
+        $profile = $this->profiler->profile([
+            'title' => $title,
+            'target_query' => (string) ($payload['target_query'] ?? ''),
+            'content_type' => $contentType === 'meta' ? 'meta' : $contentType,
+        ]);
+
+        // برای متا، زیرنوع از نوع کامند مشخص است
+        if ($contentType === 'meta') {
+            $profile['subtype'] = str_contains((string) $command->type, 'description') ? 'description' : 'title';
+            $profile['intent'] = 'any';
+        }
+
+        $evaluation = $this->qualityGuard->evaluate($profile, [
+            'title' => $title,
+            'body' => $body,
+            'keyword' => (string) ($payload['target_query'] ?? ''),
+            'headings' => $this->headings((string) $body),
+        ], (int) $command->site_id, $this->kb);
+
+        return [
+            'passed' => $evaluation['passed'],
+            'score' => $evaluation['score'],
+            'failures' => $evaluation['failures'],
+            'standard' => $evaluation['standard'],
+        ];
+    }
+
+    /**
+     * گرمایش (لایهٔ ۳): تعداد اجراهای موفقِ انسانی از همان نوع محتوا روی همین سایت.
+     *
+     * @return array{content_type: string, successful_count: int}
+     */
+    private function warmup(int $siteId, string $contentType): array
+    {
+        $successful = DB::table('commands')
+            ->where('site_id', $siteId)
+            ->where('status', 'executed')
+            ->where('decision_source', '!=', 'policy')
+            ->where(function ($q) use ($contentType): void {
+                $q->where('content_type', $contentType)
+                    ->orWhereNull('content_type');
+            })
+            ->count();
+
+        return ['content_type' => $contentType, 'successful_count' => $successful];
+    }
+
+    /** @return array<int, string> */
+    private function headings(string $body): array
+    {
+        preg_match_all('/<h[1-6][^>]*>(.*?)<\/h[1-6]>/is', $body, $matches);
+
+        return array_map('strip_tags', $matches[1] ?? []);
+    }
+
+    private function contentTypeFor(string $type): string
+    {
+        return match (true) {
+            str_starts_with($type, 'update_meta_') => 'meta',
+            str_starts_with($type, 'update_product_') => 'product',
+            in_array($type, ['update_content', 'publish_new_article', 'update_published_content'], true) => 'article',
+            default => 'meta',
+        };
     }
 
     /** @return array{daily_commands: int, daily_mutations: int} */

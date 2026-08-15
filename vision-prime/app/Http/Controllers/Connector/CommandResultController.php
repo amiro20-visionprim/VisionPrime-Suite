@@ -64,7 +64,11 @@ class CommandResultController
                     'executed_at' => now(),
                     'updated_at' => now(),
                 ]);
-            \DB::table('commands')->where('id', $command->id)->update(['status' => $status, 'updated_at' => now()]);
+            \DB::table('commands')->where('id', $command->id)->update([
+                'status' => $status,
+                'published_at' => $status === 'executed' && $command->published_at === null ? now() : $command->published_at,
+                'updated_at' => now(),
+            ]);
 
             // ذخیرهٔ snapshot پیش از تغییر (برای بازگشت خودکار D-013) وقتی نتیجه، مقدار قبلی را دارد.
             if ($status === 'executed' && isset($data['result']['previous'])) {

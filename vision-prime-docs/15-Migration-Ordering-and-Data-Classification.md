@@ -54,13 +54,22 @@ Migrationها کوچک، reversible تا حد ممکن، و به ترتیب depe
 40. review_decisions
 
 ### Wave F — Automation, Reporting, Operations
-41. site_automation_policies
-42. commands
-43. command_approvals
+41. site_automation_policies (+ `active_profile_id`، `overrides_json`، `auto_publish_scope`)
+42. commands (+ `content_type`، `confidence_score`، `confidence_factors`، `decision_source`، `published_at`)
+43. command_approvals (+ `reviewer_type`)
 44. command_execution_logs
 45. rollback_snapshots
 46. reports
 47. impact_events
+48. automation_profiles (+ `organization_id` — nullable؛ پروفایل‌های سفارشی org-scoped، سیستمی جهانی) — migration 2026_08_14_000006
+49. site_profile_routes (مسیریابی چند پروفایل per content_type)
+50. automation_learning_history (نرخ موفقیت از حلقهٔ یادگیری)
+
+### Wave G — Content Standards & Impact (migration 2026_08_15_000001)
+51. content_standards (نسخه‌دار: content_type × subtype × intent × version؛ منبع seed/learned/manual/serp — دادهٔ «دانش روز صنعت»)
+52. site_content_standard_learnings (یادگیری از دادهٔ واقعی سایت)
+53. commands.content_type (ستون الحاقی)
+54. site_automation_policies.auto_publish_scope (ستون الحاقی — دامنهٔ انتشار خودکار D-017)
 
 ## 2) Data Classification
 | Class | نمونه | Storage rule | Log rule | Access |
@@ -91,6 +100,8 @@ Migrationها کوچک، reversible تا حد ممکن، و به ترتیب depe
 | Content snapshots | 12 ماه یا configurable | per enterprise policy |
 | GSC daily metrics | طول عمر قرارداد + 12 ماه | aggregate before archive if needed |
 | AI generation content | 12 ماه یا site policy | archive/delete on request where allowed |
+| Content standards | همیشه در دسترس (نسخه‌دار) | بدون retention — پایهٔ کیفیت و گزارش |
+| Automation profiles / routes | تا حذف سازمان/سایت | cascade delete؛ پروفایل‌های system بدون حذف |
 | Reports | طول عمر قرارداد + 24 ماه | client export available |
 
 ## 5) Deletion & Export

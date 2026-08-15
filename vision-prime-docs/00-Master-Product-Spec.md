@@ -47,9 +47,11 @@ Vision Prime به تیم‌های SEO و آژانس‌ها کمک می‌کند 
 5. Google Search Console Integration
 6. SEO Intelligence: intent, mapping, opportunities, cannibalization
 7. Money Page Optimizer + Conversion Risk
-8. AI Gateway + Review Workflow
-9. Policy-driven Secure Commands + Rollback
-10. Client Portal, Reporting and Impact Tracking
+8. AI Gateway + Review Workflow — ✅ فعال: تولید پیش‌نویس مقاله/محصول با استاندارد مؤثر (`content_standards`)، تصویر شاخص، اسکیمای Schema.org و HTML پاک‌سازی‌شده
+9. Policy-driven Secure Commands + Rollback — ✅ فعال: شش نوع command، انتشار خودکار با گیت‌های scope/گرمایش/کیفیت (D-017)، rollback بدون‌اتلاف
+10. Client Portal, Reporting and Impact Tracking — ✅ گزارش تأثیر پس از انتشار با دادهٔ واقعی GSC (D-019) + کارت «تأثیر محتوا» در داشبورد
+
+**حلقهٔ ارزش (تکمیل‌شده):** `Connect → Collect → Analyze → Prioritize → Recommend → Approve/Automate → Execute → Measure → Report` — حلقهٔ «Measure» حالا با مقایسهٔ GSC قبل/بعد انتشار واقعی است.
 
 ## 5) معیارهای کیفی انتشار
 هر قابلیت پیش از Done شدن باید این موارد را داشته باشد:
@@ -64,7 +66,7 @@ Vision Prime به تیم‌های SEO و آژانس‌ها کمک می‌کند 
 
 ## 6) Non-goals
 - اجرای کد دلخواه روی WordPress
-- انتشار مستقیم خروجی AI خارج از Policy سایت
+- انتشار مستقیم خروجی AI خارج از Policy سایت (مسیر مجازِ دارای اجازه‌نامه با گیت‌های D-017 مستثنی است — رجوع به سند ۰۱)
 - ارائه تشخیص SEO به‌عنوان تضمین رتبه یا درآمد
 - نشان‌دادن داده خام و noisy به Client Viewer
 

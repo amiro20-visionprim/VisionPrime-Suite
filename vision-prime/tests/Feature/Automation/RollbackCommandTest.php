@@ -65,7 +65,7 @@ class RollbackCommandTest extends TestCase
 
     public function test_rollback_restores_and_marks_command(): void
     {
-        Http::fake(['*/wp-json/vision-prime/v1/rollback' => Http::response(['status' => 'ack'])]);
+        Http::fake(['*/wp-json/vision-prime/v1/rollback' => Http::response(['status' => 'ack', 'restored' => true, 'result' => ['post_id' => 1, 'restored' => true]])]);
         $command = $this->executedCommand();
         app(CreateRollbackSnapshot::class)->handle($command, 'post:1', ['type' => 'update_meta_title', 'previous' => ['title' => 'old'], 'post_id' => 1]);
 
@@ -87,9 +87,24 @@ class RollbackCommandTest extends TestCase
         $this->assertDatabaseHas('commands', ['id' => $command, 'status' => 'executed']);
     }
 
+    public function test_rollback_is_not_marked_when_plugin_does_not_confirm_restore(): void
+    {
+        // پلاگین ack می‌دهد ولی restore روی وردپرس شکست خورده است — پلتفرم نباید rolled_back ثبت کند.
+        Http::fake(['*/wp-json/vision-prime/v1/rollback' => Http::response(['status' => 'ack', 'restored' => false, 'result' => ['error' => 'Rollback payload has no valid post_id.']])]);
+        $command = $this->executedCommand();
+        app(CreateRollbackSnapshot::class)->handle($command, 'post:1', ['type' => 'update_meta_title', 'previous' => ['title' => 'old'], 'post_id' => 1]);
+
+        $result = app(RollbackCommand::class)->handle($command);
+
+        $this->assertFalse($result['rolled_back']);
+        $this->assertDatabaseHas('commands', ['id' => $command, 'status' => 'executed']);
+        $snapshotStatus = \DB::table('rollback_snapshots')->where('command_id', $command)->value('status');
+        $this->assertSame('available', $snapshotStatus);
+    }
+
     public function test_monitor_rolls_back_when_clicks_drop_below_baseline(): void
     {
-        Http::fake(['*/wp-json/vision-prime/v1/rollback' => Http::response(['status' => 'ack'])]);
+        Http::fake(['*/wp-json/vision-prime/v1/rollback' => Http::response(['status' => 'ack', 'restored' => true, 'result' => ['post_id' => 1, 'restored' => true]])]);
         $command = $this->executedCommand();
         app(CreateRollbackSnapshot::class)->handle($command, 'post:1', ['type' => 'update_meta_title', 'previous' => ['title' => 'old'], 'post_id' => 1]);
 

@@ -59,6 +59,7 @@ const props = defineProps<{
     dailyMutationLimit: number
     autoRollback: boolean
     activeProfileId: number | null
+    autoPublishScope: string
     emergencyStoppedAt: string | null
     notificationPolicy: {
       enabled: boolean
@@ -123,6 +124,14 @@ const AI_POLICIES = [
 
 const RISK_TIERS = ['R0', 'R1', 'R2', 'R3'].map((t) => ({ value: t, label: t }))
 
+const AUTO_PUBLISH_SCOPES = [
+  { value: 'none', label: 'غیرفعال (همه‌چیز با تأیید انسانی)', hint: 'پیش‌فرض — هیچ تغییری خودکار منتشر نمی‌شود' },
+  { value: 'meta', label: 'فقط متا (title/description)', hint: 'انتشار خودکار تغییرات متای کم‌خطر' },
+  { value: 'article', label: 'متا + محتوا/مقالات', hint: 'شامل انتشار مقالهٔ جدید با گیت‌های سخت‌گیرانه‌تر' },
+  { value: 'product', label: 'متا + محصولات ووکامرس', hint: 'انتشار خودکار تغییرات محصول' },
+  { value: 'all', label: 'همهٔ انواع محتوا', hint: 'متا + مقاله + محصول — فقط برای سایت‌های کم‌حساسیت' },
+]
+
 const activeProfileId = ref<string>(props.policy.activeProfileId ? String(props.policy.activeProfileId) : '')
 
 const form = reactive({
@@ -135,6 +144,7 @@ const form = reactive({
   daily_command_limit: props.policy.dailyCommandLimit,
   daily_mutation_limit: props.policy.dailyMutationLimit,
   auto_rollback: props.policy.autoRollback,
+  auto_publish_scope: props.policy.autoPublishScope,
   notification_enabled: props.policy.notificationPolicy.enabled,
   notification_channels: [...props.policy.notificationPolicy.channels],
   webhook_telegram: props.policy.notificationPolicy.webhooks.telegram ?? '',
@@ -187,6 +197,7 @@ function save(): void {
   saving.value = true
   router.put(`/app/sites/${props.site.id}/automation`, {
     active_profile_id: activeProfileId.value || null,
+    auto_publish_scope: form.auto_publish_scope,
     overrides: {
       automation_level: Number(form.automation_level),
       ai_policy: form.ai_policy,
@@ -267,6 +278,14 @@ const statusTone = (status: string): 'success' | 'danger' | 'warning' | 'neutral
           </div>
 
           <VSelect v-model="activeProfileId" label="پروفایل پایه" :options="profileOptions" hint="پروفایل آماده را انتخاب کن؛ مقادیر پایین قابل شخصی‌سازی per-site است." />
+
+          <VSelect v-model="form.auto_publish_scope" label="دامنهٔ انتشار خودکار" :options="AUTO_PUBLISH_SCOPES" hint="فقط برای سایت‌های کم‌حساسیت. همهٔ گیت‌های کیفیت/گرمایش/اعتماد همیشه فعال‌اند." />
+
+          <div class="rounded-ui border border-warning-strong/30 bg-warning-weak p-3 text-xs">
+            <span class="font-semibold">نکتهٔ امنیتی:</span>
+            انتشار خودکار فقط بعد از پاس شدن همهٔ گیت‌ها فعال می‌شود: گرمایش (۳ اجرای موفق انسانی برای متا/محصول، ۵ برای مقاله)، گیت‌های کیفیت محتوا (StandardsKB) و آستانهٔ اطمینان.
+            R3 (به‌جز انتشار مقالهٔ جدید در scope=article با L3+) همیشه با تأیید انسانی می‌ماند.
+          </div>
 
           <div class="grid gap-5 sm:grid-cols-2">
             <VSelect v-model="form.automation_level" label="سطح خودکارسازی (L0–L4)" :options="LEVELS" />

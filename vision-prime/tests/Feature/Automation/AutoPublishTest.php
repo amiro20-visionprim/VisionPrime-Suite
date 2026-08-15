@@ -44,16 +44,30 @@ class AutoPublishTest extends TestCase
             'site_id' => $this->site->id, 'level' => 2,
             'rules' => json_encode(['max_risk_tier' => 'R2', 'allowed_command_types' => ['update_meta_title', 'update_meta_description', 'update_product_title', 'update_product_description']], JSON_UNESCAPED_UNICODE),
             'active_profile_id' => $this->profileId,
+            'auto_publish_scope' => 'meta',
             'created_at' => now(), 'updated_at' => now(),
         ]);
         Http::fake(['*/wp-json/vision-prime/v1/commands' => Http::response(['ok' => true, 'result' => ['post_id' => 42, 'previous' => 'old', 'new' => 'new']])]);
+
+        // گرمایش: ۳ اجرای موفقِ انسانی از نوع meta (شرط گیت فاز ۰)
+        for ($i = 0; $i < 3; $i++) {
+            \DB::table('commands')->insert([
+                'site_id' => $this->site->id, 'source_type' => 'test', 'type' => 'update_meta_title',
+                'content_type' => 'meta', 'risk_tier' => 'R1', 'payload' => '{}',
+                'idempotency_key' => (string) Str::uuid(), 'status' => 'executed',
+                'decision_source' => 'manual',
+                'expires_at' => now()->addHour(), 'policy_version' => 1,
+                'created_at' => now()->subDays($i + 1), 'updated_at' => now(),
+            ]);
+        }
     }
 
     private function command(string $status = 'pending_approval', string $risk = 'R1', ?int $confidence = 85): int
     {
         return (int) \DB::table('commands')->insertGetId([
             'site_id' => $this->site->id, 'source_type' => 'test', 'type' => 'update_meta_title',
-            'risk_tier' => $risk, 'payload' => json_encode(['url' => 'https://e.ir/x', 'title' => 'new']),
+            'content_type' => 'meta',
+            'risk_tier' => $risk, 'payload' => json_encode(['url' => 'https://e.ir/x', 'title' => 'بهترین خدمات سئو و بهینه‌سازی سایت برای کسب و کار شما']),
             'idempotency_key' => (string) Str::uuid(), 'status' => $status,
             'confidence_score' => $confidence,
             'expires_at' => now()->addHour(), 'policy_version' => 3,
@@ -118,7 +132,7 @@ class AutoPublishTest extends TestCase
         \DB::table('site_automation_policies')->where('site_id', $this->site->id)->update([
             'rules' => json_encode(['max_risk_tier' => 'R2', 'allowed_command_types' => ['update_meta_title']], JSON_UNESCAPED_UNICODE),
         ]);
-        \DB::table('commands')->where('id', $id = $this->command())->update(['type' => 'update_content', 'risk_tier' => 'R2']);
+        \DB::table('commands')->where('id', $id = $this->command())->update(['type' => 'update_content', 'content_type' => 'article', 'risk_tier' => 'R2']);
 
         $result = app(AutoPublish::class)->handle($id);
 

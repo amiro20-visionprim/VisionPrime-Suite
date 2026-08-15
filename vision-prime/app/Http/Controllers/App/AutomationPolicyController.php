@@ -30,7 +30,7 @@ class AutomationPolicyController extends Controller
         return Inertia::render('App/Sites/Automation', [
             'site' => ['id' => $site->id, 'name' => $site->name],
             'policy' => $this->policyPayload($site, $policy),
-            'profiles' => $this->profiles(),
+            'profiles' => $this->profiles($site->organization_id),
             'routes' => $this->routes($site),
             'executions' => $this->executions($site),
         ]);
@@ -42,6 +42,7 @@ class AutomationPolicyController extends Controller
 
         $data = $request->validate([
             'active_profile_id' => ['nullable', 'integer', 'exists:automation_profiles,id'],
+            'auto_publish_scope' => ['nullable', 'in:none,meta,article,product,all'],
             'overrides.automation_level' => ['nullable', 'integer', 'between:0,4'],
             'overrides.ai_policy' => ['nullable', 'in:disabled,draft_only,approved_templates,bounded_auto'],
             'overrides.confidence_threshold' => ['nullable', 'integer', 'between:50,100'],
@@ -61,10 +62,15 @@ class AutomationPolicyController extends Controller
             'overrides.notification_policy.webhooks.whatsapp' => ['nullable', 'url', 'max:2048'],
         ]);
 
+        if (($data['active_profile_id'] ?? null) !== null && ! $this->profileAccessible((int) $data['active_profile_id'], $site->organization_id)) {
+            abort(422, 'پروفایل انتخاب‌شده معتبر نیست.');
+        }
+
         $policy = $this->policy($site);
 
         DB::table('site_automation_policies')->where('id', $policy->id)->update([
             'active_profile_id' => $data['active_profile_id'] ?? $policy->active_profile_id,
+            'auto_publish_scope' => $data['auto_publish_scope'] ?? $policy->auto_publish_scope ?? 'none',
             'overrides_json' => isset($data['overrides']) && $data['overrides'] !== []
                 ? json_encode($data['overrides'], JSON_UNESCAPED_UNICODE)
                 : null,
@@ -84,6 +90,12 @@ class AutomationPolicyController extends Controller
             'routes.*.content_type' => ['required', 'in:meta,article,product'],
             'routes.*.profile_id' => ['required', 'integer', 'exists:automation_profiles,id'],
         ]);
+
+        foreach ($data['routes'] ?? [] as $route) {
+            if (! $this->profileAccessible((int) $route['profile_id'], $site->organization_id)) {
+                abort(422, 'پروفایل مسیر معتبر نیست.');
+            }
+        }
 
         DB::transaction(function () use ($site, $data): void {
             DB::table('site_profile_routes')->where('site_id', $site->id)->delete();
@@ -111,6 +123,7 @@ class AutomationPolicyController extends Controller
         ]);
 
         $source = DB::table('automation_profiles')->where('id', $data['profile_id'])->firstOrFail();
+        abort_unless($this->profileAccessible((int) $source->id, $site->organization_id), 422, 'پروفایل مبدأ معتبر نیست.');
         $name = $data['name'] ?? 'کپی از '.$source->name;
         $slug = $source->slug.'-copy-'.substr((string) Str::ulid(), 0, 6);
 
@@ -119,6 +132,7 @@ class AutomationPolicyController extends Controller
             'slug' => $slug,
             'kind' => 'custom',
             'scope' => 'site',
+            'organization_id' => $site->organization_id,
             'automation_level' => $source->automation_level,
             'ai_policy' => $source->ai_policy,
             'confidence_threshold' => $source->confidence_threshold,
@@ -202,20 +216,21 @@ class AutomationPolicyController extends Controller
 
         return [
             'level' => (int) $effective['level'],
-            'ai_policy' => (string) ($effective['ai_policy'] ?? 'draft_only'),
-            'confidence_threshold' => (int) ($effective['confidence_threshold'] ?? 80),
-            'high_risk_threshold' => (int) ($effective['high_risk_threshold'] ?? 90),
-            'risk_tier_max' => (string) ($effective['risk_tier_max'] ?? 'R2'),
-            'enabled_content_types' => $this->jsonList($effective['enabled_content_types'] ?? null),
-            'daily_command_limit' => (int) ($effective['daily_command_limit'] ?? 5),
-            'daily_mutation_limit' => (int) ($effective['daily_mutation_limit'] ?? 2),
-            'auto_rollback' => (bool) ($effective['auto_rollback'] ?? false),
-            'execution_window' => $this->jsonList($effective['execution_window'] ?? null),
-            'active_profile_id' => $policy->active_profile_id,
-            'emergency_stopped_at' => $policy->emergency_stopped_at,
+            'aiPolicy' => (string) ($effective['ai_policy'] ?? 'draft_only'),
+            'confidenceThreshold' => (int) ($effective['confidence_threshold'] ?? 80),
+            'highRiskThreshold' => (int) ($effective['high_risk_threshold'] ?? 90),
+            'riskTierMax' => (string) ($effective['risk_tier_max'] ?? 'R2'),
+            'enabledContentTypes' => $this->jsonList($effective['enabled_content_types'] ?? null),
+            'dailyCommandLimit' => (int) ($effective['daily_command_limit'] ?? 5),
+            'dailyMutationLimit' => (int) ($effective['daily_mutation_limit'] ?? 2),
+            'autoRollback' => (bool) ($effective['auto_rollback'] ?? false),
+            'executionWindow' => $this->jsonList($effective['execution_window'] ?? null),
+            'activeProfileId' => $policy->active_profile_id,
+            'autoPublishScope' => (string) ($policy->auto_publish_scope ?? 'none'),
+            'emergencyStoppedAt' => $policy->emergency_stopped_at,
             'overrides' => $overrides,
-            'notification_policy' => $this->notificationPolicy($profile, $overrides),
-            'site_id' => $site->id,
+            'notificationPolicy' => $this->notificationPolicy($profile, $overrides),
+            'siteId' => $site->id,
         ];
     }
 
@@ -253,10 +268,15 @@ class AutomationPolicyController extends Controller
             ->all();
     }
 
-    /** @return array<int, array<string, mixed>> */
-    private function profiles(): array
+    /**
+     * پروفایل‌های قابل استفاده: پروفایل‌های سیستمی (بدون سازمان) + پروفایل‌های سفارشی سازمان جاری.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function profiles(int $organizationId): array
     {
         return DB::table('automation_profiles')
+            ->where(fn ($q) => $q->whereNull('organization_id')->orWhere('organization_id', $organizationId))
             ->orderBy('automation_level')
             ->orderBy('id')
             ->get(['id', 'name', 'slug', 'kind', 'automation_level', 'ai_policy', 'confidence_threshold', 'high_risk_threshold', 'risk_tier_max', 'enabled_content_types', 'daily_command_limit', 'daily_mutation_limit', 'auto_rollback', 'version'])
@@ -279,6 +299,17 @@ class AutomationPolicyController extends Controller
                 ];
             })
             ->all();
+    }
+
+    /**
+     * پروفایل فقط وقتی قابل استفاده است که سیستمی (بدون سازمان) یا متعلق به سازمان داده‌شده باشد.
+     */
+    private function profileAccessible(int $profileId, int $organizationId): bool
+    {
+        return DB::table('automation_profiles')
+            ->where('id', $profileId)
+            ->where(fn ($q) => $q->whereNull('organization_id')->orWhere('organization_id', $organizationId))
+            ->exists();
     }
 
     /** @return array<string, int|float> */

@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\App;
 
+use App\Domains\Connector\Actions\FetchWooProductInfo;
+use App\Domains\Content\Services\ArticleHtmlSanitizer;
 use App\Domains\Organization\Contracts\CurrentOrganization;
+use App\Domains\Reporting\Actions\BuildPublishImpactReport;
 use App\Domains\Workspace\Models\Site;
 use App\Http\Controllers\Controller;
 use Inertia\Inertia;
@@ -98,20 +101,159 @@ class ReviewDetailController extends Controller
 
         $version = \DB::table('ai_generation_versions')->where('id', $generation->current_version_id)->first();
         $output = $version === null ? [] : (json_decode($version->output, true) ?? []);
+        $kind = (string) ($output['kind'] ?? '');
+        $rawText = (string) ($output['text'] ?? '');
+        $standard = (array) ($output['standard'] ?? []);
+
+        $sanitized = in_array($kind, ['article', 'product'], true) && $rawText !== ''
+            ? app(ArticleHtmlSanitizer::class)->sanitize($rawText, $standard)
+            : ['safe_html' => '', 'structure' => ['headings' => [], 'word_count' => 0, 'elements' => []]];
+
+        $pipeline = $this->generationCommand((int) $generation->id);
 
         return [
             'kind' => 'ai_generation',
             'generation' => [
                 'id' => $generation->id,
+                'kind' => $kind,
                 'input' => $generation->input_redacted,
-                'text' => (string) ($output['text'] ?? ''),
+                'text' => $rawText,
+                'safe_html' => (string) $sanitized['safe_html'],
+                'structure' => $sanitized['structure'],
+                'standard' => $standard,
+                'featured_image' => $output['featured_image'] ?? null,
+                'schema' => $output['schema'] ?? [],
                 'model' => (string) ($output['model'] ?? ''),
                 'source' => (string) ($output['source'] ?? ''),
                 'status' => $generation->output_status,
                 'usage' => json_decode($generation->usage ?? '{}', true),
                 'createdAt' => $generation->created_at,
+                // وضعیت بلادرنگ کامند فاز ۲ (پس از تأیید پیش‌نویس)
+                'command' => $pipeline,
+                // دادهٔ واقعی ووکامرس (فقط برای پیش‌نویس محصول)
+                'woo_product' => $kind === 'product' ? $this->wooProduct($generation, $pipeline) : null,
             ],
         ];
+    }
+
+    /**
+     * قیمت/موجودی واقعی محصول از ووکامرس — از طریق کانکتور (بدون جعل داده).
+     * اگر انتشار انجام شده باشد با post_id، وگرنه با اسلاگ صفحهٔ محصول (پیش از انتشار).
+     * هر خطایی → null تا صفحهٔ بازبینی نشکند.
+     */
+    private function wooProduct(object $generation, ?array $pipeline): ?array
+    {
+        try {
+            $site = Site::query()->find($generation->site_id);
+            if ($site === null) {
+                return null;
+            }
+
+            $postId = $pipeline['post_id'] ?? null;
+            $slug = null;
+            if ($postId === null) {
+                $input = json_decode((string) ($generation->input_redacted ?? '{}'), true) ?? [];
+                $url = (string) ($input['url'] ?? '');
+                $slug = $this->slugFromUrl($url);
+            }
+
+            return app(FetchWooProductInfo::class)->handle(
+                (int) $site->id,
+                $postId !== null ? (int) $postId : null,
+                $slug !== '' ? $slug : null,
+            );
+        } catch (\Throwable $e) {
+            // بدون دادهٔ ووکامرس، بازبینی همچنان کار می‌کند
+            return null;
+        }
+    }
+
+    private function slugFromUrl(string $url): string
+    {
+        $path = trim((string) parse_url($url, PHP_URL_PATH), '/');
+        $segments = array_values(array_filter(explode('/', $path), fn (string $s): bool => $s !== ''));
+
+        return $segments !== [] ? (string) end($segments) : '';
+    }
+
+    /**
+     * کامند publish_new_article ساخته‌شده از این پیش‌نویس (فاز ۲) — وضعیت
+     * بلادرنگ (pending_approval / auto_publish / rolled_back) + لینک مقالهٔ منتشرشده.
+     */
+    private function generationCommand(int $generationId): ?array
+    {
+        $command = \DB::table('commands')
+            ->where('source_type', 'ai_generation')
+            ->where('source_id', $generationId)
+            ->first();
+        if ($command === null) {
+            return null;
+        }
+
+        $approval = \DB::table('command_approvals')
+            ->where('command_id', $command->id)
+            ->where('reviewer_type', 'system')
+            ->orderByDesc('id')
+            ->first();
+        $postId = $this->commandPostId($command);
+        $connection = \DB::table('site_connections')->where('site_id', $command->site_id)->first();
+        $platformUrl = rtrim((string) ($connection->platform_url ?? ''), '/');
+
+        return [
+            'id' => (int) $command->id,
+            'type' => $command->type,
+            'content_type' => $command->content_type ?? null,
+            'status' => $command->status,
+            'decision_source' => $command->decision_source ?? null,
+            'confidence_score' => $command->confidence_score !== null ? (int) $command->confidence_score : null,
+            'confidence_factors' => $this->jsonField($command->confidence_factors),
+            'gate_snapshot' => $approval !== null ? $this->jsonField($approval->policy_snapshot) : null,
+            'auto_approved' => $approval !== null,
+            'published_at' => $command->published_at ?? null,
+            'post_id' => $postId,
+            'post_url' => $postId !== null && $platformUrl !== '' ? $platformUrl.'/?p='.$postId : null,
+            'impact' => $command->type === 'publish_new_article'
+                ? app(BuildPublishImpactReport::class)->handle($command)
+                : null,
+        ];
+    }
+
+    private function commandPostId(object $command): ?int
+    {
+        if (! in_array($command->status, ['executed', 'rolled_back'], true)) {
+            return null;
+        }
+        $snapshot = \DB::table('rollback_snapshots')
+            ->where('command_id', $command->id)
+            ->orderByDesc('id')
+            ->first();
+        if ($snapshot !== null && str_starts_with((string) $snapshot->target_ref, 'post:')) {
+            return (int) substr((string) $snapshot->target_ref, 5);
+        }
+        $log = \DB::table('command_execution_logs')
+            ->where('command_id', $command->id)
+            ->where('status', 'executed')
+            ->orderByDesc('id')
+            ->first();
+        if ($log === null) {
+            return null;
+        }
+        $response = $this->jsonField($log->response_redacted);
+        $body = is_array($response['body'] ?? null) ? $response['body'] : $response;
+        $result = is_array($body['result'] ?? null) ? $body['result'] : $body;
+
+        return isset($result['post_id']) ? (int) $result['post_id'] : null;
+    }
+
+    /** @return array<string, mixed> */
+    private function jsonField(?string $raw): array
+    {
+        if ($raw === null || $raw === '') {
+            return [];
+        }
+        $decoded = json_decode($raw, true);
+
+        return is_array($decoded) ? $decoded : [];
     }
 
     private function command(int $id): array

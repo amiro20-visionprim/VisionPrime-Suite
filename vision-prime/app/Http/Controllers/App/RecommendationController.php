@@ -181,8 +181,11 @@ class RecommendationController extends Controller
         $data = $request->validate([
             'type' => ['required', 'in:'.implode(',', ConvertRecommendationToCommand::SUPPORTED_TYPES)],
             'target_url' => ['required', 'url', 'max:2048'],
-            'new_value' => ['required', 'string', 'max:2000'],
+            'new_value' => ['required', 'string'],
         ]);
+        if (mb_strlen($data['new_value']) > (ConvertRecommendationToCommand::VALUE_MAX_LENGTH[$data['type']] ?? 2000)) {
+            return back()->withErrors(['new_value' => 'مقدار واردشده برای این نوع تغییر خیلی طولانی است.'])->withInput();
+        }
 
         $alreadyConverted = DB::table('commands')
             ->where('site_id', $item->site_id)

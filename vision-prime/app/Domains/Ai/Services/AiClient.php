@@ -35,6 +35,30 @@ class AiClient
             ? $context['kind']
             : 'meta_title';
 
+        return $this->generate($org, $kind, $context);
+    }
+
+    /**
+     * تولید مقالهٔ کامل — از طریق AI یا fallback آفلاین.
+     *
+     * @param  array<string, mixed>  $context  شامل kind=article، title، target_query، standard{word_min,...}، metrics
+     * @return array{content: string, model: string, source: string, usage: array<string, mixed>}
+     */
+    public function generateArticleDraft(Organization $org, array $context): array
+    {
+        $context['kind'] = 'article';
+
+        return $this->generate($org, 'article', $context);
+    }
+
+    /**
+     * مسیر مشترک تولید: بدون provider فعال → fallback آفلاین؛ در غیر این صورت provider انتخابی.
+     *
+     * @param  array<string, mixed>  $context
+     * @return array{content: string, model: string, source: string, usage: array<string, mixed>}
+     */
+    private function generate(Organization $org, string $kind, array $context): array
+    {
         $settings = DB::table('ai_provider_settings')
             ->where('organization_id', $org->getKey())
             ->where('status', 'active')
@@ -57,12 +81,59 @@ class AiClient
             default => 'gpt-4o-mini',
         });
 
-        [$system, $user] = $this->prompts($kind, $context);
+        [$system, $user] = $kind === 'article'
+            ? $this->articlePrompts($context)
+            : $this->prompts($kind, $context);
 
         return match ($settings->provider) {
             'anthropic' => $this->anthropic($apiKey, $model, $system, $user),
             default => $this->openaiCompatible((string) $settings->provider, $apiKey, $model, $system, $user),
         };
+    }
+
+    /**
+     * پرامپت مقالهٔ کامل — استاندارد مؤثر (word range، ساختار، عناصر الزامی، لحن) و context جستجو.
+     *
+     * @param  array<string, mixed>  $context
+     * @return array{0: string, 1: string}
+     */
+    private function articlePrompts(array $context): array
+    {
+        $title = (string) ($context['title'] ?? '');
+        $targetQuery = (string) ($context['target_query'] ?? '');
+        $siteName = (string) ($context['site_name'] ?? '');
+        $standard = (array) ($context['standard'] ?? []);
+        $metrics = (array) ($context['metrics'] ?? []);
+
+        $wordMin = (int) ($standard['word_min'] ?? 400);
+        $wordMax = (int) ($standard['word_max'] ?? 2000);
+        $minHeadings = max(2, (int) ($standard['min_headings'] ?? 2));
+        $elements = implode('، ', (array) ($standard['required_elements'] ?? []));
+        $tone = (string) ($standard['tone'] ?? 'informative');
+
+        $metricsLine = sprintf(
+            'کلیک‌ها: %d · نمایش‌ها: %d · نرخ کلیک: %s · میانگین جایگاه: %s',
+            (int) ($metrics['clicks'] ?? 0),
+            (int) ($metrics['impressions'] ?? 0),
+            isset($metrics['ctr']) ? round((float) $metrics['ctr'] * 100, 1).'٪' : '—',
+            isset($metrics['position']) ? round((float) $metrics['position'], 1) : '—',
+        );
+
+        $system = 'تو یک متخصص سئو و تولیدکنندهٔ محتوای فارسی هستی. خروجی تو فقط HTML با تگ‌های h1/h2/p/ul/table و بدون هیچ توضیح اضافه است. از اعداد و ادعاهای بی‌پشتوانه پرهیز کن؛ اگر داده ندارید نگو. لحن '.$tone.' و ساختار مقاله باید برای کاربر مفید و برای سئو بهینه باشد.';
+
+        $user = sprintf(
+            "برای صفحهٔ زیر یک مقالهٔ کامل بنویس.\nعنوان: %s\nعبارت اصلی (کلمهٔ کلیدی): %s\nنام برند: %s\nدادهٔ جستجوی صفحه: %s\n\nالزامات فنی:\n- طول: بین %d و %d کلمه\n- حداقل %d زیرعنوان (h2)\n- عناصر الزامی: %s\n- فقط HTML معتبر با تگ‌های h1/h2/p/ul/table، بدون متن خارج از HTML",
+            $title !== '' ? $title : $targetQuery,
+            $targetQuery,
+            $siteName,
+            $metricsLine,
+            $wordMin,
+            $wordMax,
+            $minHeadings,
+            $elements !== '' ? $elements : 'پاراگراف‌های ساختارمند',
+        );
+
+        return [$system, $user];
     }
 
     /** @param  array<string, mixed>  $context

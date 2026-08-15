@@ -37,6 +37,33 @@ class ReviewController extends Controller
         return Inertia::render('App/Reviews/Index', ['items' => $items]);
     }
 
+    private function aiGenerationLabel(int $subjectId): ?string
+    {
+        $row = \DB::table('ai_generations')
+            ->join('ai_generation_versions', 'ai_generation_versions.id', '=', 'ai_generations.current_version_id')
+            ->where('ai_generations.id', $subjectId)
+            ->first(['ai_generation_versions.output']);
+
+        if ($row === null) {
+            return null;
+        }
+
+        $output = json_decode($row->output, true) ?? [];
+        $kind = (string) ($output['kind'] ?? '');
+        $text = (string) ($output['text'] ?? '');
+
+        if ($kind === 'article') {
+            // برای مقاله فقط عنوان (h1) و پیش‌نمایش کوتاه متن نشان داده می‌شود
+            if (preg_match('/<h1[^>]*>(.*?)<\/h1>/su', $text, $m)) {
+                return '📄 '.strip_tags((string) $m[1]);
+            }
+
+            return '📄 '.mb_substr(strip_tags($text), 0, 120, 'UTF-8');
+        }
+
+        return mb_substr($text, 0, 160, 'UTF-8');
+    }
+
     private function subjectLabel(string $subjectType, int $subjectId): ?string
     {
         return match ($subjectType) {
@@ -44,10 +71,7 @@ class ReviewController extends Controller
                 ->join('url_profiles', 'url_profiles.id', '=', 'money_page_audits.url_profile_id')
                 ->where('money_page_audits.id', $subjectId)
                 ->value('url_profiles.canonical_url'),
-            'ai_generation' => \DB::table('ai_generations')
-                ->join('ai_generation_versions', 'ai_generation_versions.id', '=', 'ai_generations.current_version_id')
-                ->where('ai_generations.id', $subjectId)
-                ->value(\Illuminate\Support\Facades\DB::raw("json_extract(ai_generation_versions.output, '$.text')")),
+            'ai_generation' => $this->aiGenerationLabel($subjectId),
             'command' => \DB::table('commands')->where('id', $subjectId)->value('type'),
             default => null,
         };

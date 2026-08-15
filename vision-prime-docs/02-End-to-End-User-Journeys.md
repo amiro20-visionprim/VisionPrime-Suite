@@ -58,9 +58,22 @@
 
 `eligible recommendation → policy evaluation → snapshot → signed command → plugin validation → execution → result → monitoring/notification → optional rollback`
 
-**حالت‌های توقف:** policy denied، command expired، health degraded، rate limit، emergency stop، plugin validation failed.
+**مسیر انتشار خودکار محتوا (D-013/D-017):** پیش‌نویس تأییدشده → ساخت کامند `publish_new_article` → گیت‌ها: دامنهٔ انتشار (`auto_publish_scope`) → گرمایش (متا=۳/محصول=۳/مقاله=۵ اجرای موفق انسانی) → کیفیت محتوا (استاندارد مؤثر پیش‌نویس) → آستانهٔ اطمینان → AutoPublish با `reviewer=system` + `policy_snapshot` → اجرا روی وردپرس → `published_at` + پیوند مقاله → گزارش تأثیر GSC پس از انتشار (دو پنجرهٔ قبل/بعد).
 
-**قاعده UX:** کاربر باید بداند «چرا اجرا شد» یا «چرا اجرا نشد»؛ نه فقط یک status مبهم.
+**حالت‌های توقف:** policy denied، command expired، health degraded، rate limit، emergency stop، plugin validation failed، scope بسته، گرمایش ناقص، کیفیت پایین، دادهٔ GSC ناکافی برای گزارش تأثیر.
+
+**قاعده UX:** کاربر باید بداند «چرا اجرا شد» یا «چرا اجرا نشد»؛ نه فقط یک status مبهم. جزئیات بازبینی و «تغییرات اجرایی» snapshot گیت‌ها و دلایل را نشان می‌دهند.
+
+---
+
+## J7 — تولیدکننده محتوا: ساخت مقاله/محصول با استاندارد
+**هدف:** تولید پیش‌نویس آمادهٔ انتشار که به استاندارد روز صنعت پایبند باشد.
+
+`تولید مقاله/محصول ← انتخاب سایت/پروفایل/زیرنوع ← نمایش استاندارد مؤثر (طول/عناصر الزامی/تن) ← تولید پیش‌نویس (AI یا rule-based) ← پیش‌نمایش HTML پاک‌سازی‌شده + تصویر شاخص پیشنهادی + اسکیمای Schema.org ← ارسال به بازبینی`
+
+**در بازبینی:** بازبین علاوه بر متن، دادهٔ واقعی ووکامرس (قیمت/موجودی) را برای محصول می‌بیند؛ پس از تأیید، وضعیت بلادرنگ کامند (pending/auto_publish/rolled_back) + پیوند مقالهٔ منتشرشده + گزارش تأثیر GSC همان‌جا نمایش داده می‌شود.
+
+**معیار موفقیت:** پیش‌نویس با استاندارد مؤثر (نه قالب یکسان)، قابل بازبینی بدون خروج از صفحه، و مسیر تأیید → انتشار → سنجش اثر کاملاً قابل‌ممیزی.
 
 ---
 
@@ -94,3 +107,8 @@
 - `command_dispatched`, `command_executed`, `command_failed`, `rollback_started`
 - `report_generated`, `report_viewed`
 - `automation_policy_changed`, `emergency_stop_activated`
+- `article_draft_generated`, `product_draft_generated` (وضعیت/منبع: rule-based|ai)
+- `command_auto_approved` (reviewer_type=system + policy_snapshot)
+- `command_result_received` (رویداد کانکتور)
+- `automation.alert.metric_drop` (هشدار R1 با dedupe ۲۴ ساعته)
+- `publish_impact_ready` (گزارش تأثیر GSC آماده شد — بعد از انتشار)

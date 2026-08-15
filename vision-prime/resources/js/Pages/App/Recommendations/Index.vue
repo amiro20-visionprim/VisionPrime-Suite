@@ -66,7 +66,14 @@ const memberOptions = props.members.map((member) => ({
 const commandTypeOptions = [
   { label: 'به‌روزرسانی عنوان متا', value: 'update_meta_title' },
   { label: 'به‌روزرسانی توضیحات متا', value: 'update_meta_description' },
+  { label: 'به‌روزرسانی محتوای صفحه', value: 'update_content' },
 ]
+
+function convertPlaceholder(type: string): string {
+  if (type === 'update_meta_title') return 'عنوان متا جدید'
+  if (type === 'update_content') return 'محتوای جدید صفحه (HTML مجاز)'
+  return 'توضیحات متا جدید'
+}
 
 const editOpen = ref(false)
 const editForm = useForm({
@@ -226,9 +233,9 @@ function submitConvert(): void {
         />
         <VTextarea
           v-model="convertForm.new_value"
-          label="محتوای جدید"
-          :rows="3"
-          :placeholder="convertForm.type === 'update_meta_title' ? 'عنوان متا جدید' : 'توضیحات متا جدید'"
+          label="مقدار جدید"
+          :rows="convertForm.type === 'update_content' ? 10 : 3"
+          :placeholder="convertPlaceholder(convertForm.type)"
           hint="مقداری که روی سایت اعمال می‌شود؛ مشتری قبل از تأیید آن را می‌بیند."
           :error="convertForm.errors.new_value"
         />

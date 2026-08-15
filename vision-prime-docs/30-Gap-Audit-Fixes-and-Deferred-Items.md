@@ -38,11 +38,21 @@
 ### تست
 - +۱۶ تست Feature: ثبت‌نام (۴)، داشبورد (۲)، پیشنهادها (۶)، صفحات پرتال مشتری (۴). مجموع: ۷۹ تست، ۲۹۷ assertion، همگی سبز + typecheck و lint تمیز.
 
+## ✅ رفع‌های انجام‌شده بعدی (۲۰۲۶-۰۸-۱۵)
+
+### مورد defer شدهٔ قبلی — اکنون تحویل شده
+- **Endpoint اجرای command در پلاگین وردپرس** — ✅ انجام شد: شش نوع command (update_meta_title / update_meta_description / update_content / update_product_title / update_product_description / publish_new_article) + `rollback` (بازگشت بدون‌اتلاف با snapshot کامل) + `product-info` (قیمت/موجودی واقعی ووکامرس). با تست میدانی روی WP محلی (پورت ۸۰۸۰) و `ReplayAttackTest` واقعی (nonce تکراری + timestamp منقضی رد می‌شوند).
+
+### اصلاح cross-tenant GSC
+- **محدودسازی `gsc_account` به سازمان جاری:** دسترسی به `gsc_accounts` و mapping به `gsc_properties` فقط برای سایت‌های سازمان جاری؛ Feature test (`GscPropertyIsolationTest`) نوشته و سبز شد.
+
+### جداسازی org-scoped پروفایل‌های اتوماسیون
+- **ستون `organization_id` روی `automation_profiles`:** پروفایل‌های سفارشی (kind=custom) فقط به سازمان‌سازنده تعلق دارند؛ پروفایل‌های سیستمی (system) بدون سازمان و برای همه در دسترس‌اند؛ دسترسی cross-tenant بسته شد؛ Feature test (`ProfileIsolationTest`) سبز شد.
+
 ## ⏳ موارد defer شده (با دلیل)
 
 | مورد | دلیل | پیشنهاد بعدی |
 |---|---|---|
-| **Endpoint اجرای command در پلاگین وردپرس** | نیاز به آزمون روی یک سایت وردپرسی واقعی دارد؛ اجرای کد از راه دور ریسک عملیاتی دارد و بدون تست میدانی قابل تضمین نیست | توسعه در فاز مجزای «Automation Execution» با تست میدانی روی staging وردپرس |
 | **راه‌حل GSC برای ایران** | به تصمیم محصول نیاز دارد: (الف) توضیح کاربرد VPN/سرور خارجی، (ب) پراکسی API، (ج) منبع داده جایگزین (Bing Webmaster/Ahrefs) | تصمیم در Decision Log (مرتبط با O-001) + طراحی fallback داده |
 | **فلو 2FA** | ستون‌های migrations موجود است ولی نیاز به انتخاب کانال ارسال (ایمیل/SMS ایرانی) و پیکربندی provider دارد | انتخاب provider + پیاده‌سازی در فاز Security |
 | **Event tracking فانل مارکتینگ** | نیاز به انتخاب ابزار آنالیتیک (Plausible/Matomo و…) دارد | افزودن پس از راه‌اندازی دامنهٔ پروداکشن |

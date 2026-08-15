@@ -67,15 +67,17 @@ L1: پیش‌فرض‌های سیستم (hardcoded safe defaults)   ← همیش
 
 ## ۴) دامنهٔ محتوا و Command types
 
-| ContentType | Command types | ریسک | سطح خودکارسازی مجاز |
-|---|---|---|---|
-| meta | update_meta_title، update_meta_description (موجود) | R1 | L2+ با policy؛ R1 آستانه ۸۰٪ |
-| product | update_product_title، update_product_description | R1/R2 | R1: L2+؛ R2: L3+ با Rule |
-| article | update_article_content (draft) | R2 | L3+ با Rule و محدوده |
-| article | publish_new_article (زنده) | R3 | **فقط Enterprise** (D-008) + تأیید Policy + snapshot + rollback خودکار |
-| article | update_published_content | R3 | همان R3 بالا |
+| ContentType | Command types | ریسک | سطح خودکارسازی مجاز | وضعیت اجرا |
+|---|---|---|---|---|
+| meta | update_meta_title، update_meta_description | R1 | L2+ با policy؛ R1 آستانه ۸۰٪ | ✅ پیاده‌شده (موجود) |
+| product | update_product_title، update_product_description | R1/R2 | R1: L2+؛ R2: L3+ با Rule | ✅ پیاده‌شده (با assert_product) |
+| article | update_content (ویرایش محتوای موجود) | R2 | L3+ با Rule و محدوده | ✅ پیاده‌شده (از UI پیشنهادها هم قابل‌ساخت است) |
+| article | publish_new_article (مقاله/محصول جدید زنده) | R3 | فقط با اجازه‌نامهٔ صریح (bounded_auto) + گیت‌های scope/گرمایش/کیفیت + snapshot + rollback | ✅ پیاده‌شده (فاز ۵) |
+| article | update_published_content | R3 | همان R3 بالا | ⏳ در برنامه (ساختار آماده) |
 
-پلاگین وردپرس: نوع‌های جدید `update_content` / `update_product_*` با schema و whitelist دقیق (فایل‌های `vision-prime-wordpress-plugin`).
+پلاگین وردپرس: نوع‌های `update_meta_title` / `update_meta_description` / `update_content` / `update_product_title` / `update_product_description` / `publish_new_article` با schema و whitelist دقیق + `assert_product` برای محصولات + endpoint های `/rollback` و `/product-info` (فایل‌های `vision-prime-wordpress-plugin`).
+
+**دامنهٔ انتشار خودکار (`site_automation_policies.auto_publish_scope`):** برای سایت‌های کم‌حساسیت، admin با opt-in صریح دامنه را تعیین می‌کند: `none` (پیش‌فرض) | `meta` | `article` | `product` | `all`. بدون دامنهٔ باز، هیچ انتشار خودکاری حتی با شرایط مساعد انجام نمی‌شود (fail-closed).
 
 ---
 
@@ -149,6 +151,8 @@ Job دوره‌ای: impact_events → برای هر (نوع تغییر × سا�
 3. **توقف اضطراری:** دکمهٔ قرمز غیرترسناک + cancel در صف
 4. **اعتماد به سیستم:** نرخ موفقیت انتشار خودکار، rollbackها، تعداد تأییدشده/خودکار، زمان صرفه‌جویی‌شده، نمونه‌برداری بازبینی، لاگ اجراها با policy_version
 5. تغییر سطح بالاتر: modal تأیید + نمایش ریسک + ثبت دلیل (از ۰۱)
+6. **تولید پیشنویس:** صفحات «تولید پیشنویس مقاله» (`/app/ai-drafts/article/create`) و «تولید پیشنویس محصول» (`/app/ai-drafts/product/create`) — انتخاب سایت/پروفایل/زیرنوع، نمایش استاندارد مؤثر، پیش‌نمایش HTML پاک‌سازی‌شده + اسکیمای پیشنهادی، و ارسال به صف بازبینی
+7. **کارت «تأثیر محتوا» در داشبورد:** خلاصهٔ گزارش تأثیر همهٔ کامندهای publish اجراشده (تعداد، توزیع وضعیت، بهترین/ضعیف‌ترین بهبود، فهرست افت‌ها) — فقط دادهٔ واقعی GSC
 
 ---
 
@@ -190,10 +194,15 @@ Job دوره‌ای: impact_events → برای هر (نوع تغییر × سا�
 - [x] 4-6: Acceptance یکپارچه — `DAcceptanceTest` کل زنجیره در یک آزمون: AutoPublish → سقف روزانه (queued) → توقف اضطراری (cancel صف) → رفع → انتشار → rollback R3 → یادگیری
 - [x] 4-7: اجرایی روی DB واقعی — `php artisan migrate --force` اعمال شد + scheduler (`schedule:work`) + queue worker (`queue:work --sleep=10`) در حال اجرا
 
-### فاز ۴ — پروفایل‌های چندگانه و شخصی‌سازی کامل
-- [ ] 4-1: چند پروفایل هم‌زمان per site با مسیریابی ContentType
-- [ ] 4-2: کپی/قالب پروفایل
-- [ ] 4-3: audit + مستندات + بستن چک‌لیست‌ها و به‌روزرسانی Decision Log
+### فاز ۵ — تولید محتوا (مقاله/محصول) با استاندارد + انتشار خودکار (2026-08-15)
+- [x] 5-1: **استانداردهای محتوا** — جدول `content_standards` (نسخه‌دار: content_type × subtype × intent × version) + seed اولیهٔ «دانش روز صنعت» (مقالات ۹ زیرنوع، محصولات ۴، متا ۲، لندینگ ۱) + `site_content_standard_learnings` برای یادگیری از دادهٔ سایت + `StandardsKB` (استخراج استاندارد مؤثر — بدون اعداد هاردکد)
+- [x] 5-2: **تولید پیشنویس** — `GenerateArticleDraft` با دو مسیر (AI از طریق `AiClient` و rule-based با بازنویسی کامل `RuleBasedDraft`)؛ خروجی شامل متن، `featured_image` (ابعاد + alt + توضیح) و `schema` (Schema.org Product/Article/FAQ — تعیین‌شونده سمت سرور)؛ صفحات Vue مستقل «تولید پیشنویس مقاله» و «تولید پیشنویس محصول» با انتخاب سایت/پروفایل/زیرنوع
+- [x] 5-3: **فاز ۲ انتشار** — `CreateArticlePublishCommand` (ساخت idempotent کامند `publish_new_article` از پیشنویس تأییدشده، payload شامل title/content/slug/schema) + هندلر `publish_new_article` در پلاگین (wp_insert_post + متای سئو) + rollback = حذف پست
+- [x] 5-4: **گیت‌های انتشار خودکار** — `auto_publish_scope` (opt-in دامنه: none/meta/article/product/all) + گرمایش (`WARMUP_REQUIRED`: meta=3، product=3، article=5 اجرای موفق انسانی از همان نوع) + گیت کیفیت محتوا (`ContentQualityGuard` با استاندارد حمل‌شدهٔ پیشنویس — نه سافت‌فلور عمومی) + آستانهٔ اطمینان؛ `DecideReviewItem` پس از تأیید انسانی، کامند را می‌سازد و از AutoPublish عبور می‌دهد
+- [x] 5-5: **دادهٔ واقعی ووکامرس** — `FetchWooProductInfo` + endpoint `/product-info` در پلاگین؛ قیمت/موجودی/وضعیت واقعی در جزئیات بازبینی (قبل از انتشار با اسلاگ، بعد از آن با post_id)
+- [x] 5-6: **گزارش تأثیر GSC** — `BuildPublishImpactReport` (مقایسهٔ دو پنجرهٔ قبل/بعد، دلتای جایگاه/کلیک/نمایش + وضعیت، سری روزانه برای نمودار، بدون جعل عدد → `insufficient_data` با دلیل) + `BuildContentImpactSummary` (کارت «تأثیر محتوا» در داشبورد با بهترین/ضعیف‌ترین بهبود و فهرست افت‌ها) + ویجت تأثیر در جزئیات بازبینی + `gsc:import --sync` (ایمپورت هم‌گام متریک‌های روزانه)
+- [x] 5-7: **افزودن `update_content` به جریان UI** — گزینهٔ «تبدیل به تغییر محتوایی» در صفحهٔ پیشنهادها + `ConvertRecommendationToCommand`
+- [x] 5-8: **تست‌ها** — ۸ تست جدید (تولید مقاله، صفحهٔ مقاله، خط لولهٔ انتشار، گاردریل‌ها، جداسازی پروفایل، replay attack، جداسازی GSC، گزارش تأثیر) + به‌روزرسانی تست‌های موجود → کل سویییت ۲۹۴ تست / ۱۵۹۵ assert سبز → pint/typecheck/lint/build سبز → E2E واقعی روی WP محلی (انتشار headset-x + rollback + replay)
 
 ---
 

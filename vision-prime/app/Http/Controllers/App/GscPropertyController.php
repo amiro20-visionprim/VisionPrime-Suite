@@ -12,6 +12,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -40,9 +41,17 @@ class GscPropertyController extends Controller
 
     public function store(Request $request, RecordAuditLog $audit): RedirectResponse
     {
-        $data = $request->validate(['site_id' => ['required', 'exists:sites,id'], 'gsc_account_id' => ['required', 'exists:gsc_accounts,id'], 'property_uri' => ['required', 'string'], 'property_type' => ['required', 'string']]);
+        $orgId = app(CurrentOrganization::class)->id();
+        $data = $request->validate([
+            'site_id' => ['required', 'exists:sites,id'],
+            // حساب سرچ کنسول باید متعلق به سازمان جاری باشد؛ در غیر این صورت
+            // کاربر یک سازمان می‌تواند توکن OAuth سازمان دیگر را به سایت خودش ببندد.
+            'gsc_account_id' => ['required', Rule::exists('gsc_accounts', 'id')->where('organization_id', $orgId)],
+            'property_uri' => ['required', 'string'],
+            'property_type' => ['required', 'string'],
+        ]);
         $site = Site::findOrFail($data['site_id']);
-        abort_unless($site->organization_id === app(CurrentOrganization::class)->id(), 404);
+        abort_unless($site->organization_id === $orgId, 404);
         \DB::table('gsc_properties')->updateOrInsert(['site_id' => $site->id, 'property_uri' => $data['property_uri']], ['gsc_account_id' => $data['gsc_account_id'], 'property_type' => $data['property_type'], 'status' => 'selected', 'selected_at' => now(), 'updated_at' => now(), 'created_at' => now()]);
         $audit->handle(action: 'gsc.property_selected', subject: $site, after: ['property_uri' => $data['property_uri']]);
 

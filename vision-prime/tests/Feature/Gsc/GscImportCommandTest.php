@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace Tests\Feature\Gsc;
 
 use App\Domains\Gsc\Jobs\ImportGscMetrics;
+use App\Domains\Gsc\Services\GscHttp;
+use App\Domains\Gsc\Services\GscMetricsClient;
+use App\Domains\Gsc\Services\GscTokenService;
 use App\Domains\Organization\Models\Organization;
 use App\Domains\Workspace\Models\Client;
 use App\Domains\Workspace\Models\Project;
@@ -64,5 +67,62 @@ class GscImportCommandTest extends TestCase
         $this->artisan('gsc:import')
             ->expectsOutputToContain('هیچ ملک سرچ کنسولی متصل نیست')
             ->assertExitCode(0);
+    }
+
+    public function test_sync_option_runs_import_inline_without_queue(): void
+    {
+        Queue::fake();
+
+        $this->makeSite('https://e.ir');
+
+        $fake = new class(app(GscTokenService::class)) extends GscMetricsClient
+        {
+            public function __construct(GscTokenService $tokens)
+            {
+                parent::__construct($tokens, app(GscHttp::class));
+            }
+
+            public function query(object $a, string $p, string $s, string $e, array $d): array
+            {
+                return ['rows' => [['keys' => count($d) === 2 ? ['seo', 'https://e.ir/a'] : [($d[0] === 'page' ? 'https://e.ir/a' : 'seo')], 'clicks' => 4, 'impressions' => 9, 'ctr' => .44, 'position' => 2]]];
+            }
+        };
+        $this->app->instance(GscMetricsClient::class, $fake);
+
+        $this->artisan('gsc:import', ['--sync' => true, '--days' => 3])
+            ->expectsOutputToContain('1 ایمپورت همگام انجام شد')
+            ->assertExitCode(0);
+
+        $this->assertSame('completed', \DB::table('gsc_import_runs')->value('status'));
+
+        // در حالت همگام هیچ جابی در صف نمی‌رود و داده واقعاً ذخیره می‌شود.
+        Queue::assertNotPushed(ImportGscMetrics::class);
+        $this->assertDatabaseHas('gsc_import_runs', ['status' => 'completed']);
+        $this->assertDatabaseHas('gsc_page_metrics', ['page_url' => 'https://e.ir/a', 'clicks' => 4]);
+    }
+
+    public function test_sync_option_reports_failure_and_returns_failure_code(): void
+    {
+        $this->makeSite('https://e.ir');
+
+        $fake = new class(app(GscTokenService::class)) extends GscMetricsClient
+        {
+            public function __construct(GscTokenService $tokens)
+            {
+                parent::__construct($tokens, app(GscHttp::class));
+            }
+
+            public function query(object $a, string $p, string $s, string $e, array $d): array
+            {
+                throw new \RuntimeException('google api down');
+            }
+        };
+        $this->app->instance(GscMetricsClient::class, $fake);
+
+        $this->artisan('gsc:import', ['--sync' => true, '--days' => 3])
+            ->expectsOutputToContain('ناموفق')
+            ->assertExitCode(1);
+
+        $this->assertDatabaseHas('gsc_import_runs', ['status' => 'failed']);
     }
 }
