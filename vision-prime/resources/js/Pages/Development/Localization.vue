@@ -18,7 +18,7 @@ const sampleDate = '2026-07-25T12:30:00Z'
   <main class="bg-canvas min-h-screen px-5 py-10 sm:px-8 lg:px-12" dir="rtl">
     <div class="mx-auto max-w-4xl space-y-8">
       <header class="border-line border-b pb-8">
-        <p class="text-brand-700 text-sm font-bold tracking-wide">VISION PRIME / DEVELOPMENT</p>
+        <p class="text-brand-700 text-sm font-bold tracking-wide">VISION PRIME SUITE / DEVELOPMENT</p>
         <h1 class="text-page-title font-display text-ink-strong mt-3 font-bold">RTL و بومی‌سازی</h1>
         <p class="text-ink-muted mt-3 max-w-2xl leading-8">
           مرجع کنترل نمایش فارسی، تاریخ جلالی، عدد و محتوای ترکیبی RTL/LTR.

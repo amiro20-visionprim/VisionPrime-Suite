@@ -222,6 +222,88 @@ class ClientDecisionTest extends TestCase
             ->assertNotFound();
     }
 
+    public function test_client_can_ask_team_about_pending_command(): void
+    {
+        $commandId = $this->createPendingCommand($this->site->getKey());
+
+        // یک عضو دیگر سازمان برای دریافت اعلان
+        $teammate = User::factory()->create();
+        Membership::query()->create([
+            'organization_id' => $this->organization->getKey(),
+            'user_id' => $teammate->getKey(),
+            'role_id' => Role::query()->where('key', 'agency-admin')->valueOrFail('id'),
+            'status' => 'active',
+        ]);
+
+        $this->actingAs($this->user)
+            ->post('/client/decisions/questions', [
+                'subject_type' => 'command',
+                'subject_id' => $commandId,
+                'question' => 'این تغییر دقیقاً چه تأثیری روی سایت من دارد؟',
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('status');
+
+        $this->assertDatabaseHas('client_questions', [
+            'site_id' => $this->site->getKey(),
+            'subject_type' => 'command',
+            'subject_id' => $commandId,
+            'asked_by_id' => $this->user->getKey(),
+            'status' => 'open',
+        ]);
+        $this->assertSame(1, \DB::table('notifications')->where('notifiable_id', $teammate->getKey())->count());
+    }
+
+    public function test_client_cannot_ask_about_command_of_another_client(): void
+    {
+        $otherClient = Client::query()->create([
+            'organization_id' => $this->organization->getKey(),
+            'public_id' => (string) Str::ulid(),
+            'name' => 'مشتری دیگر',
+            'status' => 'active',
+        ]);
+        $otherProject = Project::query()->create([
+            'organization_id' => $this->organization->getKey(),
+            'client_id' => $otherClient->getKey(),
+            'public_id' => (string) Str::ulid(),
+            'name' => 'پروژه دیگر',
+            'status' => 'active',
+        ]);
+        $otherSite = Site::query()->create([
+            'organization_id' => $this->organization->getKey(),
+            'project_id' => $otherProject->getKey(),
+            'public_id' => (string) Str::ulid(),
+            'name' => 'سایت دیگر',
+            'canonical_url' => 'https://other.example.ir',
+            'status' => 'active',
+        ]);
+        $commandId = $this->createPendingCommand($otherSite->getKey());
+
+        $this->actingAs($this->user)
+            ->post('/client/decisions/questions', [
+                'subject_type' => 'command',
+                'subject_id' => $commandId,
+                'question' => 'این تغییر دقیقاً چه تأثیری روی سایت من دارد؟',
+            ])
+            ->assertNotFound();
+
+        $this->assertDatabaseCount('client_questions', 0);
+    }
+
+    public function test_question_requires_meaningful_text(): void
+    {
+        $commandId = $this->createPendingCommand($this->site->getKey());
+
+        $this->actingAs($this->user)
+            ->post('/client/decisions/questions', [
+                'subject_type' => 'command',                'subject_id' => $commandId,
+                'question' => 'کوتا',
+            ])
+            ->assertSessionHasErrors('question');
+
+        $this->assertDatabaseCount('client_questions', 0);
+    }
+
     private function createPendingCommand(int $siteId): int
     {
         return \DB::table('commands')->insertGetId([

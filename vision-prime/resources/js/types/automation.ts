@@ -8,6 +8,7 @@ export interface Command {
   confidence_score: number | null
   decision_source: string | null
   published_at: string | null
+  scheduled_for?: string | null
   site_name?: string | null
   platform_url?: string | null
   confidence_factors?: Record<string, unknown> | null

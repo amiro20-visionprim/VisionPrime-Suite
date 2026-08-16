@@ -1,4 +1,4 @@
-# Vision Prime — Permission Keys & Authorization Contract
+# Vision Prime SUITE — Permission Keys & Authorization Contract
 
 ## Naming convention
 `domain.action.scope`

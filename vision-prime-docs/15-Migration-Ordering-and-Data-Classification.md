@@ -1,4 +1,4 @@
-# Vision Prime — Migration Ordering & Data Classification
+# Vision Prime SUITE — Migration Ordering & Data Classification
 
 ## 1) Migration ordering
 Migrationها کوچک، reversible تا حد ممکن، و به ترتیب dependency اجرا می‌شوند. نام migration باید domain را روشن کند.

@@ -13,6 +13,7 @@ export const commandTypeLabels: Record<string, string> = {
   update_alt_text: 'به‌روزرسانی متن جایگزین تصویر',
   add_faq_schema: 'افزودن اسکیمای سوالات متداول',
   publish_content: 'انتشار محتوا',
+  publish_new_article: 'انتشار مقاله/محصول جدید',
 }
 
 export const commandStatusLabels: Record<string, string> = {
@@ -29,6 +30,7 @@ export const commandStatusLabels: Record<string, string> = {
   failed: 'ناموفق',
   completed: 'تکمیل شده',
   rolled_back: 'بازگشت خورده',
+  scheduled: 'زمان‌بندی شده',
 }
 
 export const contentScopeLabels: Record<string, string> = {

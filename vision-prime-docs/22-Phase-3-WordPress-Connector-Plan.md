@@ -1,7 +1,7 @@
 # Phase 3 — WordPress Connector Foundation
 
 ## Goal
-Pair a WordPress site with Vision Prime securely, establish a site-specific secret, verify signed requests, and expose connection health without allowing mutations yet.
+Pair a WordPress site with Vision Prime SUITE securely, establish a site-specific secret, verify signed requests, and expose connection health without allowing mutations yet.
 
 > **وضعیت (۲۰۲۶-۰۸-۱۵):** پایه تکمیل و فراتر از هدف اولیه اجرا شده — mutation ها هم فعال‌اند: `commands` (۶ نوع)، `rollback` و `product-info`. تست replay واقعی (`ReplayAttackTest`) اضافه شد.
 

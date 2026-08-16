@@ -63,7 +63,7 @@ function disconnect(): void {
         </div>
       </dl>
       <p v-else class="text-ink-muted">
-        برای اتصال، توکن اتصال (Pairing Token) ایجاد کرده و آن را در تنظیمات افزونه Vision Prime
+        برای اتصال، توکن اتصال (Pairing Token) ایجاد کرده و آن را در تنظیمات افزونه سوئیت
         وردپرس وارد کنید.
       </p>
       <div class="border-line mt-6 border-t pt-5">

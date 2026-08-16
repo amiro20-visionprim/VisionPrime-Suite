@@ -1,4 +1,4 @@
-# Vision Prime — Phase 1 Atomic Task Plan
+# Vision Prime SUITE — Phase 1 Atomic Task Plan
 
 > هر Task باید در یک branch/PR مستقل یا یک اجرای محدود Agent انجام شود. Agent نباید از scope همان Task عبور کند.
 

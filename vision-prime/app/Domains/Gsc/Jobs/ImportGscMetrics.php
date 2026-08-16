@@ -27,7 +27,7 @@ class ImportGscMetrics implements ShouldQueue
         \DB::table('gsc_import_runs')->where('id', $run->id)->update(['status' => 'running', 'started_at' => now()]);
         try {
             $count = 0;
-            foreach ([['page', 'page'], ['query', 'query'], ['query,page', 'queryPage']] as [$dimensions,$method]) {
+            foreach ([['page', 'page'], ['query', 'query'], ['query,page', 'queryPage'], ['date,hour', 'hour']] as [$dimensions,$method]) {
                 foreach (($client->query($account, $property->property_uri, $run->date_start, $run->date_end, explode(',', $dimensions))['rows'] ?? []) as $row) {
                     $upsert->{$method}($property->id, $run->date_end, $row);
                     $count++;

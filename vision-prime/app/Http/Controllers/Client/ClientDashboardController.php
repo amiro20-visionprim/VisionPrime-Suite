@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Client;
 
 use App\Domains\Audit\Services\ActivityLabel;
 use App\Domains\Seo\Services\ClientGrowthSummary;
+use App\Domains\Seo\Services\ClientGrowthTrend;
 use App\Domains\Workspace\Contracts\CurrentClient;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
@@ -14,7 +15,7 @@ use Inertia\Response;
 
 class ClientDashboardController extends Controller
 {
-    public function __invoke(CurrentClient $client, ClientGrowthSummary $summary): Response
+    public function __invoke(CurrentClient $client, ClientGrowthSummary $summary, ClientGrowthTrend $trendService): Response
     {
         $clientModel = $client->has() ? $client->get() : null;
 
@@ -79,11 +80,42 @@ class ClientDashboardController extends Controller
                 ])
                 ->values();
 
+        $pendingDecisions = $clientModel === null
+            ? collect()
+            : DB::table('commands')
+                ->join('sites', 'sites.id', '=', 'commands.site_id')
+                ->join('projects', 'projects.id', '=', 'sites.project_id')
+                ->where('projects.client_id', $clientModel->getKey())
+                ->where('commands.status', 'pending_approval')
+                ->orderByDesc('commands.created_at')
+                ->limit(4)
+                ->get([
+                    'commands.id',
+                    'commands.type',
+                    'commands.payload',
+                    'commands.created_at',
+                    'sites.name as site_name',
+                ])
+                ->map(fn (object $command): array => [
+                    'id' => $command->id,
+                    'type' => $command->type,
+                    'site_name' => $command->site_name,
+                    'created_at' => $command->created_at,
+                ])
+                ->values();
+
+        [$trend, $kpis] = $clientModel === null || $siteIds->isEmpty()
+            ? [collect(), null]
+            : $trendService->forSites($siteIds);
+
         return Inertia::render('Client/Dashboard', [
             'growthSummary' => $clientModel === null ? null : $summary->for($clientModel),
             'opportunities' => $opportunities,
             'latestReport' => $latestReport,
             'recentActivities' => $recentActivities,
+            'pendingDecisions' => $pendingDecisions,
+            'trend' => $trend,
+            'kpis' => $kpis,
         ]);
     }
 }

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use App\Domains\Automation\Jobs\LearningLoop;
 use App\Domains\Automation\Jobs\ProcessQueuedCommands;
+use App\Domains\Automation\Jobs\ReleaseScheduledCommands;
+use App\Domains\Automation\Jobs\RemindScheduledPublishes;
 use App\Domains\Automation\Jobs\RollbackMonitor;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -31,6 +33,18 @@ Schedule::job(new LearningLoop)
 // D-013 فاز ۳ — مانیتور بازگشت خودکار R3 (مقایسه با baseline هر ۶ ساعت)
 Schedule::job(new RollbackMonitor)
     ->everySixHours()
+    ->timezone('Asia/Tehran')
+    ->onOneServer();
+
+// تقویم محتوایی — آزادسازی پیش‌نویس‌های زمان‌بندی‌شده در لحظهٔ موعد (هر دقیقه)
+Schedule::job(new ReleaseScheduledCommands)
+    ->everyMinute()
+    ->timezone('Asia/Tehran')
+    ->onOneServer();
+
+// تقویم محتوایی — یادآوری موعد انتشار به اعضای فعال سازمان (یک روز قبل، روزانه ۰۹:۰۰)
+Schedule::job(new RemindScheduledPublishes)
+    ->dailyAt('09:00')
     ->timezone('Asia/Tehran')
     ->onOneServer();
 

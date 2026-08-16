@@ -27,7 +27,7 @@ function logout(): void {
           ><span
             class="rounded-ui bg-brand-700 flex size-9 items-center justify-center text-sm font-bold text-white"
             >VP</span
-          ><span class="font-display text-lg font-bold">Vision Prime</span></Link
+          ><span class="font-display text-lg font-bold">Vision Prime SUITE</span></Link
         >
       </div>
       <div class="p-4"><OrganizationSwitcher /></div>
@@ -71,7 +71,7 @@ function logout(): void {
       <main class="p-5 sm:p-8"><slot /></main>
     </div>
 
-    <VDrawer v-model="mobileNavigationOpen" title="Vision Prime" side="start">
+    <VDrawer v-model="mobileNavigationOpen" title="Vision Prime SUITE" side="start">
       <OrganizationSwitcher />
       <div class="mt-6"><AppNavigation /></div>
       <template #footer

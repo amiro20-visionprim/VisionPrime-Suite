@@ -1,15 +1,20 @@
 <script setup lang="ts">
-import { Head, router } from '@inertiajs/vue3'
+import { Head, router, usePage } from '@inertiajs/vue3'
 import { computed } from 'vue'
 
 import AppLayout from '@/app/layouts/AppLayout.vue'
+import { formatJalaliDate } from '@/lib/locale'
+import { commandTypeLabels, labelOf, reviewSubjectLabels } from '@/lib/labels'
+import VAlert from '@/shared/ui/VAlert.vue'
+import VBarChart from '@/shared/ui/VBarChart.vue'
 import VButton from '@/shared/ui/VButton.vue'
 import VCard from '@/shared/ui/VCard.vue'
 import VEmptyState from '@/shared/ui/VEmptyState.vue'
 import VPageHeader from '@/shared/ui/VPageHeader.vue'
-
-import VAlert from '@/shared/ui/VAlert.vue'
+import VStatCard, { type StatTrend } from '@/shared/ui/VStatCard.vue'
+import VIcon, { type IconName, type IconTone } from '@/shared/ui/VIcon.vue'
 import type { ContentImpactSummary, ImpactSummaryEntry } from '@/types/automation'
+import type { AppPageProps } from '@/types/app'
 
 const props = defineProps<{
   counts: {
@@ -19,8 +24,32 @@ const props = defineProps<{
     connectedSites: number
     gscConnectedSites: number
     openOpportunities: number
+    pendingCommands: number
+    pendingReviews: number
+    scheduledPublishes: number
   }
   contentImpact: ContentImpactSummary
+  publishSuggestions: {
+    site_id: number
+    site_name: string
+    label: string
+    hour: number
+    datetime: string
+    source: string
+  }[]
+  trend: { date: string; clicks: number; impressions: number; position: number }[]
+  kpis: {
+    clicks: { value: number | null; delta: number | null }
+    impressions: { value: number | null; delta: number | null }
+    position: { value: number | null; delta: number | null }
+  } | null
+  approvalQueue: {
+    type: 'command' | 'review'
+    id: number
+    label: string
+    site_name: string
+    created_at: string | null
+  }[]
   activities: {
     id: number
     action: string
@@ -31,6 +60,169 @@ const props = defineProps<{
   }[]
 }>()
 
+const page = usePage<AppPageProps & { currentRole?: string; auth?: { user?: { name: string } } }>()
+const role = computed(() => page.props.currentRole ?? 'agency-admin')
+
+// —— بنر نقش (per-role) ——
+interface RoleMeta {
+  label: string
+  message: string
+  icon: IconName
+  priorities: { label: string; hint: string; href: string; icon: IconName }[]
+}
+
+const roleMeta: Record<string, RoleMeta> = {
+  'agency-admin': {
+    label: 'مدیر آژانس',
+    message: 'نمای کلی همهٔ مشتریان، تیم و عملکرد سازمان.',
+    icon: 'building',
+    priorities: [
+      { label: 'مشتریان', hint: 'حساب‌ها و دسترسی‌ها', href: '/app/clients', icon: 'building' },
+      { label: 'سایت‌های متصل', hint: 'وضعیت اتصال‌ها', href: '/app/sites', icon: 'activity' },
+      { label: 'بررسی و تأییدها', hint: 'صف تصمیم‌ها', href: '/app/reviews', icon: 'user-check' },
+      { label: 'تنظیمات سازمان', hint: 'اعضا و نقش‌ها', href: '/app/settings/organization', icon: 'users' },
+    ],
+  },
+  'seo-manager': {
+    label: 'کارشناس سئو',
+    message: 'فرصت‌ها، ریسک‌ها و دادهٔ واقعی رشد در کانون کار شماست.',
+    icon: 'trend-up',
+    priorities: [
+      { label: 'فرصت‌های رشد', hint: 'اولویت‌های پیشنهادی', href: '/app/opportunities', icon: 'lightbulb' },
+      { label: 'صفحات درآمدزا', hint: 'صفحات کلیدی', href: '/app/money-pages', icon: 'shopping-bag' },
+      { label: 'ریسک‌های تبدیل', hint: 'نقاط خطر', href: '/app/conversion-risks', icon: 'trend-down' },
+      { label: 'سرچ کنسول', hint: 'دادهٔ واقعی', href: '/app/gsc', icon: 'search' },
+    ],
+  },
+  'content-manager': {
+    label: 'مدیر محتوا',
+    message: 'تولید و بازبینی مقاله و محصول، و برنامه‌ریزی انتشار.',
+    icon: 'file',
+    priorities: [
+      { label: 'تقویم محتوایی', hint: 'برنامهٔ انتشار', href: '/app/content-calendar', icon: 'calendar' },
+      { label: 'تولید مقاله', hint: 'پیش‌نویس جدید', href: '/app/ai-drafts/article/create', icon: 'file' },
+      { label: 'تولید محصول', hint: 'پیش‌نویس محصول', href: '/app/ai-drafts/product/create', icon: 'shopping-bag' },
+      { label: 'بررسی و تأییدها', hint: 'صف بازبینی', href: '/app/reviews', icon: 'user-check' },
+    ],
+  },
+  'expert-reviewer': {
+    label: 'بازبین',
+    message: 'صف تأیید سریع و دقیق، بدون شلوغی.',
+    icon: 'user-check',
+    priorities: [
+      { label: 'بررسی و تأییدها', hint: 'موارد در انتظار', href: '/app/reviews', icon: 'user-check' },
+      { label: 'تغییرات اجرایی', hint: 'اجراها و بازگشت‌ها', href: '/app/commands', icon: 'zap' },
+      { label: 'پیشنهادها', hint: 'پیشنهادهای تیم', href: '/app/recommendations', icon: 'lightbulb' },
+    ],
+  },
+  developer: {
+    label: 'توسعه‌دهنده',
+    message: 'اتصال‌ها، سلامت فنی و اجرای تغییرات.',
+    icon: 'zap',
+    priorities: [
+      { label: 'سایت‌ها', hint: 'وضعیت اتصال‌ها', href: '/app/sites', icon: 'activity' },
+      { label: 'یکپارچه‌سازی‌ها', hint: 'سرچ کنسول و وردپرس', href: '/app/settings/integrations', icon: 'zap' },
+      { label: 'تغییرات اجرایی', hint: 'لاگ اجرا', href: '/app/commands', icon: 'zap' },
+      { label: 'گزارش ممیزی', hint: 'ردپیگری کامل', href: '/app/settings/audit-log', icon: 'shield' },
+    ],
+  },
+  'marketing-manager': {
+    label: 'مدیر بازاریابی',
+    message: 'لیدها، فانل و کمپین‌ها — رشد از نگاه بازاریابی.',
+    icon: 'megaphone',
+    priorities: [
+      { label: 'لیدها و تبلیغات', hint: 'دادهٔ کمپین', href: '/app/marketing', icon: 'megaphone' },
+      { label: 'مشتریان', hint: 'حساب‌ها', href: '/app/clients', icon: 'building' },
+      { label: 'گزارش‌ها', hint: 'گزارش‌های دوره‌ای', href: '/app/reports', icon: 'news' },
+    ],
+  },
+  'super-admin': {
+    label: 'مدیر ارشد',
+    message: 'نظارت کل بر پلتفرم و سازمان‌ها.',
+    icon: 'shield',
+    priorities: [
+      { label: 'مشتریان', hint: 'همهٔ حساب‌ها', href: '/app/clients', icon: 'building' },
+      { label: 'سایت‌ها', hint: 'وضعیت اتصال‌ها', href: '/app/sites', icon: 'activity' },
+      { label: 'تنظیمات سازمان', hint: 'اعضا و نقش‌ها', href: '/app/settings/organization', icon: 'users' },
+    ],
+  },
+}
+
+const genericMeta: RoleMeta = {
+  label: 'عضو تیم',
+  message: 'به فضای کاری خوش آمدید. بخش‌های مرتبط با کار شما در اینجا جمع شده‌اند.',
+  icon: 'users',
+  priorities: [
+    { label: 'مشتریان', hint: 'همهٔ حساب‌ها', href: '/app/clients', icon: 'building' },
+    { label: 'فرصت‌های رشد', hint: 'اولویت‌ها', href: '/app/opportunities', icon: 'lightbulb' },
+    { label: 'بررسی و تأییدها', hint: 'صف تصمیم‌ها', href: '/app/reviews', icon: 'user-check' },
+    { label: 'سایت‌ها', hint: 'وضعیت اتصال‌ها', href: '/app/sites', icon: 'activity' },
+  ],
+}
+
+const meta = computed<RoleMeta>(() => roleMeta[role.value] ?? genericMeta)
+const firstName = computed(() => page.props.auth?.user?.name?.split(' ')[0] ?? 'همکار')
+
+// —— KPI ها ——
+const pendingTotal = computed(() => props.counts.pendingCommands + props.counts.pendingReviews)
+
+const kpiCards = computed(() => [
+  {
+    label: 'مشتریان فعال',
+    value: props.counts.clients,
+    icon: 'building' as IconName,
+    iconTone: 'brand' as IconTone,
+    hint: 'حساب‌هایی که آژانس برای آن‌ها پروژه و پرتال مدیریت می‌کند.',
+    trend: 'flat' as StatTrend,
+    trendLabel: props.counts.projects > 0 ? `${props.counts.projects} پروژه فعال` : 'هنوز پروژه‌ای نیست',
+  },
+  {
+    label: 'سایت‌های متصل',
+    value: props.counts.connectedSites,
+    icon: 'activity' as IconName,
+    iconTone: 'violet' as IconTone,
+    hint: 'سایت‌هایی که به وردپرس و سرچ کنسول متصل شده‌اند.',
+    trend: 'flat' as StatTrend,
+    trendLabel: `${props.counts.sites} سایت کل · ${props.counts.gscConnectedSites} با سرچ کنسول`,
+  },
+  {
+    label: 'فرصت‌های باز',
+    value: props.counts.openOpportunities,
+    icon: 'lightbulb' as IconName,
+    iconTone: 'success' as IconTone,
+    hint: 'فرصت‌های رشد شناسایی‌شده که هنوز اقدام نشده‌اند.',
+    trend: 'flat' as StatTrend,
+    trendLabel: pendingTotal.value > 0 ? `${pendingTotal.value} مورد در صف تأیید` : 'صف تأیید خالی است',
+  },
+  {
+    label: 'در انتظار تأیید',
+    value: pendingTotal.value,
+    icon: 'user-check' as IconName,
+    iconTone: 'warning' as IconTone,
+    hint: 'تغییرات اجرایی و بازبینی‌هایی که منتظر تصمیم تیم هستند.',
+    trend: 'flat' as StatTrend,
+    trendLabel: props.counts.scheduledPublishes > 0
+      ? `${props.counts.scheduledPublishes} انتشار زمان‌بندی‌شده`
+      : 'نیاز به بررسی دارد',
+  },
+])
+
+// —— چارت رشد ——
+const growthBars = computed(() =>
+  props.trend.map((point, index) => ({
+    label:
+      index % 5 === 0 || index === props.trend.length - 1
+        ? (formatJalaliDate(point.date).split('/')[2] ?? '')
+        : '',
+    value: point.clicks,
+  })),
+)
+
+// —— صف تأیید ——
+const approvalLabel = (item: { type: 'command' | 'review'; label: string }): string =>
+  item.type === 'command' ? labelOf(commandTypeLabels, item.label) : labelOf(reviewSubjectLabels, item.label)
+
+// —— فعالیت‌ها و بقیهٔ بخش‌ها (از قبل) ——
 const declinedEntries = computed(() => props.contentImpact.declines ?? [])
 
 const declineSummary = (entry: ImpactSummaryEntry) => {
@@ -45,8 +237,7 @@ const sign = (n: number) => (n > 0 ? `+${n}` : String(n))
 const formatUrl = (url: string) => {
   try {
     return new URL(url).pathname
-  }
-  catch {
+  } catch {
     return url
   }
 }
@@ -86,11 +277,14 @@ const actionLabels: Record<string, string> = {
   'command.dispatched': 'تغییر اجرایی به‌اجرا درآمد',
   'command.executed': 'تغییر اجرایی اجرا شد',
   'command.failed': 'اجرای تغییر ناموفق بود',
+  'command.publish_now': 'انتشار فوری پیش‌نویس انجام شد',
+  'command.publish_scheduled': 'انتشار پیش‌نویس زمان‌بندی شد',
+  'command.publish_schedule_cancelled': 'زمان‌بندی انتشار لغو شد',
   'review.created': 'مورد بازبینی جدید ایجاد شد',
   'review.item_created': 'مورد بازبینی جدید ایجاد شد',
   'review.decided': 'بازبینی تصمیم‌گیری شد',
-  'ai.generation_created': 'پیشنویس هوش مصنوعی تولید شد',
-  'ai.draft_generated': 'پیشنویس متا تولید شد',
+  'ai.generation_created': 'پیش‌نویس هوش مصنوعی تولید شد',
+  'ai.draft_generated': 'پیش‌نویس متا تولید شد',
   'ai.provider_setting_saved': 'پیکربندی هوش مصنوعی ذخیره شد',
   'report.created': 'گزارش جدید ایجاد شد',
   'report.published': 'گزارش برای مشتری منتشر شد',
@@ -144,16 +338,14 @@ const nextStep = computed(() => {
 </script>
 
 <template>
-  <Head title="داشبورد" />
+  <Head title="داشبورد | سوئیت" />
   <AppLayout>
     <VPageHeader
-      title="داشبورد"
-      description="نمای کلی عملیات رشد و وضعیت فضای کاری شما."
+      :title="`سلام، ${firstName} 👋`"
+      :description="`${meta.message} اینجا اولویت‌های نقش «${meta.label}» برای شما چیده شده است.`"
       :status="{ label: 'فضای کاری فعال', tone: 'success' }"
-      ><template #actions
-        ><VButton :href="nextStep.href">{{ nextStep.label }}</VButton></template
-      ></VPageHeader
-    >
+    />
+
     <VAlert
       v-if="declinedEntries.length"
       class="mt-6"
@@ -168,24 +360,92 @@ const nextStep = computed(() => {
         </li>
       </ul>
     </VAlert>
-    <section class="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <VCard title="مشتریان"
-        ><p class="text-ink-strong mt-2 text-2xl font-bold">{{ counts.clients }}</p>
-        <p class="text-ink-muted mt-1 text-sm">مشتریان فعال فضای کاری</p></VCard
-      >
-      <VCard title="پروژه‌ها"
-        ><p class="text-ink-strong mt-2 text-2xl font-bold">{{ counts.projects }}</p>
-        <p class="text-ink-muted mt-1 text-sm">هدف‌های عملیاتی ثبت‌شده</p></VCard
-      >
-      <VCard title="سایت‌ها"
-        ><p class="text-ink-strong mt-2 text-2xl font-bold">{{ counts.sites }}</p>
-        <p class="text-ink-muted mt-1 text-sm">از این تعداد {{ counts.connectedSites }} سایت به وردپرس متصل است</p></VCard
-      >
-      <VCard title="فرصت‌های باز"
-        ><p class="text-ink-strong mt-2 text-2xl font-bold">{{ counts.openOpportunities }}</p>
-        <p class="text-ink-muted mt-1 text-sm">فرصت‌های اولویت‌دار منتظر اقدام</p></VCard
-      >
+
+    <!-- KPI متحرک -->
+    <section v-stagger class="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <VStatCard
+        v-for="card in kpiCards"
+        :key="card.label"
+        :label="card.label"
+        :value="card.value"
+        :icon="card.icon"
+        :icon-tone="card.iconTone"
+        :hint="card.hint"
+        :trend="card.trend"
+        :trend-label="card.trendLabel"
+      />
     </section>
+
+    <!-- اولویت‌های نقش من (per-role) -->
+    <section class="mt-8">
+      <div class="flex items-center gap-2">
+        <span class="rounded-ui bg-brand-50 text-brand-700 flex size-8 items-center justify-center">
+          <VIcon :name="meta.icon" size="sm" />
+        </span>
+        <h2 class="text-ink-strong text-lg font-bold">اولویت‌های «{{ meta.label }}»</h2>
+      </div>
+      <div class="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <a
+          v-for="priority in meta.priorities"
+          :key="priority.href"
+          :href="priority.href"
+          class="transition-ui rounded-panel border-line bg-surface group flex items-start gap-3 border p-4 hover:-translate-y-0.5 hover:shadow-card"
+        >
+          <span class="rounded-ui bg-surface-muted text-ink-muted group-hover:bg-brand-50 group-hover:text-brand-700 flex size-10 shrink-0 items-center justify-center transition-colors">
+            <VIcon :name="priority.icon" size="lg" />
+          </span>
+          <span class="min-w-0">
+            <span class="text-ink-strong block text-sm font-bold">{{ priority.label }}</span>
+            <span class="text-ink-muted mt-0.5 block text-xs">{{ priority.hint }}</span>
+          </span>
+        </a>
+      </div>
+    </section>
+
+    <!-- صف تأیید -->
+    <VCard class="mt-8" title="صف تأیید" description="تغییرات و بازبینی‌هایی که منتظر تصمیم تیم هستند.">
+      <div v-if="approvalQueue.length" class="space-y-1">
+        <div
+          v-for="item in approvalQueue"
+          :key="`${item.type}-${item.id}`"
+          class="flex items-center justify-between gap-3 rounded-ui px-2 py-2 hover:bg-surface-muted"
+        >
+          <div class="flex min-w-0 items-center gap-3">
+            <span
+              :class="[
+                'rounded-ui flex size-8 shrink-0 items-center justify-center',
+                item.type === 'command' ? 'bg-warning-50 text-warning-600' : 'bg-violet-50 text-violet-600',
+              ]"
+            >
+              <VIcon :name="item.type === 'command' ? 'zap' : 'eye'" size="sm" />
+            </span>
+            <div class="min-w-0">
+              <p class="text-ink-strong truncate text-sm font-semibold">{{ approvalLabel(item) }}</p>
+              <p class="text-ink-muted text-xs">{{ item.site_name }} · از {{ formatJalaliDate(item.created_at) }}</p>
+            </div>
+          </div>
+        </div>
+        <div class="pt-2">
+          <VButton href="/app/reviews" size="sm" variant="secondary">مشاهدهٔ همه در بررسی و تأییدها</VButton>
+        </div>
+      </div>
+      <p v-else class="text-ink-muted text-sm leading-7">صف تأیید خالی است — همه‌چیز به‌روز است. ✅</p>
+    </VCard>
+
+    <!-- چارت رشد -->
+    <VCard
+      class="mt-8"
+      title="بازدید روزانه از گوگل"
+      description="مجموع کلیک‌های واقعی سرچ کنسول همهٔ سایت‌های سازمان — ۲۸ روز اخیر."
+    >
+      <div v-if="growthBars.length" class="mt-4">
+        <VBarChart :data="growthBars" :height="190" aria-label="نمودار بازدید روزانهٔ کل سازمان" />
+      </div>
+      <p v-else class="text-ink-muted text-sm leading-7">
+        پس از اتصال سرچ کنسول، روند بازدید اینجا نمایش داده می‌شود.
+      </p>
+    </VCard>
+
     <div class="mt-8">
       <VEmptyState
         :title="nextStep.title"
@@ -194,6 +454,7 @@ const nextStep = computed(() => {
         @action="router.visit(nextStep.href)"
       />
     </div>
+
     <VCard
       class="mt-8"
       title="📈 تأثیر محتوا پس از انتشار"
@@ -241,6 +502,35 @@ const nextStep = computed(() => {
         هنوز محتوایی با دادهٔ کافی GSC منتشر نشده است — پس از اجرای چند انتشار خودکار و همگام‌سازی سرچ کنسول، تأثیر آن‌ها اینجا نمایش داده می‌شود.
       </p>
     </VCard>
+
+    <VCard
+      v-if="publishSuggestions.length"
+      class="mt-8"
+      title="✨ بهترین زمان انتشار"
+      description="پیشنهاد هوشمند روز و ساعت انتشار برای هر سایت — بر اساس میانگین کلیک واقعی GSC."
+    >
+      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div
+          v-for="s in publishSuggestions"
+          :key="s.site_id"
+          class="rounded-xl border border-brand-100 bg-brand-50/40 p-4"
+        >
+          <p class="text-ink-strong text-sm font-semibold">{{ s.site_name }}</p>
+          <p class="text-brand-800 mt-2 text-lg font-bold">
+            {{ s.label }} · {{ String(s.hour).padStart(2, '0') }}:۰۰
+          </p>
+          <p class="text-ink-muted mt-1 text-xs">
+            {{ s.source === 'hourly' ? 'دادهٔ ساعتی GSC' : 'دادهٔ روزانه GSC' }}
+          </p>
+        </div>
+      </div>
+      <div class="mt-4">
+        <VButton href="/app/content-calendar" size="sm" variant="secondary">
+          باز کردن تقویم محتوایی
+        </VButton>
+      </div>
+    </VCard>
+
     <VCard
       class="mt-8"
       title="فعالیت‌های اخیر"

@@ -239,6 +239,72 @@ class ClientPortalPagesTest extends TestCase
                 ->where('recentActivities.0.label', 'سایت جدید به پروژه اضافه شد'));
     }
 
+    public function test_client_dashboard_includes_real_gsc_trend_kpis_and_pending_decisions(): void
+    {
+        $accountId = \DB::table('gsc_accounts')->insertGetId([
+            'organization_id' => $this->client->organization_id,
+            'google_subject' => (string) Str::uuid(),
+            'email' => 'owner@test.example.ir',
+            'token_ciphertext' => 'encrypted',
+            'status' => 'connected',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $propertyId = \DB::table('gsc_properties')->insertGetId([
+            'site_id' => $this->site->getKey(),
+            'gsc_account_id' => $accountId,
+            'property_uri' => 'sc-domain:test.example.ir',
+            'property_type' => 'domain',
+            'status' => 'connected',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        // ۲۸ روز دادهٔ واقعی (دو دورهٔ ۱۴ روزه برای محاسبهٔ روند)
+        for ($i = 27; $i >= 0; $i--) {
+            \DB::table('gsc_page_metrics')->insert([
+                'gsc_property_id' => $propertyId,
+                'date' => now()->subDays($i)->toDateString(),
+                'page_url' => 'https://test.example.ir/',
+                'clicks' => $i < 14 ? 12 : 8, // دو هفتهٔ اخیر بهتر از قبل
+                'impressions' => $i < 14 ? 120 : 100,
+                'ctr' => 0.1,
+                'position' => $i < 14 ? 8 : 12,
+                'device' => 'DESKTOP',
+                'country' => 'IR',
+            ]);
+        }
+
+        \DB::table('commands')->insert([
+            'site_id' => $this->site->getKey(),
+            'source_type' => 'recommendation',
+            'source_id' => null,
+            'type' => 'update_meta_title',
+            'risk_tier' => 'R2',
+            'payload' => json_encode(['title' => 'عنوان جدید']),
+            'idempotency_key' => (string) Str::uuid(),
+            'status' => 'pending_approval',
+            'expires_at' => now()->addDays(7),
+            'policy_version' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->actingAs($this->user)->get('/client/dashboard')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Client/Dashboard')
+                ->has('trend', 28)
+                ->where('trend.0.clicks', 8)
+                ->has('kpis')
+                ->where('kpis.clicks.value', 168) // 14 × 12
+                ->where('kpis.clicks.delta', 50) // 12 vs 8
+                ->where('kpis.position.delta', 4) // بهبود رتبه
+                ->has('pendingDecisions', 1)
+                ->where('pendingDecisions.0.type', 'update_meta_title'));
+    }
+
     private function createUrlProfile(): int
     {
         return \DB::table('url_profiles')->insertGetId([

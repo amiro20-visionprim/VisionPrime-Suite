@@ -1,4 +1,4 @@
-# Vision Prime — UI Foundation Specification
+# Vision Prime SUITE — UI Foundation Specification
 
 ## Visual character
 Premium، آرام، دقیق، enterprise-grade. نور و فضای سفید کنترل‌شده؛ نه dark-heavy، نه gradient-heavy، نه کارت‌های بیش‌ازحد تزئینی.
@@ -70,3 +70,22 @@ Premium، آرام، دقیق، enterprise-grade. نور و فضای سفید ک
 - CTR: teal/green semantic
 - Position: violet or amber با label روشن (کاهش عدد position بهتر است)
 - Never rely solely on color; legend و tooltip دارند.
+
+## فاز A — زیرساخت طراحی (انجام شد ✅ ۲۰۲۶-۰۸-۱۶)
+اجرا شده در `resources/js/shared/ui/` و `resources/js/lib/` و `resources/js/directives/`:
+
+| کامپوننت | مسئولیت | قرارداد |
+|---|---|---|
+| `VIcon` | wrapper یکپارچهٔ lucide | نگاشت ثابت وضعیت‌ها در کل سوئیت (check/rotate/clock/user-check/ban/sparkles/…)؛ tone: brand/success/warning/danger/neutral/violet؛ اندازه sm–xl |
+| `VStatCard` | کارت KPI | آیکون + شمارندهٔ متحرک + روند + توضیح ساده + دکمهٔ «💡» hint؛ format number/percent |
+| `VGuideTip` | نکتهٔ راهنما | متن از مخزن مرکزی `lib/tips.ts`؛ در پنل مشتری برای کاربر غیرفنی الزامی |
+| `VBarChart` | میله‌ای گرادیانی | مقایسه با highlight؛ tooltip تعاملی؛ انیمیشن ورود |
+| `VAreaChart` | مساحت گرادیانی | روند زمانی؛ tooltip؛ انیمیشن ورود |
+| `VDoughnut` | دونات | سهم منابع؛ center label/value؛ legend |
+| `vStagger` | انیمیشن ورود پلکانی | بچه‌های container با تأخیر 60ms؛ احترام به prefers-reduced-motion |
+
+**قراردادهای افزوده:**
+- هر وضعیت در کل سوئیت یک آیکون ثابت دارد (مثلاً «در صف انتشار» همیشه clock است).
+- در پنل مشتری، کنار هر بخش حداقل یک `VGuideTip` یا hint در `VStatCard` دیده می‌شود.
+- چارت‌ها SVG سفارشی‌اند (بدون وابستگی جدید) و فقط tokenهای معنایی مصرف می‌کنند.
+- transition صفحات و stagger کوتاه‌اند (≤220ms) و reduced-motion را احترام می‌گذارند.

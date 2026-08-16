@@ -1,7 +1,7 @@
-# Vision Prime — Information Architecture & Navigation
+# Vision Prime SUITE — Information Architecture & Navigation
 
 ## 1) تجربه‌های اصلی محصول
-Vision Prime سه تجربه مجزا با یک Design System دارد:
+ویژن پرایم سوئیت سه تجربه مجزا با یک Design System دارد:
 
 1. **Marketing** — تبدیل بازدیدکننده به Lead/Demo
 2. **Operations App** — فضای کاری آژانس و تیم SEO
@@ -136,28 +136,23 @@ Vision Prime سه تجربه مجزا با یک Design System دارد:
 
 ## 4) Client Portal Sitemap
 ```text
-/client/dashboard
-/client/site-health
-/client/growth
-/client/opportunities
-/client/money-pages
-/client/conversion-risks
-/client/recommendations
-/client/decisions
-/client/reports
-/client/reports/{report}
-/client/activity
-/client/settings
+/client/dashboard          → خانه (سایت من در یک نگاه) — شامل خلاصهٔ فعالیت‌ها
+/client/growth             → رشد من (چقدر دیده می‌شوم)
+/client/opportunities      → اولویت‌ها (کجا بهتر شویم)
+/client/decisions          → تأییدهای من (منتظر تصمیم شما)
+/client/reports            → گزارش‌ها
+/client/site-health        → وضعیت سایت (سلامت فنی به زبان ساده)
 ```
 
-### Navigation Client Portal
-- نمای کلی
-- رشد و فرصت‌ها
-- سلامت سایت
-- پیشنهادهای اولویت‌دار
-- نیازمند تصمیم شما
-- گزارش‌ها
-- فعالیت‌ها
+### Navigation Client Portal (بازطراحی فاز B — ۶ بخش با آیکون)
+1. **خانه** — icon `chart-line` — «سایت من در یک نگاه»
+2. **رشد من** — icon `trend-up` — «چقدر دیده می‌شوم»
+3. **اولویت‌ها** — icon `lightbulb` — «کجا بهتر شویم»
+4. **تأییدهای من** — icon `user-check` — «منتظر تصمیم شما»
+5. **گزارش‌ها** — icon `file` — «گزارش‌های دوره‌ای»
+6. **وضعیت سایت** — icon `gauge` — «سلامت فنی سایت»
+
+**تصمیم تأییدشده (D-022):** صفحهٔ «فعالیت‌ها» (`/client/activity`) در خانه ادغام شد و از ناوبری حذف شد — منوی مشتری دقیقاً ۶ بخش است. هر بخش یک زیرنویس کوتاه غیرتخصصی دارد (hint) تا کاربر غیرفنی گم نشود.
 
 **قاعده:** Client Portal هیچ‌وقت pageهایی مانند Connector Logs، Command payload، GSC raw queries، API settings یا AI provider settings ندارد.
 

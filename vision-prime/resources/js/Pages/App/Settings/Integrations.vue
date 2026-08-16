@@ -133,7 +133,7 @@ function removeAiProvider(provider: string): void {
 
       <VCard
         title="اتصال وردپرس"
-        description="ارسال تغییرات اجرایی و همگام‌سازی محتوا از طریق پلاگین Vision Prime انجام می‌شود."
+        description="ارسال تغییرات اجرایی و همگام‌سازی محتوا از طریق پلاگین سوئیت انجام می‌شود."
       >
         <div class="flex items-center gap-3">
           <VBadge :tone="wordpress.pairedSites ? 'success' : 'neutral'">

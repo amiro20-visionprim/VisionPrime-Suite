@@ -8,6 +8,7 @@ use App\Http\Controllers\App\ClientController;
 use App\Http\Controllers\App\CommandController;
 use App\Http\Controllers\App\CommandDecisionController;
 use App\Http\Controllers\App\CommandDispatchController;
+use App\Http\Controllers\App\ContentCalendarController;
 use App\Http\Controllers\App\ConversionRiskController;
 use App\Http\Controllers\App\CurrentOrganizationController;
 use App\Http\Controllers\App\DashboardController;
@@ -127,6 +128,7 @@ Route::middleware(['auth', 'current.organization', 'client.portal'])->prefix('cl
     Route::get('/decisions', ClientDecisionsController::class)->name('client.decisions');
     Route::get('/activity', ClientActivityController::class)->name('client.activity');
     Route::post('/decisions/commands/{command}', [ClientDecisionController::class, 'command'])->name('client.decisions.command')->middleware('throttle:20,1');
+    Route::post('/decisions/questions', [ClientDecisionController::class, 'question'])->name('client.decisions.question')->middleware('throttle:10,1');
     Route::post('/decisions/reviews/{review}', [ClientDecisionController::class, 'review'])->name('client.decisions.review')->middleware('throttle:20,1');
 });
 
@@ -195,6 +197,10 @@ Route::middleware(['auth', 'current.organization'])->group(function (): void {
     Route::get('/app/reviews', [ReviewController::class, 'index'])->name('app.reviews.index');
     Route::get('/app/reviews/{review}', [ReviewDetailController::class, 'show'])->name('app.reviews.show');
     Route::post('/app/reviews/{review}/decision', [ReviewDecisionController::class, 'store'])->name('app.reviews.decision');
+
+    Route::get('/app/content-calendar', [ContentCalendarController::class, 'index'])->name('app.content-calendar.index');
+    Route::post('/app/content-calendar/commands/{command}/schedule', [ContentCalendarController::class, 'schedule'])->name('app.content-calendar.schedule')->middleware('throttle:20,1');
+    Route::post('/app/content-calendar/drafts', [ContentCalendarController::class, 'storeDraft'])->name('app.content-calendar.drafts.store')->middleware('throttle:10,1');
     Route::get('/app/reports', [ReportController::class, 'index'])->name('app.reports.index');
     Route::post('/app/reports', [ReportController::class, 'store'])->name('app.reports.store');
     Route::post('/app/reports/{report}/publish', [ReportPublishController::class, 'store'])->name('app.reports.publish');

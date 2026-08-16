@@ -1,4 +1,4 @@
-# Vision Prime — Atomic Delivery Plan
+# Vision Prime SUITE — Atomic Delivery Plan
 
 ## روش اجرا
 هر فاز فقط پس از گذر از Definition of Done بسته می‌شود. هر مورد زیر باید به Taskهای کوچک‌تر قابل انجام در یک PR/جلسه Agent شکسته شود: migration → model/policy → service/job → endpoint/controller → Vue page/component → states → tests → QA.

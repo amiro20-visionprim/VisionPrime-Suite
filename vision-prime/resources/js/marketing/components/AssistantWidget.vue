@@ -21,7 +21,7 @@ const supportForm = ref({ name: '', contact: '', message: '' })
 const supportStatus = ref<'idle' | 'sending' | 'success' | 'error'>('idle')
 
 const greeting =
-  'سلام 👋 من مشاور Vision Prime هستم؛ دانش‌ام همیشه با آخرین آپدیت‌های محصول همگام است. دربارهٔ معرفی، قیمت‌گذاری، دمو، امنیت، پرتال مشتری یا پشتیبانی بپرس — یا از سؤال‌های آماده شروع کن.'
+  'سلام 👋 من مشاور سوئیت هستم؛ دانش‌ام همیشه با آخرین آپدیت‌های محصول همگام است. دربارهٔ معرفی، قیمت‌گذاری، دمو، امنیت، پرتال مشتری یا پشتیبانی بپرس — یا از سؤال‌های آماده شروع کن.'
 
 function toggle(): void {
   open.value = !open.value
@@ -161,7 +161,7 @@ onMounted(() => {
       v-if="open"
       class="shadow-panel border-line bg-surface flex max-h-[min(600px,calc(100dvh-8rem))] w-[min(380px,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border"
       role="dialog"
-      aria-label="مشاور Vision Prime"
+      aria-label="مشاور سوئیت"
     >
       <!-- Header -->
       <div class="bg-brand-900 flex items-center justify-between gap-3 px-4 py-3 text-white">
@@ -172,7 +172,7 @@ onMounted(() => {
             >🤖</span
           >
           <div>
-            <p class="text-sm font-bold">مشاور Vision Prime</p>
+            <p class="text-sm font-bold">مشاور سوئیت</p>
             <p class="text-brand-200 flex items-center gap-1 text-xs">
               <span class="size-1.5 animate-pulse rounded-full bg-emerald-400" /> آنلاین — همیشه به‌روز
             </p>

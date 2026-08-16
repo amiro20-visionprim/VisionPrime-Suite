@@ -170,3 +170,58 @@
     transition: none;
   }
 }
+
+/* Staggered entrance: paired with the v-stagger directive */
+@utility vp-stagger-item {
+  opacity: 0;
+  transform: translateY(16px);
+  transition:
+    opacity 0.55s var(--ease-out),
+    transform 0.55s var(--ease-out);
+  transition-delay: var(--vp-stagger-delay, 0ms);
+  will-change: opacity, transform;
+}
+
+@utility vp-staggered {
+  .vp-stagger-item {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vp-stagger-item {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
+/* Inertia page transitions */
+.vp-page-enter-active {
+  transition:
+    opacity 0.28s var(--ease-out),
+    transform 0.28s var(--ease-out);
+}
+.vp-page-enter-from {
+  opacity: 0;
+  transform: translateY(10px);
+}
+.vp-page-leave-active {
+  transition: opacity 0.12s ease-out;
+}
+.vp-page-leave-to {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vp-page-enter-active,
+  .vp-page-leave-active {
+    transition: none;
+  }
+  .vp-page-enter-from,
+  .vp-page-leave-to {
+    opacity: 1;
+    transform: none;
+  }
+}

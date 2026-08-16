@@ -25,7 +25,7 @@ withDefaults(
               class="rounded-ui bg-brand-700 flex size-9 items-center justify-center text-sm font-bold text-white"
               >VP</span
             >
-            <span class="font-display text-lg font-bold">Vision Prime</span>
+            <span class="font-display text-lg font-bold">Vision Prime SUITE</span>
           </Link>
           <div class="mt-10 max-w-md">
             <h1 class="text-page-title font-display text-ink-strong font-bold">{{ title }}</h1>
@@ -47,7 +47,7 @@ withDefaults(
           دهید.
         </p>
         <div class="text-brand-100 mt-12 border-t border-white/15 pt-6 text-sm leading-7">
-          تمام فعالیت‌های حساس در Vision Prime قابل بررسی، تأیید و ثبت هستند.
+          تمام فعالیت‌های حساس در سوئیت قابل بررسی، تأیید و ثبت هستند.
         </div>
       </aside>
     </div>

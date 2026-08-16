@@ -19,6 +19,12 @@ import VTooltip from '@/shared/ui/VTooltip.vue'
 import VPageHeader from '@/shared/ui/VPageHeader.vue'
 import VPagination from '@/shared/ui/VPagination.vue'
 import VTable, { type TableColumn, type TableRow } from '@/shared/ui/VTable.vue'
+import VIcon from '@/shared/ui/VIcon.vue'
+import VStatCard, { type StatTrend } from '@/shared/ui/VStatCard.vue'
+import VGuideTip from '@/shared/ui/VGuideTip.vue'
+import VBarChart, { type BarDatum } from '@/shared/ui/VBarChart.vue'
+import VAreaChart, { type AreaPoint } from '@/shared/ui/VAreaChart.vue'
+import VDoughnut, { type DoughnutDatum } from '@/shared/ui/VDoughnut.vue'
 
 interface ColorToken {
   name: string
@@ -91,6 +97,74 @@ const siteOptions: SelectOption[] = [
   { label: 'سایت خدماتی', value: 'services' },
   { label: 'مجله و محتوا', value: 'content' },
 ]
+
+const statCards = [
+  {
+    label: 'بازدید از گوگل (این ماه)',
+    value: 18420,
+    icon: 'eye' as const,
+    iconTone: 'brand' as const,
+    trend: 'up' as StatTrend,
+    trendLabel: '۱۸٪ نسبت به ماه قبل',
+    hint: 'تعداد دفعاتی که سایت شما در نتایج جستجوی گوگل دیده شده است.',
+  },
+  {
+    label: 'کلیک روی لینک شما',
+    value: 1245,
+    icon: 'trend-up' as const,
+    iconTone: 'success' as const,
+    trend: 'up' as StatTrend,
+    trendLabel: '۲۲٪ نسبت به ماه قبل',
+    hint: 'چند بار کاربران از گوگل وارد سایت شما شده‌اند.',
+  },
+  {
+    label: 'نرخ جذابیت (CTR)',
+    value: 4.2,
+    icon: 'gauge' as const,
+    iconTone: 'warning' as const,
+    format: 'percent' as const,
+    trend: 'flat' as StatTrend,
+    trendLabel: 'بدون تغییر',
+    hint: 'از هر ۱۰۰ نمایش، چند بار کاربر وارد سایت شما شده است.',
+  },
+  {
+    label: 'منتظر تصمیم شما',
+    value: 3,
+    icon: 'user-check' as const,
+    iconTone: 'violet' as const,
+    trend: 'flat' as StatTrend,
+    trendLabel: 'نیاز به نگاه شما',
+    hint: 'پیشنهادهایی که منتظر تأیید شماست؛ بدون تأیید هیچ تغییری اعمال نمی‌شود.',
+  },
+]
+
+const barData: BarDatum[] = [
+  { label: 'اردیبهشت', value: 8100, muted: true },
+  { label: 'خرداد', value: 9800, muted: true },
+  { label: 'تیر', value: 9200, muted: true },
+  { label: 'مرداد', value: 12900 },
+  { label: 'شهریور', value: 14600 },
+  { label: 'مهر', value: 18400, highlight: true },
+]
+
+const areaPoints: AreaPoint[] = [
+  { label: '۱ تیر', value: 210 },
+  { label: '۸ تیر', value: 245 },
+  { label: '۱۵ تیر', value: 228 },
+  { label: '۲۲ تیر', value: 310 },
+  { label: '۲۹ تیر', value: 352 },
+  { label: '۵ مرداد', value: 388 },
+  { label: '۱۲ مرداد', value: 461 },
+  { label: '۱۹ مرداد', value: 445 },
+  { label: '۲۶ مرداد', value: 522 },
+]
+
+const doughnutData: DoughnutDatum[] = [
+  { label: 'جستجوی مستقیم', value: 42, color: '#245c9b' },
+  { label: 'گوگل', value: 35, color: '#4f46e5' },
+  { label: 'شبکه‌های اجتماعی', value: 15, color: '#7c3aed' },
+  { label: 'سایر', value: 8, color: '#c7ddf2' },
+]
 </script>
 
 <template>
@@ -99,7 +173,7 @@ const siteOptions: SelectOption[] = [
   <main class="bg-canvas min-h-screen px-5 py-10 sm:px-8 lg:px-12" dir="rtl">
     <div class="mx-auto max-w-6xl space-y-10">
       <header class="border-line border-b pb-8">
-        <p class="text-brand-700 text-sm font-bold tracking-wide">VISION PRIME / DEVELOPMENT</p>
+        <p class="text-brand-700 text-sm font-bold tracking-wide">VISION PRIME SUITE / DEVELOPMENT</p>
         <h1 class="font-display text-display text-ink-strong mt-3 font-bold">سیستم طراحی</h1>
         <p class="text-ink-muted mt-3 max-w-2xl leading-8">
           مرجع بصری tokenها و الگوهای پایه. این صفحه برای کنترل یکپارچگی طراحی در توسعه نگه‌داری
@@ -126,6 +200,57 @@ const siteOptions: SelectOption[] = [
               <code class="font-latin text-ink-muted">{{ color.value }}</code>
             </div>
           </article>
+        </div>
+      </section>
+
+      <section aria-labelledby="kpi-heading">
+        <h2 id="kpi-heading" class="text-section-title text-ink-strong font-bold">
+          کارت‌های آمار (VStatCard)
+        </h2>
+        <p class="text-ink-muted mt-1 mb-5 text-sm">
+          کارت KPI با آیکون، شمارندهٔ متحرک، روند و نکتهٔ راهنمای «💡» — مخصوص کاربر غیرفنی.
+        </p>
+        <div v-stagger class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <VStatCard
+            v-for="card in statCards"
+            :key="card.label"
+            v-bind="card"
+          />
+        </div>
+      </section>
+
+      <section aria-labelledby="charts-heading">
+        <h2 id="charts-heading" class="text-section-title text-ink-strong font-bold">چارت‌ها</h2>
+        <p class="text-ink-muted mt-1 mb-5 text-sm">
+          چارت‌های گرادیانی با انیمیشن ورود و tooltip — بدون وابستگی جدید (SVG سفارشی).
+        </p>
+        <div class="grid gap-5 lg:grid-cols-3">
+          <VCard title="میله‌ای (VBarChart)" description="مقایسهٔ ماهانه — ماه‌های خنثی با مقایسهٔ قبل">
+            <VBarChart :data="barData" unit=" بازدید" aria-label="بازدید ماهانه" />
+          </VCard>
+          <VCard title="مساحت (VAreaChart)" description="روند هفتگی با گرادیان و tooltip">
+            <VAreaChart :points="areaPoints" unit=" کلیک" aria-label="روند کلیک هفتگی" />
+          </VCard>
+          <VCard title="دونات (VDoughnut)" description="سهم منابع ترافیک">
+            <VDoughnut :data="doughnutData" center-label="جمع" center-value="۱۰۰٪" />
+          </VCard>
+        </div>
+      </section>
+
+      <section aria-labelledby="icons-heading">
+        <h2 id="icons-heading" class="text-section-title text-ink-strong font-bold">آیکون‌ها (VIcon)</h2>
+        <p class="text-ink-muted mt-1 mb-5 text-sm">
+          نگاشت یکپارچهٔ آیکون‌ها؛ هر وضعیت در کل سوئیت یک آیکون ثابت دارد.
+        </p>
+        <div class="rounded-card border-line bg-surface shadow-card flex flex-wrap gap-5 border p-6">
+          <div v-for="name in (['eye','trend-up','trend-down','check','x','user-check','clock','calendar','sparkles','support'] as const)" :key="name" class="flex items-center gap-2">
+            <VIcon :name="name" tone="brand" size="lg" />
+            <span class="font-latin text-ink-muted text-xs">{{ name }}</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <VGuideTip text="مثلاً: بدون تأیید شما هیچ تغییری روی سایت اعمال نمی‌شود." />
+            <span class="text-ink-muted text-xs">VGuideTip (نگه‌دارید)</span>
+          </div>
         </div>
       </section>
 
@@ -328,7 +453,7 @@ const siteOptions: SelectOption[] = [
           <h2 class="text-section-title text-ink-strong font-bold">تایپوگرافی</h2>
           <div class="mt-6 space-y-5">
             <p class="font-display text-display text-ink-strong font-bold">
-              تیتر نمایشی Vision Prime
+              تیتر نمایشی سوئیت
             </p>
             <p class="text-page-title text-ink-strong font-bold">عنوان اصلی صفحه</p>
             <p class="text-section-title text-ink-strong font-semibold">عنوان بخش</p>

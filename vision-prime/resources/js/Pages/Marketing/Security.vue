@@ -22,7 +22,7 @@ const controls = [
   <MarketingLayout>
     <MarketingPageHero
       title="اتوماسیون مفید، فقط زمانی ارزشمند است که قابل کنترل و قابل پاسخ‌گویی باشد."
-      description="Vision Prime امنیت را به‌عنوان یک تنظیم جانبی نمی‌بیند؛ امنیت بخشی از طراحی جریان داده، AI و تغییرات وردپرس است."
+      description="سوئیت امنیت را به‌عنوان یک تنظیم جانبی نمی‌بیند؛ امنیت بخشی از طراحی جریان داده، AI و تغییرات وردپرس است."
     />
     <section class="mx-auto max-w-7xl px-5 py-16 sm:px-8 lg:px-10 lg:py-20">
       <div class="grid gap-5 md:grid-cols-2">

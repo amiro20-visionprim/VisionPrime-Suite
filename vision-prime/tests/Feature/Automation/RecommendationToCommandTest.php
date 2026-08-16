@@ -79,7 +79,7 @@ class RecommendationToCommandTest extends TestCase
             ->post("/app/recommendations/{$recommendation->id}/command", [
                 'type' => 'update_meta_title',
                 'target_url' => 'https://example.ir/services',
-                'new_value' => 'خدمات سئو حرفه‌ای | Vision Prime',
+                'new_value' => 'خدمات سئو حرفه‌ای | Vision Prime SUITE',
             ])
             ->assertRedirect()
             ->assertSessionHas('status');
@@ -95,7 +95,7 @@ class RecommendationToCommandTest extends TestCase
         $this->assertSame('update_meta_title', $command->type);
         $this->assertSame($site->id, $command->site_id);
         $this->assertSame(
-            ['url' => 'https://example.ir/services', 'title' => 'خدمات سئو حرفه‌ای | Vision Prime'],
+            ['url' => 'https://example.ir/services', 'title' => 'خدمات سئو حرفه‌ای | Vision Prime SUITE'],
             json_decode($command->payload, true),
         );
         $this->assertTrue(now()->lt($command->expires_at));

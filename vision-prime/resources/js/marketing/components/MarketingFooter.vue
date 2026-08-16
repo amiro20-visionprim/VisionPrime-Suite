@@ -40,7 +40,7 @@ const contactLinks = [
             class="rounded-ui bg-brand-700 flex size-9 items-center justify-center text-sm font-bold text-white"
             >VP</span
           >
-          <span class="font-display text-lg font-bold">Vision Prime</span>
+          <span class="font-display text-lg font-bold">Vision Prime SUITE</span>
         </Link>
         <p class="text-ink-muted mt-4 max-w-sm leading-7">
           پلتفرم هوشمند عملیات، کنترل تغییرات و گزارش‌دهی SEO برای سایت‌های وردپرسی.
@@ -63,7 +63,7 @@ const contactLinks = [
         </ul>
       </div>
       <div>
-        <h2 class="text-ink-strong text-sm font-bold">Vision Prime</h2>
+        <h2 class="text-ink-strong text-sm font-bold">Vision Prime SUITE</h2>
         <ul class="mt-4 space-y-3 text-sm">
           <li v-for="item in companyLinks" :key="item.href">
             <Link :href="item.href" class="text-ink hover:text-brand-700">{{ item.label }}</Link>

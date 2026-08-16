@@ -9,7 +9,7 @@ withDefaults(
     rows?: AudienceMatrixRow[]
   }>(),
   {
-    title: 'چرا Vision Prime، نه یک سئوکار تمام‌وقت یا ابزار خارجی؟',
+    title: 'چرا سوئیت، نه یک سئوکار تمام‌وقت یا ابزار خارجی؟',
     description:
       'مقایسه بر اساس سناریوهای رایج در همین حوزه — صادقانه، نه با وعده‌های تبلیغاتی.',
     rows: () => [],
@@ -30,7 +30,7 @@ withDefaults(
             <th
               class="bg-gradient-brand text-white rounded-t-xl px-4 py-3 text-center font-bold"
             >
-              Vision Prime
+              سوئیت
             </th>
             <th class="text-ink-muted px-4 py-3 text-center font-medium">سئوکار تمام‌وقت</th>
             <th class="text-ink-muted px-4 py-3 text-center font-medium">ابزارهای SaaS خارجی</th>

@@ -9,6 +9,7 @@ use App\Domains\Automation\Actions\AutoPublish;
 use App\Domains\Automation\Actions\CreateArticlePublishCommand;
 use App\Domains\Workspace\Models\Site;
 use App\Models\User;
+use Illuminate\Support\Carbon;
 
 class DecideReviewItem
 {
@@ -20,11 +21,13 @@ class DecideReviewItem
 
     /**
      * ثبت تصمیم بازبین و در صورت تأیید پیش‌نویس مقاله/محصول، ساخت کامند publish_new_article
-     * و اجرای فوری گیت‌های auto_publish (فاز ۲).
+     * و اجرای فوری گیت‌های auto_publish (فاز ۲). اگر scheduledFor داده شود، به‌جای انتشار
+     * فوری، کامند زمان‌بندی می‌شود (status=scheduled) تا job آزادسازی در موعد آن را از
+     * AutoPublish عبور دهد (تقویم محتوایی).
      *
-     * @return array{status: string, command_id?: int, auto_publish_decision?: string, auto_publish_reason?: string}
+     * @return array{status: string, command_id?: int, auto_publish_decision?: string, auto_publish_reason?: string, scheduled_for?: string|null}
      */
-    public function handle(int $reviewId, User $reviewer, string $decision, ?string $note = null): array
+    public function handle(int $reviewId, User $reviewer, string $decision, ?string $note = null, ?string $scheduledFor = null): array
     {
         $item = \DB::table('review_items')->where('id', $reviewId)->firstOrFail();
         abort_unless($item->assigned_to === null || $item->assigned_to === $reviewer->id, 403);
@@ -54,6 +57,31 @@ class DecideReviewItem
         try {
             $site = Site::query()->findOrFail($generation->site_id);
             $commandId = $this->createArticlePublish->handle($site, (int) $generation->id);
+
+            // تقویم محتوایی: موعد از خود پیش‌نویس (ساخت از تقویم) یا پارامتر تأیید —
+            // فقط اگر موعد در آینده باشد کامند زمان‌بندی می‌شود، نه انتشار فوری
+            $effectiveScheduledFor = $scheduledFor ?? ($generation->scheduled_for ?? null);
+            if ($effectiveScheduledFor !== null && Carbon::parse($effectiveScheduledFor)->gt(now())) {
+                $scheduledAt = Carbon::parse($effectiveScheduledFor);
+                \DB::table('commands')->where('id', $commandId)->update([
+                    'status' => 'scheduled',
+                    'scheduled_for' => $scheduledAt->toDateTimeString(),
+                    'updated_at' => now(),
+                ]);
+                $this->audit->handle(
+                    action: 'article_draft.scheduled_pipeline',
+                    subject: $site,
+                    after: [
+                        'review_id' => $reviewId,
+                        'generation_id' => (int) $generation->id,
+                        'command_id' => $commandId,
+                        'scheduled_for' => $scheduledAt->toDateTimeString(),
+                    ],
+                );
+
+                return ['status' => $decision, 'command_id' => $commandId, 'scheduled_for' => $scheduledAt->toDateTimeString()];
+            }
+
             $result = $this->autoPublish->handle($commandId);
 
             $this->audit->handle(

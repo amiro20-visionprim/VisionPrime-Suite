@@ -1,4 +1,4 @@
-# Vision Prime — Phase 1 Implementation Blueprint
+# Vision Prime SUITE — Phase 1 Implementation Blueprint
 
 ## هدف Phase 1
 ساخت یک foundation اجرایی، RTL-first، قابل توسعه و secure که Marketing، Operations App و Client Portal روی یک Design System مشترک اجرا شوند؛ بدون ورود به business logic ماژول‌های SEO.
@@ -134,7 +134,7 @@ auth/layouts/AuthLayout.vue
 
 ## Environment Contract اولیه
 ```text
-APP_NAME="Vision Prime"
+APP_NAME="Vision Prime SUITE"
 APP_ENV=local
 APP_URL=
 DB_CONNECTION=pgsql

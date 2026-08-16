@@ -1,4 +1,4 @@
-# Vision Prime
+# Vision Prime SUITE
 
 Premium SEO intelligence and WordPress growth operations platform.
 

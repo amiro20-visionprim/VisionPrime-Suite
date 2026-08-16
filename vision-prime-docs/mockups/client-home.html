@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>خانهٔ مشتری — ویژن پرایم سوئیت (mockup)</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&display=swap');
+  :root{
+    --brand:#2b6cb0; --brand-2:#3182ce; --brand-3:#63b3ed;
+    --grad:linear-gradient(135deg,#2b6cb0 0%,#4299e1 55%,#63b3ed 100%);
+    --green:#38a169; --green-bg:#e6fffa; --amber:#d69e2e; --amber-bg:#fefcbf;
+    --red:#e53e3e; --red-bg:#fff5f5;
+    --ink:#1a202c; --muted:#718096; --line:#e2e8f0; --bg:#f7fafc; --card:#ffffff;
+    --radius:16px; --shadow:0 1px 3px rgba(26,32,44,.06),0 8px 24px rgba(26,32,44,.06);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Vazirmatn',Tahoma,sans-serif;background:var(--bg);color:var(--ink);line-height:1.9}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 24px}
+
+  /* ===== Header ===== */
+  header{background:rgba(255,255,255,.85);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:50}
+  .hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 0}
+  .brand{display:flex;align-items:center;gap:12px}
+  .logo{width:42px;height:42px;border-radius:12px;background:var(--grad);display:grid;place-items:center;color:#fff;font-weight:800;font-size:18px;box-shadow:0 4px 12px rgba(43,108,176,.35)}
+  .brand h1{font-size:17px;font-weight:700}
+  .brand small{display:block;font-size:11px;color:var(--muted);font-weight:400}
+  .hdr-actions{display:flex;align-items:center;gap:10px}
+  .agency{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+  .agency .dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 3px var(--green-bg)}
+  .btn{display:inline-flex;align-items:center;gap:8px;border:none;border-radius:12px;padding:10px 18px;font-family:inherit;font-size:13.5px;font-weight:600;cursor:pointer;transition:.2s}
+  .btn-ghost{background:#edf2f7;color:var(--ink)}
+  .btn-ghost:hover{background:#e2e8f0}
+  .btn-brand{background:var(--grad);color:#fff;box-shadow:0 4px 14px rgba(43,108,176,.35)}
+  .btn-brand:hover{transform:translateY(-1px)}
+
+  /* ===== Hero banner ===== */
+  .banner{margin:28px 0 22px;border-radius:var(--radius);padding:22px 26px;display:flex;align-items:center;gap:16px;animation:rise .5s ease both}
+  .banner.good{background:linear-gradient(120deg,#f0fff4 0%,#e6fffa 100%);border:1px solid #c6f6d5}
+  .banner.attn{background:linear-gradient(120deg,#fffaf0 0%,#fff5f5 100%);border:1px solid #fbd38d}
+  .banner .emoji{font-size:34px;flex-shrink:0}
+  .banner h2{font-size:16.5px;font-weight:700;margin-bottom:2px}
+  .banner p{font-size:13.5px;color:#4a5568}
+  .banner .go{margin-inline-start:auto}
+
+  /* ===== KPI cards ===== */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);position:relative;animation:rise .5s ease both;transition:.25s}
+  .kpi:hover{transform:translateY(-3px);box-shadow:0 12px 28px rgba(26,32,44,.1)}
+  .kpi:nth-child(1){animation-delay:.05s}.kpi:nth-child(2){animation-delay:.12s}.kpi:nth-child(3){animation-delay:.19s}.kpi:nth-child(4){animation-delay:.26s}
+  .kpi-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+  .kpi .ico{width:38px;height:38px;border-radius:11px;display:grid;place-items:center}
+  .kpi .ico svg{width:20px;height:20px}
+  .ico.blue{background:#ebf8ff;color:var(--brand-2)}.ico.green{background:#e6fffa;color:var(--green)}
+  .ico.amber{background:#fefcbf;color:#b7791f}.ico.purple{background:#faf5ff;color:#805ad5}
+  .tip{cursor:help;font-size:14px;line-height:1;width:22px;height:22px;border-radius:50%;background:#edf2f7;display:grid;place-items:center;color:var(--brand-2);position:relative}
+  .tip:hover::after{content:attr(data-tip);position:absolute;top:calc(100% + 8px);inset-inline-end:0;width:230px;background:#1a202c;color:#fff;font-size:12px;line-height:1.8;padding:10px 12px;border-radius:10px;z-index:20;font-weight:400;box-shadow:var(--shadow)}
+  .kpi .val{font-size:30px;font-weight:800;letter-spacing:-.5px}
+  .kpi .val .unit{font-size:14px;font-weight:600;color:var(--muted)}
+  .kpi .lbl{font-size:13px;color:var(--muted);margin-top:2px}
+  .kpi .trend{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;margin-top:10px;padding:3px 10px;border-radius:99px}
+  .trend.up{background:var(--green-bg);color:var(--green)}
+  .trend.flat{background:#edf2f7;color:var(--muted)}
+
+  /* ===== Grid: left = decisions, right = chart ===== */
+  .row{display:grid;grid-template-columns:1.05fr .95fr;gap:18px;margin-top:22px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px;animation:rise .5s ease both}
+  .card .hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+  .card .hd h3{font-size:15px;font-weight:700}
+  .card .hd .badge{font-size:11.5px;font-weight:600;color:var(--amber);background:var(--amber-bg);padding:3px 10px;border-radius:99px}
+  .pend{display:flex;align-items:center;gap:14px;padding:14px;border:1px solid var(--line);border-radius:13px;margin-bottom:12px;background:#fafbfc;transition:.2s}
+  .pend:hover{border-color:var(--brand-3);background:#fff}
+  .pend .pico{width:42px;height:42px;border-radius:12px;background:#ebf8ff;display:grid;place-items:center;flex-shrink:0}
+  .pend .pico svg{width:22px;height:22px;color:var(--brand-2)}
+  .pend .txt{flex:1}
+  .pend .txt b{font-size:13.5px;display:block}
+  .pend .txt span{font-size:12px;color:var(--muted)}
+  .pend .acts{display:flex;gap:7px}
+  .mini{width:34px;height:34px;border-radius:10px;border:1px solid var(--line);background:#fff;cursor:pointer;font-size:15px;transition:.15s}
+  .mini.ok:hover{background:var(--green-bg);border-color:var(--green)}
+  .mini.no:hover{background:var(--red-bg);border-color:var(--red)}
+  .mini.ask:hover{background:#ebf8ff;border-color:var(--brand-3)}
+  .askline{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
+
+  /* ===== Chart ===== */
+  .chart{padding-bottom:6px}
+  .legend{display:flex;gap:16px;font-size:12px;color:var(--muted);margin-bottom:10px}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-inline-end:5px}
+  .bars{display:flex;align-items:flex-end;gap:10px;height:170px;padding-top:8px}
+  .barcol{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end}
+  .bar{width:70%;max-width:34px;border-radius:8px 8px 4px 4px;position:relative;background:var(--grad);animation:grow .9s cubic-bezier(.2,.8,.2,1) both;transform-origin:bottom}
+  .bar::after{content:attr(data-v);position:absolute;top:-22px;inset-inline:0;text-align:center;font-size:10.5px;color:var(--muted);font-weight:600}
+  .bar.mut{background:#e2e8f0}
+  .barcol span{font-size:11px;color:var(--muted)}
+  .barcol.today .bar{background:var(--amber)}
+  .hint{margin-top:14px;font-size:12.5px;color:var(--muted);background:#fafbfc;border:1px dashed var(--line);border-radius:10px;padding:10px 12px;display:flex;gap:8px;align-items:flex-start}
+
+  /* ===== Bottom: opportunities + activity ===== */
+  .row2{display:grid;grid-template-columns:1.05fr .95fr;gap:18px;margin-top:18px}
+  .opp{display:flex;gap:14px;align-items:flex-start;padding:13px;border:1px solid var(--line);border-radius:13px;margin-bottom:11px;transition:.2s;background:#fafbfc}
+  .opp:hover{border-color:var(--brand-3);transform:translateY(-1px);background:#fff}
+  .rank{width:30px;height:30px;border-radius:9px;font-size:13px;font-weight:800;display:grid;place-items:center;flex-shrink:0;color:#fff;background:var(--grad)}
+  .rank.soft{background:#a0aec0}
+  .opp .t b{font-size:13.5px;display:block}
+  .opp .t p{font-size:12px;color:var(--muted);margin-top:2px}
+  .opp .gain{margin-inline-start:auto;text-align:center;flex-shrink:0}
+  .opp .gain b{font-size:15px;color:var(--green);font-weight:800}
+  .opp .gain span{display:block;font-size:10.5px;color:var(--muted)}
+  .act{display:flex;gap:12px;align-items:center;padding:10px 0;border-bottom:1px dashed var(--line)}
+  .act:last-child{border:none}
+  .act .ai{width:34px;height:34px;border-radius:10px;background:#edf2f7;display:grid;place-items:center;font-size:15px;flex-shrink:0}
+  .act .tx{flex:1;font-size:12.5px}
+  .act .tx b{font-weight:600}
+  .act time{font-size:11px;color:var(--muted)}
+
+  /* ===== Assistant ===== */
+  .fab{position:fixed;bottom:26px;inset-inline-end:26px;width:58px;height:58px;border-radius:50%;background:var(--grad);color:#fff;display:grid;place-items:center;box-shadow:0 10px 26px rgba(43,108,176,.45);cursor:pointer;z-index:60;animation:pulse 2.6s infinite}
+  .fab svg{width:26px;height:26px}
+  .fab .ping{position:absolute;top:2px;inset-inline-end:2px;width:13px;height:13px;border-radius:50%;background:var(--red);border:2.5px solid #fff}
+  .chat{position:fixed;bottom:96px;inset-inline-end:26px;width:330px;background:#fff;border-radius:18px;box-shadow:0 20px 50px rgba(26,32,44,.22);z-index:60;overflow:hidden;display:none;border:1px solid var(--line)}
+  .chat.open{display:block;animation:rise .25s ease both}
+  .chat .chead{background:var(--grad);color:#fff;padding:14px 16px;font-size:14px;font-weight:700;display:flex;align-items:center;gap:10px}
+  .chat .chead .sdot{width:9px;height:9px;border-radius:50%;background:#9ae6b4;animation:blink 1.6s infinite}
+  .chat .cbody{padding:14px;min-height:150px}
+  .msg{font-size:12.5px;border-radius:12px;padding:9px 12px;margin-bottom:9px;max-width:88%;line-height:1.8}
+  .msg.bot{background:#edf2f7;color:var(--ink)}
+  .msg.quick{margin-inline-start:auto;background:#ebf8ff;color:var(--brand-2);border:1px solid #bee3f8;cursor:pointer}
+  .chat .cinput{display:flex;gap:8px;padding:10px 14px;border-top:1px solid var(--line)}
+  .chat .cinput input{flex:1;border:1px solid var(--line);border-radius:10px;padding:9px 12px;font-family:inherit;font-size:12.5px;outline:none}
+  .chat .cinput input:focus{border-color:var(--brand-3)}
+  .chat .cinput button{background:var(--grad);border:none;color:#fff;border-radius:10px;padding:0 16px;font-family:inherit;font-weight:700;cursor:pointer;font-size:12.5px}
+
+  footer{margin-top:46px;padding:26px 0;border-top:1px solid var(--line);text-align:center;font-size:12px;color:var(--muted)}
+  footer b{color:var(--brand-2)}
+
+  @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+  @keyframes grow{from{height:0}}
+  @keyframes pulse{0%,100%{box-shadow:0 10px 26px rgba(43,108,176,.45)}50%{box-shadow:0 10px 34px rgba(43,108,176,.65)}}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
+
+  @media(max-width:960px){.kpis{grid-template-columns:1fr 1fr}.row,.row2{grid-template-columns:1fr}}
+  @media(max-width:560px){.kpis{grid-template-columns:1fr}.agency{display:none}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap hdr">
+    <div class="brand">
+      <div class="logo">VP</div>
+      <div>
+        <h1>آژانس ویژن پرایم</h1>
+        <small>قدرت‌گرفته از <b style="color:var(--brand-2)">ویژن پرایم سوئیت</b></small>
+      </div>
+    </div>
+    <div class="hdr-actions">
+      <span class="agency"><span class="dot"></span> آنلاین</span>
+      <button class="btn btn-ghost" onclick="toggleChat()">💬 راهنما و پشتیبانی</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- بنر هوشمند -->
+  <div class="banner good">
+    <span class="emoji">🎉</span>
+    <div>
+      <h2>خبر خوب: سایت شما این ماه بیشتر دیده شده!</h2>
+      <p>در یک ماه گذشته، بازدید سایت شما از طریق جستجوی گوگل <b style="color:var(--green)">+۱۸٪</b> رشد کرده. این یعنی مخاطب‌های بیشتری شما را پیدا می‌کنند.</p>
+    </div>
+    <button class="btn btn-brand go" onclick="scrollToId('growth')">مشاهدهٔ رشد من ←</button>
+  </div>
+
+  <!-- KPI -->
+  <section class="kpis">
+    <div class="kpi">
+      <div class="kpi-top">
+        <div class="ico blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></div>
+        <span class="tip" data-tip="تعداد دفعاتی که سایت شما در نتایج جستجوی گوگل دیده شده است.">💡</span>
+      </div>
+      <div class="val">18,420</div>
+      <div class="lbl">بازدید از گوگل (این ماه)</div>
+      <span class="trend up">▲ ۱۸٪ نسبت به ماه قبل</span>
+    </div>
+    <div class="kpi">
+      <div class="kpi-top">
+        <div class="ico green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 7l-8.5 8.5-5-5L2 17"/><path d="M16 7h6v6"/></svg></div>
+        <span class="tip" data-tip="تعداد افرادی که روی لینک سایت شما کلیک کرده‌اند؛ رشد آن یعنی جذب بیشتر.">💡</span>
+      </div>
+      <div class="val">1,245</div>
+      <div class="lbl">کلیک روی لینک شما</div>
+      <span class="trend up">▲ ۲۲٪ نسبت به ماه قبل</span>
+    </div>
+    <div class="kpi">
+      <div class="kpi-top">
+        <div class="ico amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg></div>
+        <span class="tip" data-tip="تعداد صفحه‌هایی که در گوگل جای خوبی دارند ولی می‌توانند بازدید بیشتری بگیرند.">💡</span>
+      </div>
+      <div class="val">14</div>
+      <div class="lbl">فرصت‌های رشد</div>
+      <span class="trend up">▲ ۵ فرصت جدید</span>
+    </div>
+    <div class="kpi">
+      <div class="kpi-top">
+        <div class="ico purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg></div>
+        <span class="tip" data-tip="پیشنهادهایی که تیم ما آماده کرده و منتظر تأیید شماست؛ بدون تأیید شما هیچ تغییری روی سایت انجام نمی‌شود.">💡</span>
+      </div>
+      <div class="val">3</div>
+      <div class="lbl">منتظر تصمیم شما</div>
+      <span class="trend flat">نیاز به نگاه شما 👀</span>
+    </div>
+  </section>
+
+  <!-- تصمیم‌ها + چارت -->
+  <div class="row">
+    <div class="card">
+      <div class="hd">
+        <h3>📋 چیزهایی که منتظر تصمیم شماست</h3>
+        <span class="badge">۳ مورد</span>
+      </div>
+      <div class="pend">
+        <div class="pico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg></div>
+        <div class="txt">
+          <b>بهبود عنوان صفحهٔ «خدمات دندانپزشکی»</b>
+          <span>چرا؟ چون این صفحه زیاد دیده می‌شود ولی کلیک کمی می‌گیرد. عنوان جدید جذاب‌تر است.</span>
+        </div>
+        <div class="acts">
+          <button class="mini ok" title="تأیید">✅</button>
+          <button class="mini ask" title="سؤال از تیم">❓</button>
+          <button class="mini no" title="رد">✖️</button>
+        </div>
+      </div>
+      <div class="pend">
+        <div class="pico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg></div>
+        <div class="txt">
+          <b>انتشار مقالهٔ «بهترین زمان برای ارتودنسی»</b>
+          <span>چرا؟ این موضوع را مردم زیاد جستجو می‌کنند و سایت شما هنوز درباره‌اش مطلب ندارد.</span>
+        </div>
+        <div class="acts">
+          <button class="mini ok" title="تأیید">✅</button>
+          <button class="mini ask" title="سؤال از تیم">❓</button>
+          <button class="mini no" title="رد">✖️</button>
+        </div>
+      </div>
+      <div class="pend">
+        <div class="pico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg></div>
+        <div class="txt">
+          <b>نکتهٔ مهم: صفحهٔ «تعرفه‌ها» بهتر می‌شود</b>
+          <span>چرا؟ کسانی که این صفحه را می‌بینند معمولاً آمادهٔ تماس‌اند؛ فقط کافی است اطلاعات کامل‌تر شود.</span>
+        </div>
+        <div class="acts">
+          <button class="mini ok" title="تأیید">✅</button>
+          <button class="mini ask" title="سؤال از تیم">❓</button>
+          <button class="mini no" title="رد">✖️</button>
+        </div>
+      </div>
+      <p class="askline">💡 مطمئن نیستی؟ دکمهٔ «سؤال از تیم» را بزن — تیم ما برایت توضیح می‌دهد، بدون اینکه چیزی روی سایت تغییر کند.</p>
+    </div>
+
+    <div class="card chart" id="growth">
+      <div class="hd">
+        <h3>📈 رشد بازدید شما، ماه به ماه</h3>
+        <span class="badge" style="color:var(--green);background:var(--green-bg)">رو به رشد</span>
+      </div>
+      <div class="legend">
+        <span><i style="background:var(--brand-2)"></i>بازدید از گوگل</span>
+        <span><i style="background:#e2e8f0"></i>ماه قبل</span>
+        <span><i style="background:var(--amber)"></i>امروز</span>
+      </div>
+      <div class="bars">
+        <div class="barcol"><div class="bar mut" style="height:34%" data-v="8.1k"></div><span>اردیبهشت</span></div>
+        <div class="barcol"><div class="bar mut" style="height:42%" data-v="9.8k"></div><span>خرداد</span></div>
+        <div class="barcol"><div class="bar mut" style="height:39%" data-v="9.2k"></div><span>تیر</span></div>
+        <div class="barcol"><div class="bar" style="height:55%" data-v="12.9k"></div><span>مرداد</span></div>
+        <div class="barcol"><div class="bar" style="height:62%" data-v="14.6k"></div><span>شهریور</span></div>
+        <div class="barcol"><div class="bar" style="height:78%" data-v="18.4k"></div><span>مهر</span></div>
+        <div class="barcol today"><div class="bar" style="height:46%" data-v="امروز"></div><span>امروز</span></div>
+      </div>
+      <div class="hint">💡 از مرداد به بعد رشد را شروع کردیم؛ اولین تغییرات تأییدشده توسط شما دقیقاً از همان زمان روی سایت اعمال شدند.</div>
+    </div>
+  </div>
+
+  <!-- فرصت‌ها + فعالیت‌ها -->
+  <div class="row2">
+    <div class="card">
+      <div class="hd"><h3>🎯 کجا می‌توانیم بهتر شویم؟</h3></div>
+      <div class="opp">
+        <div class="rank">۱</div>
+        <div class="t">
+          <b>صفحهٔ «لمینت دندان» — نزدیک به نتیجه!</b>
+          <p>این صفحه رتبهٔ ۶ گوگل را دارد؛ با یک اصلاح کوچک شانس رسیدن به صفحهٔ اول خیلی زیاد است.</p>
+        </div>
+        <div class="gain"><b>~+40</b><span>بازدید ماهانهٔ بیشتر</span></div>
+      </div>
+      <div class="opp">
+        <div class="rank">۲</div>
+        <div class="t">
+          <b>مطلب تازهٔ «ایمپلنت فوری»</b>
+          <p>مردم این موضوع را ماهی ۳۰۰ بار جستجو می‌کنند و هنوز مطلب کاملی در سایت شما نیست.</p>
+        </div>
+        <div class="gain"><b>~+90</b><span>بازدید ماهانهٔ بیشتر</span></div>
+      </div>
+      <div class="opp">
+        <div class="rank soft">۳</div>
+        <div class="t">
+          <b>صفحهٔ «درباره ما» — اطلاعات قدیمی</b>
+          <p>بازدیدکننده‌ها بعد از دیدن این صفحه کمتر تماس می‌گیرند؛ به‌روزرسانی آن اعتماد را بالا می‌برد.</p>
+        </div>
+        <div class="gain"><b>+12٪</b><span>احتمال تماس بیشتر</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="hd"><h3>🕘 آخرین فعالیت‌ها</h3></div>
+      <div class="act"><div class="ai">✅</div><div class="tx"><b>تغییر عنوان صفحهٔ «خدمات»</b> با تأیید شما روی سایت اعمال شد</div><time>دیروز</time></div>
+      <div class="act"><div class="ai">📝</div><div class="tx"><b>پیش‌نویس مقالهٔ جدید</b> برای تأیید شما آماده شد</div><time>۲ روز پیش</time></div>
+      <div class="act"><div class="ai">📈</div><div class="tx">گزارش ماهانهٔ <b>رشد مرداد</b> آماده شد — ۳۸٪ رشد در یک ماه</div><time>۵ روز پیش</time></div>
+      <div class="act"><div class="ai">🔒</div><div class="tx">همهٔ تغییرات روی سایت شما <b>قابل بازگشت</b> هستند؛ نگران نباش</div><time>ثابت</time></div>
+    </div>
+  </div>
+
+  <footer>
+    <div>© ۱۴۰۵ آژانس ویژن پرایم — همهٔ حقوق محفوظ است.</div>
+    <div style="margin-top:6px">این داشبورد با <b>ویژن پرایم سوئیت</b> ساخته شده است.</div>
+  </footer>
+</main>
+
+<!-- دستیار -->
+<button class="fab" onclick="toggleChat()">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>
+  <span class="ping"></span>
+</button>
+
+<div class="chat" id="chat">
+  <div class="chead"><span class="sdot"></span> دستیار سوئیت — همیشه در خدمت شما</div>
+  <div class="cbody">
+    <div class="msg bot">سلام! 👋 من دستیار سوئیت هستم. هر سؤالی دربارهٔ داشبورد یا سایت‌تان دارید بپرسید.</div>
+    <div class="msg quick">«رشد سایت من یعنی چه؟»</div>
+    <div class="msg quick">«چرا این پیشنهاد را داده‌اید؟»</div>
+    <div class="msg quick">«می‌خواهم با یک انسان صحبت کنم»</div>
+  </div>
+  <div class="cinput">
+    <input placeholder="سؤال خود را بنویسید…">
+    <button>ارسال</button>
+  </div>
+</div>
+
+<script>
+  function toggleChat(){document.getElementById('chat').classList.toggle('open')}
+  function scrollToId(id){document.getElementById(id).scrollIntoView({behavior:'smooth'})}
+</script>
+</body>
+</html>

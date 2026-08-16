@@ -1,4 +1,4 @@
-# Vision Prime — Domain Model, ERD & Data Dictionary v1
+# Vision Prime SUITE — Domain Model, ERD & Data Dictionary v1
 
 ## قواعد مدل داده
 - تمام رکوردهای business-scoped باید `organization_id` داشته باشند، مستقیم یا از مسیر parent قابل اثبات باشند.
@@ -64,6 +64,7 @@ Organization 1─* AuditLog
 | gsc_properties | site_id, gsc_account_id, property_uri, property_type, status, selected_at | property متصل به Site |
 | gsc_import_runs | gsc_property_id, date_start, date_end, dimensions_json, status, summary_json, error_json | import قابل‌پیگیری |
 | gsc_page_metrics | gsc_property_id, date, page_url, clicks, impressions, ctr, position, device, country | performance صفحه — ایمپورت روزانه با `php artisan gsc:import` (`--sync` برای اجرای هم‌گام بدون queue)؛ پایهٔ گزارش تأثیر پس از انتشار |
+| gsc_hourly_metrics | gsc_property_id, date, hour (۰–۲۳), clicks, impressions, ctr, position | متریک ساعتی سطح property (date×hour) — پایهٔ پیشنهاد هوشمند «بهترین ساعت انتشار» در تقویم محتوایی (همان ایمپورت gsc:import با بُعد date,hour) |
 | gsc_query_metrics | gsc_property_id, date, query, clicks, impressions, ctr, position, device, country | performance query |
 | gsc_query_page_metrics | gsc_property_id, date, query, page_url, clicks, impressions, ctr, position | mapping query/page |
 
@@ -79,7 +80,8 @@ Organization 1─* AuditLog
 | recommendations | site_id, source_type, source_id, title, body, priority, status, owner_id, due_at | اقدام پیشنهادی قابل‌پیگیری |
 | ai_provider_settings | organization_id, provider, encrypted_config, status | تنظیمات AI مرکزی |
 | ai_prompt_templates | organization_id, key, version, input_schema, template, status | templateهای نسخه‌دار |
-| ai_generations | site_id, template_id, input_redacted_json, output_status, current_version_id, usage_json | یک generation |
+| ai_generations | site_id, template_id, input_redacted_json, output_status, **scheduled_for** (تقویم محتوایی), current_version_id, usage_json | یک generation؛ `scheduled_for` = موعد انتشار دلخواه ثبت‌شده هنگام ساخت از تقویم (پس از تأیید بازبین، کامند با همین موعد زمان‌بندی می‌شود) |
+| commands (تقویم) | + **reminder_sent_at** | زمان ارسال آخرین یادآوری موعد انتشار — dedupe اعلان (هر کامند حداکثر یک‌بار) |
 | ai_generation_versions | generation_id, version, output_json, model_meta_json, status | نسخه‌های خروجی |
 | review_items | site_id, subject_type, subject_id, status, assigned_to, due_at, policy_snapshot_json | صف بررسی |
 | review_decisions | review_item_id, decision, note, decided_by, decided_at | تصمیم immutable |
@@ -87,7 +89,7 @@ Organization 1─* AuditLog
 | automation_profiles | organization_id (nullable — system profiles جهانی، customهای org-scoped)، kind (system/custom)، scope، automation_level، ai_policy، confidence_threshold، risk_tier_max، enabled_content_types، daily limits، execution_window، rollback_hours، auto_rollback، alert_level، reviewer_policy، notification_policy، version | پروفایل آماده/سفارشی — جداسازی بین‌سازمانی با organization_id (تست `ProfileIsolationTest`) |
 | site_profile_routes | site_id, content_type → profile_id | مسیریابی چند پروفایل هم‌زمان per site (فاز ۴) |
 | automation_learning_history | site_id, content_type, period، total، successful، rate، computed_at | نرخ موفقیت هر نوع تغییر از حلقهٔ یادگیری |
-| commands | site_id, source_type, source_id, type, content_type (meta/article/product)، risk_tier, payload_json, idempotency_key, status, expires_at, policy_version, confidence_score (۰–۱۰۰), confidence_factors (JSON), decision_source (policy/manual), published_at | درخواست تغییر + امتیاز اطمینان و منبع تصمیم (D-013 فاز ۱) |
+| commands | site_id, source_type, source_id, type, content_type (meta/article/product)، risk_tier, payload_json, idempotency_key, status, expires_at, policy_version, confidence_score (۰–۱۰۰), confidence_factors (JSON), decision_source (policy/manual), published_at, **scheduled_for** (تقویم محتوایی) | درخواست تغییر + امتیاز اطمینان و منبع تصمیم (D-013 فاز ۱)؛ `scheduled_for` = موعد انتشار زمان‌بندی‌شده (status=scheduled) |
 | command_approvals | command_id, reviewer_id (nullable), reviewer_type (user/system), decision, note, policy_snapshot_json | تأیید command — reviewer خودکار (system) برای مسیر auto_publish |
 | command_execution_logs | command_id, attempt, status, request_redacted_json, response_redacted_json, executed_at | lifecycle اجرا |
 | rollback_snapshots | command_id, target_ref, snapshot_ciphertext/ref, expires_at, status | پیش‌نیاز rollback — snapshot کامل و بدون‌اتلاف برای بازگشت دقیق |

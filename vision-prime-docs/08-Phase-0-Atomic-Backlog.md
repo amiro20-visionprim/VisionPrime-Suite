@@ -1,4 +1,4 @@
-# Vision Prime — Phase 0 Atomic Backlog
+# Vision Prime SUITE — Phase 0 Atomic Backlog
 
 ## هدف فاز صفر
 حذف ابهام پیش از کدنویسی. خروجی این فاز، قرارداد محصولی و فنی است که Agent/تیم باید در هر فاز به آن رجوع کند.

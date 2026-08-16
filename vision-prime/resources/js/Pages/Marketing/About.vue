@@ -6,10 +6,10 @@ import MarketingLayout from '@/marketing/layouts/MarketingLayout.vue'
 </script>
 
 <template>
-  <Head title="درباره Vision Prime" />
+  <Head title="درباره سوئیت" />
   <MarketingLayout>
     <MarketingPageHero
-      title="Vision Prime برای تیم‌هایی ساخته می‌شود که SEO را یک عملیات قابل مدیریت می‌دانند."
+      title="سوئیت برای تیم‌هایی ساخته می‌شود که SEO را یک عملیات قابل مدیریت می‌دانند."
       description="هدف ما کم‌کردن ابزارهای پراکنده و افزایش شفافیت میان داده، اقدام تیم، تصمیم مشتری و نتیجه قابل مشاهده است."
     />
   </MarketingLayout>

@@ -1,4 +1,4 @@
-# Vision Prime — End-to-End User Journeys
+# Vision Prime SUITE — End-to-End User Journeys
 
 ## استاندارد نوشتن هر Journey
 برای هر Flow جدید باید: Persona، Trigger، Goal، Preconditions، مراحل، حالت‌های خطا، Eventها، معیار موفقیت و Acceptance Criteria ثبت شود.

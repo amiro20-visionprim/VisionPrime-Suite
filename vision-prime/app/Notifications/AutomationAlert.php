@@ -54,10 +54,10 @@ class AutomationAlert extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('هشدار اتوماسیون Vision Prime')
+            ->subject('هشدار اتوماسیون سوئیت')
             ->line($this->context['message'] ?? 'افت معیار زیر baseline شناسایی شد.')
             ->line('سایت #'.$this->siteId.' · دستور #'.$this->commandId.' · نوع: '.($this->context['command_type'] ?? '—'))
-            ->line('این پیام به‌صورت خودکار از سامانهٔ Vision Prime ارسال شده است.');
+            ->line('این پیام به‌صورت خودکار از سامانهٔ سوئیت ارسال شده است.');
     }
 
     /** @return array<string, mixed> */

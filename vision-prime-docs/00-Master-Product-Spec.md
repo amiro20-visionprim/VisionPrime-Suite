@@ -1,4 +1,4 @@
-# Vision Prime — Master Product Specification
+# Vision Prime SUITE — Master Product Specification
 
 **وضعیت:** سند مرجع محصول (Living Document)  
 **هدف:** مبنای تصمیم‌گیری Product، UX/UI، Front-end، Back-end، Plugin، QA و Go-to-market  
@@ -8,7 +8,7 @@
 ---
 
 ## 1) وعده محصول
-Vision Prime به تیم‌های SEO و آژانس‌ها کمک می‌کند تا داده‌های سایت و Google Search Console را به فرصت‌های رشدِ قابل‌فهم، توصیه‌های قابل اجرا، تغییرات کنترل‌شده و گزارش قابل ارائه به مشتری تبدیل کنند.
+ویژن پرایم سوئیت (Vision Prime SUITE) به تیم‌های SEO و آژانس‌ها کمک می‌کند تا داده‌های سایت و Google Search Console را به فرصت‌های رشدِ قابل‌فهم، توصیه‌های قابل اجرا، تغییرات کنترل‌شده و گزارش قابل ارائه به مشتری تبدیل کنند.
 
 **حلقه ارزش محصول:**
 

@@ -20,7 +20,7 @@ withDefaults(
       <SectionHeading
         eyebrow="PAIN POINTS"
         title="مشکلی که هر روز با آن روبه‌رو هستید."
-        description="این‌ها چیزهایی است که شنیده‌ایم؛ Vision Prime برای همین‌ها ساخته شده — نه برای یک داشبورد تزئینی."
+        description="این‌ها چیزهایی است که شنیده‌ایم؛ سوئیت برای همین‌ها ساخته شده — نه برای یک داشبورد تزئینی."
       />
     </div>
     <div class="mt-12 grid gap-5 md:grid-cols-3">
@@ -40,7 +40,7 @@ withDefaults(
 
         <div class="text-ink-muted mt-5 flex items-center gap-1.5 text-xs font-bold">
           <ArrowDown class="size-3.5" aria-hidden="true" />
-          راه‌حل Vision Prime
+          راه‌حل سوئیت
         </div>
         <div class="mt-3 flex items-start gap-2.5 rounded-xl bg-success-50 p-3.5">
           <CheckCircle2 class="mt-0.5 size-4 shrink-0 text-success-600" aria-hidden="true" />

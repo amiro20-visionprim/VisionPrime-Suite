@@ -1,4 +1,4 @@
-# Vision Prime — RTL, Persian Localization & UX Rules
+# Vision Prime SUITE — RTL, Persian Localization & UX Rules
 
 ## 1) اصل بنیادین
 این محصول «ترجمه‌شده به فارسی» نیست؛ **فارسی و RTL-first** طراحی می‌شود. زبان انگلیسی یک localization دوم است.

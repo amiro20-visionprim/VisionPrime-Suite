@@ -188,7 +188,7 @@ const modules = [
               <span class="text-gradient-brand">یک مرکز فرماندهی</span> برای رشد SEO.
             </h1>
             <p class="text-ink-muted mt-5 max-w-2xl text-base leading-8 sm:text-lg">
-              Vision Prime فرصت‌های رشد را شناسایی می‌کند، اقدامات را در مسیر کنترل‌شده پیش می‌برد و
+              سوئیت فرصت‌های رشد را شناسایی می‌کند، اقدامات را در مسیر کنترل‌شده پیش می‌برد و
               اثر هر تصمیم را به زبان روشن نشان می‌دهد.
             </p>
             <div class="mt-8 flex flex-wrap gap-3">
@@ -237,7 +237,7 @@ const modules = [
       <section class="mx-auto max-w-7xl px-5 py-16 sm:px-8 lg:px-10 lg:py-24">
         <div v-reveal>
           <SectionHeading
-            eyebrow="WHY VISION PRIME"
+            eyebrow="WHY VISION PRIME SUITE"
             title="عملیات SEO را از ابزارهای پراکنده به یک جریان قابل کنترل تبدیل کنید."
             description="برای تیم‌هایی که رشد پایدار، مسئولیت‌پذیری و شفافیت خروجی را در کنار هم می‌خواهند."
           />
@@ -291,7 +291,7 @@ const modules = [
           <div v-reveal>
             <SectionHeading
               eyebrow="AUDIENCES"
-              title="Vision Prime برای چه کسی ساخته شده؟"
+              title="سوئیت برای چه کسی ساخته شده؟"
               description="یک صفحهٔ اختصاصی برای هر نوع کسب‌وکار — پیام، درد و مثال‌ها مخصوص همان حوزه‌اند."
               centered
             />
@@ -395,7 +395,7 @@ const modules = [
           <SectionHeading
             eyebrow="SCENARIOS"
             title="سناریوهای واقعی؛ دغدغه‌ها چطور حل می‌شوند."
-            description="سه دغدغهٔ رایج در عملیات SEO و مسیری که Vision Prime برای آن‌ها پیشنهاد می‌کند — با برچسب نمونه، چون هنوز در مرحلهٔ تست میدانی هستیم."
+            description="سه دغدغهٔ رایج در عملیات SEO و مسیری که سوئیت برای آن‌ها پیشنهاد می‌کند — با برچسب نمونه، چون هنوز در مرحلهٔ تست میدانی هستیم."
           />
         </div>
         <div class="mt-12 grid gap-5 lg:grid-cols-3">

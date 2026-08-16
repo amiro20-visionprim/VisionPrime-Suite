@@ -21,7 +21,7 @@ const workflow = [
   <MarketingLayout>
     <MarketingPageHero
       title="یک سیستم عملیاتی برای تبدیل SEO به خروجی قابل اثبات."
-      description="Vision Prime میان داده، تحلیل، تصمیم تیم، تغییرات وردپرس و گزارش مشتری یک جریان واحد ایجاد می‌کند."
+      description="سوئیت میان داده، تحلیل، تصمیم تیم، تغییرات وردپرس و گزارش مشتری یک جریان واحد ایجاد می‌کند."
     >
       <template #actions><VButton href="/demo" size="lg">مشاهده در دمو</VButton></template>
     </MarketingPageHero>

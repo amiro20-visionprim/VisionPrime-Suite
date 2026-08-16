@@ -38,13 +38,13 @@ function closeMenu(): void {
       <Link
         href="/"
         class="text-ink-strong inline-flex shrink-0 items-center gap-2.5"
-        aria-label="Vision Prime، صفحه اصلی"
+        aria-label="Vision Prime SUITE، صفحه اصلی"
       >
         <span
           class="bg-gradient-brand shadow-md shadow-indigo-500/25 flex size-9 items-center justify-center rounded-xl text-sm font-bold text-white"
           >VP</span
         >
-        <span class="font-display text-lg font-bold tracking-tight">Vision Prime</span>
+        <span class="font-display text-lg font-bold tracking-tight">Vision Prime SUITE</span>
       </Link>
 
       <nav class="hidden items-center gap-1 lg:flex" aria-label="ناوبری اصلی">

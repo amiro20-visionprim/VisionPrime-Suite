@@ -6,7 +6,7 @@ withDefaults(
     description: string
   }>(),
   {
-    eyebrow: 'VISION PRIME',
+    eyebrow: 'VISION PRIME SUITE',
   },
 )
 </script>

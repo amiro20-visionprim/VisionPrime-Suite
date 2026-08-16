@@ -1,4 +1,4 @@
-# Vision Prime — API, Events & State Contracts
+# Vision Prime SUITE — API, Events & State Contracts
 
 ## 1) قرارداد عمومی Backend
 - Inertia برای صفحات App و Client Portal استفاده می‌شود.
@@ -68,6 +68,8 @@
 
 مسیر خودکار (D-013): وقتی Policy مجاز باشد، تأیید با `reviewer_type=system` + `policy_snapshot` ثبت می‌شود و `decision_source=policy`؛ وضعیت همچنان `approved → … → executed` است و `published_at` پر می‌شود (برای publish_new_article). مسیر غیرخودکار با تأیید انسانی `decision_source=manual`.
 
+**تقویم محتوایی:** `pending_approval → scheduled` (با `scheduled_for`) → در موعد، `ReleaseScheduledCommands` (هر دقیقه) کامند را به `pending_approval` برمی‌گرداند و از AutoPublish عبور می‌دهد (تصمیم نهایی در لحظهٔ موعد با Policy جاری). **انتشار فوری** (`action=publish_now`): موعد = همین لحظه + عبور فوری از AutoPublish. لغو زمان‌بندی → بازگشت به `pending_approval` و `scheduled_for=null`. `scheduled_for` به‌عنوان رکورد تاریخ برنامه‌ریزی پس از انتشار باقی می‌ماند. موعد پیش‌نویس هنگام ساخت از تقویم روی `ai_generations.scheduled_for` ذخیره می‌شود و در تأیید بازبین به کامند منتقل می‌گردد.
+
 Terminal/exception states:
 `failed | expired | cancelled | rolled_back | policy_denied`
 
@@ -89,6 +91,9 @@ Terminal/exception states:
 | AutomationPolicyChanged | Governance domain | audit, pending command re-evaluation |
 | CommandExecuted | Command domain | impact baseline, activity feed |
 | CommandFailed | Command domain | alert, retry decision |
+| CommandPublishScheduled | Command domain | calendar refresh, audit (`command.publish_scheduled`) |
+| CommandPublishScheduleCancelled | Command domain | calendar refresh, audit (`command.publish_schedule_cancelled`) |
+| ScheduledPublishReminder | Automation domain | یک روز قبل از موعد → اعلان database به اعضای فعال سازمان (job روزانه ۰۹:۰۰) |
 | ReportPublished | Reporting domain | client notification |
 
 ## 6) Audit Event Contract

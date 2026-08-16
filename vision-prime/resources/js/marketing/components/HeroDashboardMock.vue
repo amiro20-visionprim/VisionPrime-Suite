@@ -61,7 +61,7 @@ const chartBars = [34, 52, 41, 68, 58, 82, 74, 92]
             <span class="bg-gradient-brand flex size-5 items-center justify-center rounded-md text-[9px] font-bold text-white">
               VP
             </span>
-            <span class="font-display text-ink-strong text-[10px] font-bold">Vision Prime</span>
+            <span class="font-display text-ink-strong text-[10px] font-bold">Vision Prime SUITE</span>
           </div>
           <nav class="mt-4 space-y-1" aria-hidden="true">
             <div

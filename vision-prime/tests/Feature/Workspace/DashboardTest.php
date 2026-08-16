@@ -57,6 +57,47 @@ class DashboardTest extends TestCase
                 ->has('activities'));
     }
 
+    public function test_dashboard_includes_approval_queue_and_current_role(): void
+    {
+        [$organization, $user, $site] = $this->setUpWorkspace();
+
+        DB::table('commands')->insert([
+            'site_id' => $site->id,
+            'source_type' => 'recommendation',
+            'source_id' => null,
+            'type' => 'update_meta_title',
+            'risk_tier' => 'R2',
+            'payload' => json_encode(['title' => 'عنوان']),
+            'idempotency_key' => (string) Str::uuid(),
+            'status' => 'pending_approval',
+            'expires_at' => now()->addDays(7),
+            'policy_version' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->actingAs($user)->withSession(['current_organization_id' => $organization->id])
+            ->get('/app/dashboard')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('counts.pendingCommands', 1)
+                ->where('counts.pendingReviews', 0)
+                ->has('approvalQueue', 1)
+                ->where('approvalQueue.0.type', 'command')
+                ->where('approvalQueue.0.site_name', 'S'));
+    }
+
+    public function test_current_role_is_shared_for_agency_admin(): void
+    {
+        [$organization, $user, $site] = $this->setUpWorkspace();
+
+        $this->actingAs($user)->withSession(['current_organization_id' => $organization->id])
+            ->get('/app/dashboard')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('currentRole', 'agency-admin'));
+    }
+
     public function test_dashboard_counts_open_opportunities_and_connected_sites(): void
     {
         [$organization, $user, $site] = $this->setUpWorkspace();

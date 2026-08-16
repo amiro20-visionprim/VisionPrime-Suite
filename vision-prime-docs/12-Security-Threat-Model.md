@@ -1,4 +1,4 @@
-# Vision Prime — Security Threat Model v1
+# Vision Prime SUITE — Security Threat Model v1
 
 ## دارایی‌های حساس
 - حساب و داده‌های سازمان/مشتری

@@ -23,7 +23,7 @@ function submit(): void {
 
 <template>
   <AuthLayout
-    title="ورود به Vision Prime"
+    title="ورود به سوئیت"
     description="برای دسترسی به فضای کاری خود، اطلاعات ورود را وارد کنید."
   >
     <VAlert v-if="page.props.flash?.status" class="mb-5" tone="success">{{

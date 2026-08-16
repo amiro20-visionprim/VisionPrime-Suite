@@ -1,4 +1,4 @@
-# Vision Prime — RBAC & Permission Matrix
+# Vision Prime SUITE — RBAC & Permission Matrix
 
 ## نقش‌ها
 Roleها در MVP تجاری اولیه قابل استفاده‌اند، اما Permissionها منبع حقیقت هستند. یک Role صرفاً مجموعه‌ای از Permissionهاست.

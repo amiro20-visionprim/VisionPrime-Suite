@@ -1,4 +1,4 @@
-# Vision Prime — Phase 2: Workspace Foundation Plan
+# Vision Prime SUITE — Phase 2: Workspace Foundation Plan
 
 ## هدف Phase 2
 تبدیل Foundation چندسازمانی به فضای کاری واقعی برای مدیریت مشتری، پروژه و سایت؛ با Scope صحیح داده، CRUD کامل، Audit و آماده‌سازی Client Portal برای داده واقعی.
