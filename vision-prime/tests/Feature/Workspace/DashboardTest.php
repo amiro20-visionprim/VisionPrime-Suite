@@ -40,6 +40,17 @@ class DashboardTest extends TestCase
         return [$organization, $user, $site];
     }
 
+    public function test_training_center_page_renders_for_agency(): void
+    {
+        [$organization, $user] = $this->setUpWorkspace();
+
+        $this->actingAs($user)->withSession(['current_organization_id' => $organization->id])
+            ->get('/app/training')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('App/Training'));
+    }
+
     public function test_dashboard_renders_with_real_counts_and_activities(): void
     {
         [$organization, $user, $site] = $this->setUpWorkspace();

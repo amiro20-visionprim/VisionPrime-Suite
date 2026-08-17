@@ -19,6 +19,7 @@ const items: NavItem[] = [
   { label: 'تأییدهای من', hint: 'منتظر تصمیم شما', href: '/client/decisions', icon: 'user-check' },
   { label: 'گزارش‌ها', hint: 'گزارش‌های دوره‌ای', href: '/client/reports', icon: 'file' },
   { label: 'وضعیت سایت', hint: 'سلامت فنی سایت', href: '/client/site-health', icon: 'gauge' },
+  { label: 'مرکز آموزش', hint: 'آموزش قدم‌به‌قدم', href: '/client/training', icon: 'graduation' },
 ]
 
 const page = usePage()

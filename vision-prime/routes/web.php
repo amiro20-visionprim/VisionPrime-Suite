@@ -59,6 +59,7 @@ use App\Http\Controllers\Connector\HealthCheckController;
 use App\Http\Controllers\Connector\PairSiteController;
 use App\Http\Controllers\Marketing\AssistantController;
 use App\Http\Controllers\Marketing\LeadController;
+use App\Http\Controllers\TrainingController;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
@@ -120,6 +121,7 @@ Route::middleware('auth')->group(function (): void {
 Route::middleware(['auth', 'current.organization', 'client.portal'])->prefix('client')->group(function (): void {
     Route::get('/dashboard', ClientDashboardController::class)->name('client.dashboard');
     Route::get('/growth', ClientGrowthController::class)->name('client.growth');
+    Route::get('/training', [TrainingController::class, 'client'])->name('client.training');
     Route::get('/reports', [ClientReportController::class, 'index'])->name('client.reports.index');
     Route::put('/current-client/{client}', [CurrentClientController::class, 'update'])->name('client.current-client.update');
 
@@ -134,6 +136,7 @@ Route::middleware(['auth', 'current.organization', 'client.portal'])->prefix('cl
 
 Route::middleware(['auth', 'current.organization'])->group(function (): void {
     Route::get('/app/dashboard', DashboardController::class)->name('app.dashboard');
+    Route::get('/app/training', [TrainingController::class, 'agency'])->name('app.training');
 
     Route::get('/app/notifications', [NotificationController::class, 'index'])->name('app.notifications.index');
     Route::put('/app/notifications/read-all', [NotificationController::class, 'readAll'])->name('app.notifications.read-all');

@@ -5,11 +5,11 @@ import { computed, ref } from 'vue'
 import ClientNavigation from '@/client/components/ClientNavigation.vue'
 import ClientSwitcher from '@/client/components/ClientSwitcher.vue'
 import { formatLocalizedDate } from '@/lib/locale'
-import { tips } from '@/lib/tips'
 import VButton from '@/shared/ui/VButton.vue'
 import VDrawer from '@/shared/ui/VDrawer.vue'
 import VIcon from '@/shared/ui/VIcon.vue'
 import VOnboardingTour from '@/shared/ui/VOnboardingTour.vue'
+import VSupportAssistant from '@/shared/ui/VSupportAssistant.vue'
 import VThemeToggle from '@/shared/ui/VThemeToggle.vue'
 import type { AppPageProps } from '@/types/app'
 
@@ -19,13 +19,6 @@ const supportOpen = ref(false)
 
 const firstName = computed(() => page.props.auth?.user?.name?.split(' ')[0] ?? 'دوست عزیز')
 const today = computed(() => formatLocalizedDate(new Date(), 'fa'))
-
-const quickQuestions = [
-  { q: 'سایت من در گوگل چه وضعیتی دارد؟', a: tips.impressions },
-  { q: '«کلیک» یعنی چه؟', a: tips.clicks },
-  { q: 'چرا باید چیزی را تأیید کنم؟', a: tips['pending-decisions'] },
-  { q: 'اگر تأیید کنم چه اتفاقی می‌افتد؟', a: tips.recommendation },
-]
 
 function logout(): void {
   router.post('/logout')
@@ -108,54 +101,6 @@ function logout(): void {
       >
     </VDrawer>
 
-    <VDrawer v-model="supportOpen" title="راهنما و پشتیبانی" side="end">
-      <div class="rounded-card border-line bg-brand-50/60 border p-4">
-        <div class="flex items-start gap-3">
-          <span class="rounded-ui bg-brand-700 flex size-9 shrink-0 items-center justify-center text-white">
-            <VIcon name="sparkles" size="sm" />
-          </span>
-          <div>
-            <p class="text-ink-strong text-sm font-bold">دستیار سوئیت</p>
-            <p class="text-ink-muted mt-1 text-xs leading-5">
-              پاسخ سریع سؤال‌های رایج شما؛ برای گفت‌وگو با تیم، از راه‌های تماس پایین استفاده کنید.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <p class="text-ink-strong mt-6 text-sm font-bold">سؤال‌های پرتکرار</p>
-      <div class="mt-3 space-y-2">
-        <details
-          v-for="(item, index) in quickQuestions"
-          :key="index"
-          class="rounded-ui border-line bg-surface-muted group border p-3"
-        >
-          <summary class="text-ink-strong cursor-pointer list-none text-sm font-semibold">
-            <span class="flex items-center justify-between gap-2">
-              {{ item.q }}
-              <span class="text-ink-muted transition-transform group-open:rotate-180">▾</span>
-            </span>
-          </summary>
-          <p class="text-ink-muted mt-2 text-xs leading-6">{{ item.a }}</p>
-        </details>
-      </div>
-
-      <div class="border-line mt-6 border-t pt-5">
-        <p class="text-ink-strong text-sm font-bold">در تماس باشیم</p>
-        <p class="text-ink-muted mt-1 text-xs leading-5">
-          اگر پاسخ سؤال‌تان را پیدا نکردید، تیم ما آمادهٔ گفت‌وگو با شماست.
-        </p>
-        <div class="mt-3 grid grid-cols-2 gap-2">
-          <VButton variant="secondary" size="sm">
-            <template #icon><VIcon name="support" size="sm" /></template>
-            گفت‌وگو با تیم
-          </VButton>
-          <VButton variant="ghost" size="sm">تماس تلفنی</VButton>
-        </div>
-        <p class="text-ink-muted mt-3 text-[11px] leading-4">
-          🔜 چت آنلاین و پاسخ هوشمند به‌زودی در اینجا فعال می‌شود.
-        </p>
-      </div>
-    </VDrawer>
+    <VSupportAssistant v-model="supportOpen" />
   </div>
 </template>

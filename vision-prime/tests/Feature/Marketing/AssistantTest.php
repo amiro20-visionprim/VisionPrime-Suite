@@ -53,6 +53,32 @@ class AssistantTest extends TestCase
         $this->assertStringContainsString('۰۹۰۲۴۱۵۱۶۳۰', $response->json('answer'));
     }
 
+    public function test_chat_matches_content_calendar_catalog_entry(): void
+    {
+        $response = $this->postJson('/assistant/chat', [
+            'message' => 'تقویم محتوایی چطور کار می‌کند؟',
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('matched', true)
+            ->assertJsonPath('category', 'محصول');
+
+        $this->assertStringContainsString('تقویم محتوایی', $response->json('answer'));
+    }
+
+    public function test_chat_matches_training_center_entry(): void
+    {
+        $response = $this->postJson('/assistant/chat', [
+            'message' => 'مرکز آموزش کجاست؟ می‌خواهم یاد بگیرم',
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('matched', true)
+            ->assertJsonPath('category', 'پشتیبانی');
+
+        $this->assertStringContainsString('/app/training', $response->json('links')[0]['href'] ?? '');
+    }
+
     public function test_chat_falls_back_for_unknown_message(): void
     {
         $response = $this->postJson('/assistant/chat', [

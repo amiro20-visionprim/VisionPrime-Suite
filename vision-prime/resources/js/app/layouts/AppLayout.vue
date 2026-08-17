@@ -7,11 +7,39 @@ import AppNotificationBell from '@/app/components/AppNotificationBell.vue'
 import OrganizationSwitcher from '@/app/components/OrganizationSwitcher.vue'
 import VDrawer from '@/shared/ui/VDrawer.vue'
 import VButton from '@/shared/ui/VButton.vue'
+import VIcon from '@/shared/ui/VIcon.vue'
+import VOnboardingTour, { type TourStep } from '@/shared/ui/VOnboardingTour.vue'
+import VSupportAssistant from '@/shared/ui/VSupportAssistant.vue'
 import VThemeToggle from '@/shared/ui/VThemeToggle.vue'
 import type { AppPageProps } from '@/types/app'
 
+const agencyTourSteps: TourStep[] = [
+  {
+    icon: 'sparkles',
+    title: 'به فضای کاری سوئیت خوش آمدید',
+    body: 'اینجا تمام عملیات SEO سازمان شما در یک جا گرد آمده: مشتریان، سایت‌ها، فرصت‌ها و تأییدها.',
+  },
+  {
+    icon: 'list',
+    title: 'ناوبری گروه‌بندی‌شده',
+    body: 'بخش‌های کار بر اساس موضوع دسته‌بندی شده‌اند: فضای کاری، هوش رشد، گردش‌کار و تنظیمات. هر گروه با آیکون مخصوص خودش.',
+  },
+  {
+    icon: 'user-check',
+    title: 'صف تأییدها',
+    body: 'در داشبورد، «در انتظار تأیید» نشان می‌دهد چه پیشنهادها و بازبینی‌هایی منتظر اقدام شماست.',
+  },
+  {
+    icon: 'lightbulb',
+    title: 'اولویت‌های نقش شما',
+    body: 'داشبورد بر اساس نقش شما چیده می‌شود؛ هر نقش میانبرهای مخصوص خودش را می‌بیند. سؤالی داشتید از «مرکز آموزش» شروع کنید.',
+    cta: { label: 'بازدید از مرکز آموزش', href: '/app/training' },
+  },
+]
+
 const page = usePage<AppPageProps & { auth?: { user?: { name: string; email: string } } }>()
 const mobileNavigationOpen = ref(false)
+const supportOpen = ref(false)
 
 function logout(): void {
   router.post('/logout')
@@ -63,6 +91,15 @@ function logout(): void {
         <div class="text-ink-muted hidden text-sm lg:block">عملیات SEO، شفاف و قابل کنترل</div>
         <div class="flex items-center gap-3">
           <VThemeToggle />
+          <button
+            type="button"
+            class="transition-ui rounded-ui border-line text-ink-strong hover:bg-surface-muted inline-flex items-center gap-2 border px-3 py-2 text-sm font-semibold"
+            aria-label="راهنما و پشتیبانی"
+            @click="supportOpen = true"
+          >
+            <VIcon name="support" tone="brand" size="sm" />
+            <span class="hidden sm:inline">راهنما و پشتیبانی</span>
+          </button>
           <AppNotificationBell />
           <span class="text-ink hidden text-sm sm:inline">{{
             page.props.currentOrganization?.name
@@ -70,8 +107,13 @@ function logout(): void {
           ><VButton href="/app/sites" size="sm">افزودن سایت</VButton>
         </div>
       </header>
-      <main class="p-5 sm:p-8"><slot /></main>
+      <main class="p-5 sm:p-8">
+        <VOnboardingTour storage-key="vp-app-onboarding-done" :steps="agencyTourSteps" />
+        <slot />
+      </main>
     </div>
+
+    <VSupportAssistant v-model="supportOpen" />
 
     <VDrawer v-model="mobileNavigationOpen" title="Vision Prime SUITE" side="start">
       <OrganizationSwitcher />

@@ -22,7 +22,10 @@ const baseGroups: NavigationGroup[] = [
   {
     label: 'نمای کلی',
     icon: 'chart-line',
-    items: [{ label: 'داشبورد', href: '/app/dashboard', icon: 'chart-line', exact: true }],
+    items: [
+      { label: 'داشبورد', href: '/app/dashboard', icon: 'chart-line', exact: true },
+      { label: 'مرکز آموزش', href: '/app/training', icon: 'graduation' },
+    ],
   },
   {
     label: 'فضای کاری',

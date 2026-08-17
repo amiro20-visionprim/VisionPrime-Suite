@@ -79,6 +79,14 @@ class ClientPortalPagesTest extends TestCase
         ]);
     }
 
+    public function test_training_center_page_renders_for_client(): void
+    {
+        $this->actingAs($this->user)->get('/client/training')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Client/Training'));
+    }
+
     public function test_site_health_page_shows_real_site_data(): void
     {
         $this->actingAs($this->user)->get('/client/site-health')
