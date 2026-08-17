@@ -510,3 +510,13 @@
 - **دامنه:** `visionprime-suite.ir` ثبت شده ولی DNS ست نشده — رکوردهای A آمادهٔ ثبت در پنل ایرنیک (سند ۴۱ بخش ۶)؛ APP_URL و GSC_REDIRECT_URI روی دامنه تنظیم شد.
 - **زیرساخت سایتهای استاتیک:** `/var/www/sites/<domain>/` + الگوی vhost در `/etc/nginx/sites-available/static-template` — آمادهٔ استقرار سایتهای بعدی دونهبه‌دونه.
 - **مستندات (D-020):** ۴۱ (راهنمای استقرار)، ۳۱ (این ورودی)، D-034 در سند ۰۴.
+
+## آپدیت #۴۷ — DNS خودمیزبان + اسکریپت add-site + سرویس ایمیل دامنه — ۲۰۲۶-۰۸-۱۸
+
+- **DNS خودمیزبان (bind9):** چون ایرنیک فقط ثبت‌کننده است و رکورد A ندارد، BIND 9.18 روی سرور نصب شد؛ زون `visionprime-suite.ir` با NS = `ns1/ns2.visionprime-suite.ir` (→ 45.156.186.6) + A برای `@`/`www`. تأیید از بیرون: nslookup روی 45.156.186.6 جواب داد. اقدام باقی‌ماندهٔ مالک در ایرنیک: دو ردیف NS (نام کارگزار ns1/ns2.visionprime-suite.ir + آیپی 45.156.186.6).
+- **اسکریپت مدیریت دامنه‌های استاتیک `scripts/add-site.sh`:** `add <domain>` → پوشه + placeholder، زون bind9، vhost nginx (ریدایرکت www، کش ۳۰ روزه، هدرهای امنیتی، gzip)، ریلود سرویس‌ها، اعتبارسنجی + rollback خودکار، و خروجی راهنمای IRNIC. `remove <domain>` پاک‌سازی می‌کند. تست کامل با teststatic.ir (DNS + HTTP 200 + 301 www + حذف). یک باگ پیدا و رفع شد (سریال ۱۲ رقمی > حد DNS → ۱۰ رقم).
+- **سرویس ایمیل دامنه (برای اینماد):** Postfix 3.8.6 + Dovecot 2.3.21 (virtual mailboxes, passwd-file) + صندوق‌های `info@` و `admin@` + TLS خودامضا + submission 587 / smtps 465 (AUTH PLAIN) + **DKIM (opendkim, selector `mail`)** + رکوردهای **MX / SPF / DKIM / DMARC** در زون bind9 + **وبمیل فارسی Roundcube 1.6.6** در `mail.visionprime-suite.ir` (SQLite + nginx vhost).
+- **تأییدهای واقعی:** تحویل به صندوق ✓ · DKIM-Signature در هدر ✓ · ورود IMAP (993) با رمز ✓ · ارسال 587 با AUTH PLAIN → queued → تحویل ✓ · وبمیل HTTP 200 (فارسی) ✓ · پورت‌های 25/465/587/993/995 باز ✓.
+- **رمزها به مالک تحویل شد** (info@ و admin@) — اینجا ثبت نمی‌شود.
+- **مستندات (D-020):** ۴۱ (بخش‌های ۱۰-۱۲)، ۳۱ (این ورودی)، D-035 در سند ۰۴.
+- **گام بعدی:** انتشار NS در ایرنیک (دست مالک) → بعد از آن: SSL (Let's Encrypt) برای دامنه + وبمیل + وصل‌کردن ایمیل اپ (Laravel MAIL_MAILER) به همین سرور + کلیدهای واقعی درگاه‌ها/اینماد.

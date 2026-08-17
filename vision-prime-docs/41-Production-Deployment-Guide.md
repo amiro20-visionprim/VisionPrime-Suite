@@ -110,3 +110,16 @@
 **برای هر دامنهٔ جدید در ایرنیک:** نام کارگزار ۱ = `ns1.visionprime-suite.ir` و ۲ = `ns2.visionprime-suite.ir` (آیپی خالی — نامسرورها از قبل با آیپی سرور ثبت شدهاند).
 
 **تست انجامشده (2026-08-18):** add teststatic.ir → DNS پاسخ داد (45.156.186.6) · HTTP 200 با صفحهٔ placeholder · www → 301 · remove → پاکسازی کامل vhost/zone/conf.
+
+## ۱۲) سرویس ایمیل دامنه (Postfix + Dovecot + Roundcube) — 2026-08-18
+
+برای اینماد و ارتباطات تجاری، ایمیل روی دامنه راه‌اندازی شد:
+
+- **سرور:** Postfix 3.8.6 (MTA) + Dovecot 2.3.21 (IMAP/POP3) — virtual mailboxes در `/var/mail/vhosts/visionprime-suite.ir/{info,admin}`، احراز passwd-file (`/etc/dovecot/users`، SHA512-CRYPT).
+- **صندوق‌ها:** `info@visionprime-suite.ir` و `admin@visionprime-suite.ir` (رمزها نزد مالک — خارج از گیت).
+- **ارسال:** submission 587 (STARTTLS) + smtps 465 (TLS wrappermode) با AUTH PLAIN؛ **DKIM** با opendkim (selector `mail`) — همهٔ ایمیل‌های خروجی امضا می‌شوند.
+- **DNS (در زون bind9):** MX 10 `mail.visionprime-suite.ir` · A `mail` → 45.156.186.6 · SPF `"v=spf1 mx ip4:45.156.186.6 ~all"` · DKIM TXT `mail._domainkey` · DMARC `_dmarc` (p=none).
+- **وبمیل:** Roundcube 1.6.6 (SQLite) با زبان فارسی در `http://mail.visionprime-suite.ir` — vhost در `/etc/nginx/sites-available/mail.visionprime-suite.ir`.
+- **تنظیمات کلاینت ایمیل (Outlook/Thunderbird):** IMAP `mail.visionprime-suite.ir:993` (SSL) · SMTP `mail.visionprime-suite.ir:587` (STARTTLS) · کاربر = آدرس کامل ایمیل.
+- **مهم:** TLS فعلی خودامضا است — بعد از انتشار NS دامنه در ایرنیک، گواهی Let's Encrypt جایگزین می‌شود و وبمیل HTTPS می‌گیرد. تا وقتی NS در ایرنیک ست نشود، ایمیل فقط به‌صورت محلی کار می‌کند (از بیرونِ سرور قابل‌دسترس نیست).
+- **نکتهٔ تحویل‌پذیری:** IP دیتاسنتر ایرانی ممکن است از سمت Gmail/Yahoo محدود شود؛ برای تأیید اینماد (دریافت ایمیل) مشکلی نیست.
