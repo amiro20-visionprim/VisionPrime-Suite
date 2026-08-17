@@ -470,7 +470,7 @@ const nextStep = computed(() => {
             <span v-if="contentImpact.verdicts.improved > 0" class="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
               {{ contentImpact.verdicts.improved }} بهبود
             </span>
-            <span v-if="contentImpact.verdicts.stable > 0" class="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-600">
+            <span v-if="contentImpact.verdicts.stable > 0" class="rounded-full bg-surface-muted text-ink-muted px-3 py-1 text-xs font-semibold">
               {{ contentImpact.verdicts.stable }} پایدار
             </span>
             <span v-if="contentImpact.verdicts.declined > 0" class="rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-700">

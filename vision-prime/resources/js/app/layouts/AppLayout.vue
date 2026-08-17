@@ -7,6 +7,7 @@ import AppNotificationBell from '@/app/components/AppNotificationBell.vue'
 import OrganizationSwitcher from '@/app/components/OrganizationSwitcher.vue'
 import VDrawer from '@/shared/ui/VDrawer.vue'
 import VButton from '@/shared/ui/VButton.vue'
+import VThemeToggle from '@/shared/ui/VThemeToggle.vue'
 import type { AppPageProps } from '@/types/app'
 
 const page = usePage<AppPageProps & { auth?: { user?: { name: string; email: string } } }>()
@@ -61,6 +62,7 @@ function logout(): void {
         </button>
         <div class="text-ink-muted hidden text-sm lg:block">عملیات SEO، شفاف و قابل کنترل</div>
         <div class="flex items-center gap-3">
+          <VThemeToggle />
           <AppNotificationBell />
           <span class="text-ink hidden text-sm sm:inline">{{
             page.props.currentOrganization?.name

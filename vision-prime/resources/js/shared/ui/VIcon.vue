@@ -21,12 +21,14 @@ import {
   LineChart,
   ListChecks,
   Megaphone,
+  Moon,
   Newspaper,
   PieChart,
   Plane,
   RotateCcw,
   Search,
   Settings,
+  Sun,
   ShieldCheck,
   ShoppingBag,
   Sparkles,
@@ -62,6 +64,7 @@ export type IconName =
   | 'lightbulb'
   | 'list'
   | 'megaphone'
+  | 'moon'
   | 'news'
   | 'plane'
   | 'rotate'
@@ -71,6 +74,7 @@ export type IconName =
   | 'shopping-bag'
   | 'sparkles'
   | 'stethoscope'
+  | 'sun'
   | 'support'
   | 'timer'
   | 'trend-down'
@@ -103,6 +107,7 @@ const registry: Record<IconName, Component> = {
   lightbulb: Lightbulb,
   list: ListChecks,
   megaphone: Megaphone,
+  moon: Moon,
   news: Newspaper,
   plane: Plane,
   rotate: RotateCcw,
@@ -112,6 +117,7 @@ const registry: Record<IconName, Component> = {
   'shopping-bag': ShoppingBag,
   sparkles: Sparkles,
   stethoscope: Stethoscope,
+  sun: Sun,
   support: LifeBuoy,
   timer: Timer,
   'trend-down': TrendingDown,

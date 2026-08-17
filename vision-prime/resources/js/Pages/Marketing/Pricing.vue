@@ -306,7 +306,7 @@ const faqs = [
             برای اینکه دقیقاً بدانید روی چه چیزی حساب می‌کنید — بدون ابهام و سورپرایز.
           </p>
         </div>
-        <div v-reveal class="rounded-panel border-line mt-8 overflow-x-auto border bg-white">
+        <div v-reveal class="rounded-panel border-line mt-8 overflow-x-auto border bg-surface">
           <table class="w-full min-w-[640px] border-collapse text-sm">
             <thead>
               <tr class="border-line border-b bg-surface-muted/60">

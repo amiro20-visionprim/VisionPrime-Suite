@@ -336,7 +336,7 @@ function sendQuestion(): void {
           <textarea
             v-model="askText"
             rows="5"
-            class="mt-2 w-full rounded-lg border border-line bg-white px-3 py-2 text-sm leading-6 outline-none focus:border-brand-600"
+            class="mt-2 w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm leading-6 outline-none focus:border-brand-600"
             placeholder="مثلاً: این تغییر دقیقاً چه تأثیری روی سایت من دارد؟"
           />
         </label>

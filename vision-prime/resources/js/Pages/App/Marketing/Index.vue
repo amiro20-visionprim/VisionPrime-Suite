@@ -343,7 +343,7 @@ function funnelWidth(count: number): string {
     </div>
 
     <!-- Leads table -->
-    <div class="rounded-panel border-line mt-5 overflow-x-auto border bg-white">
+    <div class="rounded-panel border-line mt-5 overflow-x-auto border bg-surface">
       <table class="w-full min-w-[860px] border-collapse text-sm">
         <thead>
           <tr class="border-line bg-surface-muted/60 border-b">

@@ -118,6 +118,45 @@ interface VDoughnutProps { segments: { label: string; value: number; color?: str
 - پکیج `@lucide/vue@1.26.0` تایپ کامل (3501 icon) در `dist/lucide-vue.d.ts` دارد؛ `skipLibCheck: true` در tsconfig فعال است.
 - اگر تایپ آیکونی خطا داد، اول بررسی شود که شیم قدیمی در `resources/js/types/` وجود نداشته باشد.
 
+## فاز D1 — دارک‌مود (انجام شد ✅ ۲۰۲۶-۰۸-۱۷)
+
+### مکانیزم (D1-01)
+- **کلاسی Tailwind v4:** `@custom-variant dark (&:where(.dark, .dark *));` در `app.css` — کلاس `dark` روی `<html>`.
+- **اورراید توکن‌محور:** بلوک `.dark { ... }` متغیرهای سمنتیک را اورراید می‌کند؛ **هیچ** `dark:` پراکنده‌ای لازم نیست. کلاس‌های ساخته‌شده (`bg-canvas`, `bg-surface`, `text-ink-*`, `border-line`, `bg-success-50` و…) خودکار جابه‌جا می‌شوند.
+
+### جدول مقادیر دارک
+| توکن | روشن | تاریک |
+|---|---|---|
+| `canvas` | `#f8fbff` | `#0a101c` |
+| `surface` | `#ffffff` | `#111a2c` |
+| `surface-muted` | `#f1f6fc` | `#182338` |
+| `ink-strong` | `#23364d` | `#e8eef7` |
+| `ink` | `#4e647f` | `#a9bdd6` |
+| `ink-muted` | `#6e87a6` | `#7d92ad` |
+| `line` | `#e6eef8` | `#22304a` |
+| `line-strong` | `#d4e2f1` | `#2e405e` |
+| `brand-500/600/700/900` | آبی تیره | روشن‌تر (کنتراست روی تاریک) |
+| `success/warning/danger/info -50` | پاستلی روشن | تیره (همرنگ خانواده) |
+| `success/warning/danger/info -600/-700` | تیره | روشن — **جفت با -50 flip می‌شود** |
+| `shadow-card/panel/float` | `rgb(22 59 104 / …)` | `rgb(0 0 0 / 32–48%)` |
+| `color-scheme` | `light` | `dark` (اسکرول‌بار/کنترل‌های native) |
+
+### قرارداد کنترلر تم (`lib/theme.ts`)
+- `ThemePreference = 'light' | 'dark' | 'system'` — کلید localStorage: `suite-theme`.
+- `applyTheme(pref)` → toggle کلاس `dark` + `style.colorScheme` روی `<html>`.
+- `initTheme()` در بوت `app.ts` + `change` listener برای همگام ماندن `system`.
+- **ضد-فلش:** اسکریپت inline در `resources/views/app.blade.php` پیش از اولین پینت، تم ذخیره‌شده را اعمال می‌کند.
+
+### VThemeToggle (D1-04)
+- Props: — (بدون ورودی؛ خودخوان از localStorage).
+- نمایش: دکمهٔ گرد ۹×۹ (`size-9`) با border-line و hover:bg-surface-muted؛ آیکون `sun` در دارک / `moon` در روشن (از رجیستری VIcon).
+- رفتار: کلیک → toggle بین dark/light + ذخیره؛ `aria-label` فارسی («تغییر به حالت تاریک/روشن»).
+- محل استفاده: هدر `AppLayout.vue` (کنار زنگ اعلان) و `ClientPortalLayout.vue` (کنار «راهنما و پشتیبانی»).
+
+### قوانین دارک‌مود
+- رنگ‌های جدید فقط از توکن‌ها؛ رنگ هاردکد روشن (bg-white/gray/hex) ممنوع است مگر روی گرادیان عمدی (مارکتینگ/آنبوردینگ).
+- اورلی‌های شفاف (`bg-white/10`) روی گرادیان برند عمدی‌اند و در دارک دست نمی‌خورند.
+
 ## Responsive breakpoints
 - mobile first.
 - تست پایه: 360px، 768px، 1024px، 1440px.

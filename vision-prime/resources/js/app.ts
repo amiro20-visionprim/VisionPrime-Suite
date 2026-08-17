@@ -5,7 +5,11 @@ import { createApp, h, type DefineComponent } from 'vue'
 import { vReveal } from '@/directives/reveal'
 import { vStagger } from '@/directives/stagger'
 import { syncDocumentLocale } from '@/lib/locale'
+import { initTheme } from '@/lib/theme'
 import type { AppPageProps } from '@/types/app'
+
+// Apply saved/system theme before mount (class-based dark mode, D1)
+initTheme()
 
 createInertiaApp({
   resolve: (name) => {

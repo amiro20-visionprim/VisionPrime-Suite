@@ -523,7 +523,7 @@ function payloadRows(payload: Record<string, unknown> | null): [string, unknown]
               </p>
 
               <!-- گزارش تأثیر پس از انتشار (GSC) -->
-              <div v-if="p.subject.generation.command.impact" class="mt-3 border-t border-gray-100 pt-3">
+              <div v-if="p.subject.generation.command.impact" class="border-line mt-3 border-t pt-3">
                 <template v-if="p.subject.generation.command.impact.status === 'ready'">
                   <div class="flex flex-wrap items-center gap-2">
                     <span class="text-ink-strong text-sm font-semibold">📈 تأثیر پس از انتشار</span>

@@ -10,6 +10,7 @@ import VButton from '@/shared/ui/VButton.vue'
 import VDrawer from '@/shared/ui/VDrawer.vue'
 import VIcon from '@/shared/ui/VIcon.vue'
 import VOnboardingTour from '@/shared/ui/VOnboardingTour.vue'
+import VThemeToggle from '@/shared/ui/VThemeToggle.vue'
 import type { AppPageProps } from '@/types/app'
 
 const page = usePage<AppPageProps & { auth?: { user?: { name: string } } }>()
@@ -79,15 +80,18 @@ function logout(): void {
             <p class="text-ink-muted truncate text-xs">{{ today }}</p>
           </div>
         </div>
-        <button
-          type="button"
-          class="transition-ui rounded-ui border-line text-ink-strong hover:bg-surface-muted inline-flex shrink-0 items-center gap-2 border px-3 py-2 text-sm font-semibold"
-          @click="supportOpen = true"
-        >
-          <VIcon name="support" tone="brand" size="sm" />
-          <span class="hidden sm:inline">راهنما و پشتیبانی</span>
-          <span class="sm:hidden">راهنما</span>
-        </button>
+        <div class="flex shrink-0 items-center gap-2">
+          <VThemeToggle />
+          <button
+            type="button"
+            class="transition-ui rounded-ui border-line text-ink-strong hover:bg-surface-muted inline-flex items-center gap-2 border px-3 py-2 text-sm font-semibold"
+            @click="supportOpen = true"
+          >
+            <VIcon name="support" tone="brand" size="sm" />
+            <span class="hidden sm:inline">راهنما و پشتیبانی</span>
+            <span class="sm:hidden">راهنما</span>
+          </button>
+        </div>
       </header>
 
       <main class="p-5 sm:p-8">

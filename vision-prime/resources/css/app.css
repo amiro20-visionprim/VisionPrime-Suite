@@ -1,6 +1,9 @@
 @import 'tailwindcss';
 @import 'vazirmatn/Vazirmatn-font-face.css';
 
+/* Class-based dark mode (Tailwind v4): `.dark` on <html> activates it */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   /* Brand and semantic surfaces */
   --color-brand-50: #f1f6fc;
@@ -78,6 +81,58 @@
 :root {
   color-scheme: light;
   --vp-focus-ring: var(--color-brand-600);
+}
+
+/* ---- Dark theme: token overrides (D1-01) ----
+   Every UI element is built on semantic tokens (canvas/surface/ink/line), so
+   flipping these variables flips the whole suite — no scattered dark: classes.
+   Status pairs (-50 bg + -600/-700 text) flip together to stay readable. */
+.dark {
+  color-scheme: dark;
+  --vp-focus-ring: var(--color-brand-500);
+
+  /* Surfaces: deep navy hierarchy */
+  --color-canvas: #0a101c;
+  --color-surface: #111a2c;
+  --color-surface-muted: #182338;
+
+  /* Ink: light family */
+  --color-ink-strong: #e8eef7;
+  --color-ink: #a9bdd6;
+  --color-ink-muted: #7d92ad;
+
+  /* Lines */
+  --color-line: #22304a;
+  --color-line-strong: #2e405e;
+
+  /* Brand: lifted for contrast on dark */
+  --color-brand-50: #16263f;
+  --color-brand-100: #1d314f;
+  --color-brand-200: #27405f;
+  --color-brand-500: #5b93d4;
+  --color-brand-600: #4a86c9;
+  --color-brand-700: #5f9cd6;
+  --color-brand-900: #9dc4ef;
+
+  /* Status pairs flip together (bg-*-50 + text-*-600) */
+  --color-success-50: #0f2b1f;
+  --color-success-600: #2eae74;
+  --color-success-700: #3bc785;
+  --color-warning-50: #2b2410;
+  --color-warning-600: #d9a03f;
+  --color-warning-700: #e3b15a;
+  --color-danger-50: #2e1618;
+  --color-danger-600: #e05555;
+  --color-danger-700: #e96a6a;
+  --color-info-50: #12283c;
+  --color-info-600: #4d9ad6;
+
+  /* Elevation: deeper, true-black shadows */
+  --shadow-card: 0 4px 16px rgb(0 0 0 / 32%);
+  --shadow-panel: 0 12px 32px rgb(0 0 0 / 40%);
+  --shadow-float: 0 18px 48px rgb(0 0 0 / 48%);
+  --color-glow-brand: rgb(91 147 212 / 14%);
+  --color-glow-violet: rgb(124 58 237 / 16%);
 }
 
 @layer base {
