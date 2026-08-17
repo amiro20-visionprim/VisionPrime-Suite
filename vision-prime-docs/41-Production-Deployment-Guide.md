@@ -92,3 +92,21 @@
   - ردیف ۲: نام کارگزار `ns2.visionprime-suite.ir` — آیپی `45.156.186.6`
 - پس از انتشار (تا ۲۴ ساعت): نصب SSL و ریدایرکت HTTPS.
 - الگوی سایتهای استاتیک بعدی: زون جدید در bind9 + vhost nginx + همان دو ردیف NS با آیپی سرور (یا subdomain A).
+
+## ۱۱) اسکریپت مدیریت دامنههای استاتیک — `scripts/add-site.sh`
+
+**روی سرور:** `/usr/local/bin/add-site.sh` (نسخهٔ مرجع در ریپو: `scripts/add-site.sh`)
+
+**کاربرد:**
+- افزودن دامنهٔ جدید: `add-site.sh add <domain> [webroot]`
+  - پوشهٔ سایت (پیشفرض `/var/www/sites/<domain>`) + صفحهٔ placeholder میسازد (اگر خالی باشد)
+  - زون bind9 (`/etc/bind/zones/db.<domain>`) با A برای `@` و `www` → `45.156.186.6` و NS = ns1/ns2.visionprime-suite.ir
+  - vhost nginx با ریدایرکت www→root، کش استاتیک ۳۰ روزه، هدرهای امنیتی، gzip
+  - هر دو سرویس ریلود + خروجی راهنمای IRNIC
+  - اعتبارسنجی و rollback خودکار در صورت خطا
+- حذف دامنه: `add-site.sh remove <domain>` (فایلهای سایت دستنخورده میمانند)
+- دامنهٔ اصلی سوئیت (`visionprime-suite.ir`) از حذف/تغییر محافظت شده است.
+
+**برای هر دامنهٔ جدید در ایرنیک:** نام کارگزار ۱ = `ns1.visionprime-suite.ir` و ۲ = `ns2.visionprime-suite.ir` (آیپی خالی — نامسرورها از قبل با آیپی سرور ثبت شدهاند).
+
+**تست انجامشده (2026-08-18):** add teststatic.ir → DNS پاسخ داد (45.156.186.6) · HTTP 200 با صفحهٔ placeholder · www → 301 · remove → پاکسازی کامل vhost/zone/conf.
