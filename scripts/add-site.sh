@@ -135,6 +135,7 @@ HTML
   else
     info "پوشهٔ سایت از قبل فایل دارد — دست نمی‌زنم."
   fi
+  chown -R www-data:www-data "$root" 2>/dev/null || true
 }
 
 cmd_add() {

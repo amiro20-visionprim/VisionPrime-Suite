@@ -123,3 +123,15 @@
 - **تنظیمات کلاینت ایمیل (Outlook/Thunderbird):** IMAP `mail.visionprime-suite.ir:993` (SSL) · SMTP `mail.visionprime-suite.ir:587` (STARTTLS) · کاربر = آدرس کامل ایمیل.
 - **مهم:** TLS فعلی خودامضا است — بعد از انتشار NS دامنه در ایرنیک، گواهی Let's Encrypt جایگزین می‌شود و وبمیل HTTPS می‌گیرد. تا وقتی NS در ایرنیک ست نشود، ایمیل فقط به‌صورت محلی کار می‌کند (از بیرونِ سرور قابل‌دسترس نیست).
 - **نکتهٔ تحویل‌پذیری:** IP دیتاسنتر ایرانی ممکن است از سمت Gmail/Yahoo محدود شود؛ برای تأیید اینماد (دریافت ایمیل) مشکلی نیست.
+
+## ۱۳) سیستم دیپلوی خودکار سایتهای استاتیک — 2026-08-18
+
+سه راه استقرار (همگی از طریق `scripts/deploy-site.sh` در ریپو / `/usr/local/bin/deploy-site.sh` روی سرور):
+
+1. **کنسول وب:** `http://45.156.186.6/deploy/` — دامنه + توکن (`/etc/deploy-secret`) + آدرس گیت یا آپلود zip → دیپلوی فوری با خروجی.
+2. **وبهوک گیت‌هاب:** `http://45.156.186.6/deploy/?domain=<دامنه>&hook=1` — Content-Type `application/json`، سکرت `/etc/deploy-webhook-secret`، رویداد push. (در GitHub: Settings → Webhooks → Payload URL + Secret.)
+3. **CLI:** `deploy-site.sh <domain> <git-url|zip|dir>` (برای مدیر).
+
+- rsync با `--checksum` (مقایسهٔ محتوا، نه mtime) + `--delete`؛ لاگ `/var/log/deploy-site.log`؛ مالکیت نهایی www-data.
+- امنیت: توکن کنسول و HMAC-SHA256 وبهوک؛ `underscores_in_headers on;` در vhost ضروری است؛ دامنه با regex اعتبارسنجی می‌شود.
+- جریان کامل برای دامنهٔ جدید: `add-site.sh add <domain>` (DNS+vhost) ← دیپلوی با هر سه روش ← بعد از انتشار NS در ایرنیک: SSL.
