@@ -78,3 +78,17 @@
 - APP_DEBUG=false · APP_ENV=production · APP_KEY تولید شد.
 - بدون فایروال فعال (ufw نصب نیست) — پورت‌های باز: 80 و 22(9011). پیشنهاد: فایروال + SSH-key-only.
 - `.env` خارج از `public/` — از بیرون قابل دسترسی نیست.
+
+## ۱۰) DNS خودمیزبان (bind9) — 2026-08-18
+
+- ایرنیک فقط ثبتکننده است؛ رکورد A را نگه نمیدارد. برای دامنهٔ `.ir` باید نامسرور (host object) تعریف شود.
+- روی سرور **BIND 9.18** نصب شد (`apt install bind9`).
+- زون `visionprime-suite.ir` در `/etc/bind/zones/db.visionprime-suite.ir`:
+  - `@` و `www` → `45.156.186.6`
+  - NS: `ns1.visionprime-suite.ir` + `ns2.visionprime-suite.ir` (هر دو → `45.156.186.6`)
+- تأیید از بیرون: `nslookup visionprime-suite.ir 45.156.186.6` → `45.156.186.6` ✓ · پورت 53 TCP باز ✓
+- **اقدام کاربر در ایرنیک** (بخش «ویرایش ردیفهای کارگزاری نام و میزبانی دامنه»):
+  - ردیف ۱: نام کارگزار `ns1.visionprime-suite.ir` — آیپی `45.156.186.6`
+  - ردیف ۲: نام کارگزار `ns2.visionprime-suite.ir` — آیپی `45.156.186.6`
+- پس از انتشار (تا ۲۴ ساعت): نصب SSL و ریدایرکت HTTPS.
+- الگوی سایتهای استاتیک بعدی: زون جدید در bind9 + vhost nginx + همان دو ردیف NS با آیپی سرور (یا subdomain A).
