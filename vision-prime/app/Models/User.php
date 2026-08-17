@@ -75,6 +75,16 @@ class User extends Authenticatable
             ->withTimestamps();
     }
 
+    /** آیا این کاربر در یک عضویت فعال نقش super-admin دارد؟ */
+    public function isSuperAdmin(): bool
+    {
+        return $this->memberships()
+            ->where('status', 'active')
+            ->with('role')
+            ->get()
+            ->contains(fn ($membership): bool => $membership->role?->key === 'super-admin');
+    }
+
     protected function casts(): array
     {
         return [

@@ -10,6 +10,7 @@ use App\Domains\Automation\Jobs\RollbackMonitor;
 use App\Domains\Platform\Jobs\CollectPlatformEvents;
 use App\Domains\Platform\Jobs\DunningJob;
 use App\Domains\Platform\Jobs\SendDailyBriefing;
+use App\Domains\Platform\Jobs\SendWeeklyReport;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -78,5 +79,12 @@ Schedule::job(new DunningJob)
 // فاز E — بکاپ روزانهٔ پایگاه داده (نگهداری ۷ نسخه)
 Schedule::command('platform:backup-db')
     ->dailyAt('02:00')
+    ->timezone('Asia/Tehran')
+    ->onOneServer();
+
+// گزارش هفتگی مالک — هر جمعه صبح: خلاصهٔ مالی + سلامت + تصمیم‌های باز
+// (ایمیل + تلگرام + پیامک اگر شمارهٔ مالک در config باشد)
+Schedule::job(new SendWeeklyReport)
+    ->weeklyOn(5, '09:30')
     ->timezone('Asia/Tehran')
     ->onOneServer();

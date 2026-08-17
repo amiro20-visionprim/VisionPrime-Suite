@@ -55,6 +55,11 @@ return [
         'sender' => env('KAVENEGAR_SENDER', '10004346'),
     ],
 
+    'sms' => [
+        // شمارهٔ مالک برای گزارش هفتگی/هشدارهای پیامکی (خالی = بی‌صدا غیرفعال)
+        'owner_phone' => env('OWNER_PHONE', ''),
+    ],
+
     'platform_ai' => [
         'api_key' => env('PLATFORM_AI_API_KEY'),
         'base_url' => env('PLATFORM_AI_BASE_URL'),

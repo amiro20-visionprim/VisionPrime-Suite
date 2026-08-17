@@ -301,6 +301,7 @@ Route::middleware(['auth', 'platform.only', 'platform.mfa'])->prefix('platform')
     Route::post('/mfa/setup', [PlatformMfaController::class, 'setup'])->name('platform.mfa.setup')->middleware('throttle:10,1', 'impersonation.readonly');
     Route::post('/mfa/enable', [PlatformMfaController::class, 'enable'])->name('platform.mfa.enable')->middleware('throttle:10,1', 'impersonation.readonly');
     Route::post('/mfa/disable', [PlatformMfaController::class, 'disable'])->name('platform.mfa.disable')->middleware('throttle:10,1', 'impersonation.readonly');
+    Route::post('/mfa/require', [PlatformMfaController::class, 'toggleRequirement'])->name('platform.mfa.require')->middleware('throttle:10,1', 'impersonation.readonly');
 
     Route::post('/payments/{payment}/pay/{gateway}', [PlatformPaymentGatewayController::class, 'pay'])->name('platform.payments.pay')->middleware('throttle:20,1', 'impersonation.readonly');
 });

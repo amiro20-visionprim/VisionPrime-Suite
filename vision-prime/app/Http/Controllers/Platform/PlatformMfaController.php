@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Platform;
 
 use App\Domains\Audit\Actions\RecordAuditLog;
+use App\Domains\Platform\Services\PlatformSettingsService;
 use App\Domains\Platform\Services\Totp;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -16,6 +17,7 @@ class PlatformMfaController
     public function __construct(
         private readonly Totp $totp,
         private readonly RecordAuditLog $audit,
+        private readonly PlatformSettingsService $settings,
     ) {}
 
     /** صفحهٔ تنظیمات MFA در پنل پلتفرم. */
@@ -30,7 +32,29 @@ class PlatformMfaController
             'setupUri' => $user->mfa_secret !== null
                 ? $this->totp->otpauthUri((string) $user->mfa_secret, (string) $user->email)
                 : null,
+            'mfaRequired' => $this->settings->bool('mfa_required', false),
+            'canRequire' => $user->isSuperAdmin(),
         ]);
+    }
+
+    /** تغییر «الزام MFA برای مدیران ارشد» — فقط سوپرادمین. */
+    public function toggleRequirement(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+
+        if (! $user?->isSuperAdmin()) {
+            abort(403, 'فقط مدیر ارشد می‌تواند سیاست MFA را تغییر دهد.');
+        }
+
+        $data = $request->validate(['required' => ['required', 'boolean']]);
+
+        $this->settings->set('mfa_required', $data['required']);
+
+        $this->audit->handle(action: 'platform.mfa.requirement_changed', subject: $user);
+
+        return back()->with('success', $data['required']
+            ? 'الزام MFA برای مدیران ارشد فعال شد.'
+            : 'الزام MFA غیرفعال شد — استفاده از MFA کاملاً اختیاری است.');
     }
 
     /** شروع فعال‌سازی: ساخت سکرت (اگر هنوز ساخته نشده). */

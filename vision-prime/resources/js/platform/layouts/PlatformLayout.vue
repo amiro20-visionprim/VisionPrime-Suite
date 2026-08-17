@@ -4,11 +4,13 @@ import { ref } from 'vue'
 
 import PlatformNavigation from '@/platform/components/PlatformNavigation.vue'
 import VButton from '@/shared/ui/VButton.vue'
+import VDrawer from '@/shared/ui/VDrawer.vue'
 import VSupportAssistant from '@/shared/ui/VSupportAssistant.vue'
 import VThemeToggle from '@/shared/ui/VThemeToggle.vue'
 
 const page = usePage<{ auth?: { user?: { name: string; email: string } } }>()
 const supportOpen = ref(false)
+const mobileNavigationOpen = ref(false)
 
 function logout(): void {
   router.post('/logout')
@@ -50,8 +52,18 @@ function logout(): void {
 
     <div class="lg:ps-64">
       <header
-        class="border-line bg-surface/95 sticky top-0 z-20 flex h-16 items-center justify-between border-b px-5 backdrop-blur sm:px-8"
+        class="border-line bg-surface/95 sticky top-0 z-20 flex h-16 items-center justify-between gap-3 border-b px-5 backdrop-blur sm:px-8"
       >
+        <button
+          type="button"
+          class="rounded-ui border-line text-ink-strong border p-2 lg:hidden"
+          aria-label="بازکردن منوی فرماندهی"
+          @click="mobileNavigationOpen = true"
+        >
+          <span class="block h-0.5 w-5 bg-current" /><span
+            class="mt-1 block h-0.5 w-5 bg-current"
+          /><span class="mt-1 block h-0.5 w-5 bg-current" />
+        </button>
         <div class="text-ink-muted hidden text-sm lg:block">
           اتاق فرماندهی — استثناها و تصمیمها، نه جزئیات روزمره
         </div>
@@ -71,5 +83,12 @@ function logout(): void {
     </div>
 
     <VSupportAssistant v-model="supportOpen" />
+
+    <VDrawer v-model="mobileNavigationOpen" title="فرماندهی پلتفرم" side="start">
+      <div class="mt-2"><PlatformNavigation /></div>
+      <template #footer
+        ><VButton class="w-full" variant="ghost" @click="logout">خروج از حساب</VButton></template
+      >
+    </VDrawer>
   </div>
 </template>

@@ -8,11 +8,13 @@ import VCard from '@/shared/ui/VCard.vue'
 import VPageHeader from '@/shared/ui/VPageHeader.vue'
 import type { AppPageProps } from '@/types/app'
 
-defineProps<{
+const props = defineProps<{
   enabled: boolean
   enabledAt: string | null
   setupSecret: string | null
   setupUri: string | null
+  mfaRequired: boolean
+  canRequire: boolean
 }>()
 
 const page = usePage<
@@ -44,6 +46,10 @@ function copyCodes(): void {
 function closeCodes(): void {
   // یک‌بار دیگر قابل نمایش نباشد — با رفرش، flash از سشن حذف شده است.
   page.props.flash = { ...page.props.flash, mfaBackupCodes: undefined }
+}
+
+function toggleRequire(): void {
+  router.post('/platform/mfa/require', { required: !props.mfaRequired }, { preserveScroll: true })
 }
 </script>
 
@@ -166,6 +172,33 @@ function closeCodes(): void {
 
       <!-- راهنما -->
       <VCard>
+        <div v-if="canRequire" class="border-b border-gray-100 p-6 pb-5 dark:border-gray-800">
+          <h3 class="text-lg font-bold text-gray-900 dark:text-white">سیاست پلتفرم</h3>
+          <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            MFA برای همه اختیاری است؛ می‌توانید برای مدیران ارشد «الزام» کنید.
+          </p>
+          <button
+            type="button"
+            class="mt-4 flex w-full items-center justify-between gap-3 rounded-xl border border-gray-200 p-4 text-start transition-colors hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-900"
+            @click="toggleRequire"
+          >
+            <span>
+              <span class="block text-sm font-bold text-gray-900 dark:text-white">الزام MFA برای مدیران ارشد</span>
+              <span class="mt-0.5 block text-xs text-gray-500 dark:text-gray-400">
+                {{ mfaRequired ? 'روشن — ورود به فرماندهی بدون MFA ممکن نیست.' : 'خاموش (پیش‌فرض) — هر مدیر خودش تصمیم می‌گیرد.' }}
+              </span>
+            </span>
+            <span
+              class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors"
+              :class="mfaRequired ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-700'"
+            >
+              <span
+                class="inline-block size-4 translate-x-1 rounded-full bg-white transition-transform"
+                :class="mfaRequired ? 'translate-x-6' : ''"
+              />
+            </span>
+          </button>
+        </div>
         <div class="p-6">
           <h3 class="text-lg font-bold text-gray-900 dark:text-white">چرا مهم است؟</h3>
           <ul class="mt-4 space-y-3 text-sm text-gray-600 dark:text-gray-300">
