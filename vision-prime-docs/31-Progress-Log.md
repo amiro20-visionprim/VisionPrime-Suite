@@ -427,3 +427,66 @@
 - **۱۰ نقطهٔ کور کلیدی شناسایی شد:** نبود لایهٔ پلتفرم، نبود دادهٔ مالی، ریسک نشت داده، نمایش کلیدهای AI، impersonation بدون audit، نبود Emergency Stop سراسری، هزینهٔ AI خارج از کنترل، بکاپ DB، نبود مانیتورینگ صف/scheduler، نبود سوییچر org.
 - **نقشهٔ راه پیشنهادی:** E0 (زیرساخت دادهٔ مالی) → E1 (هستهٔ پلتفرم + داشبورد فرماندهی) → E2 (مدیریت سازمانها + impersonation) → E4 (رصد فنی + Emergency Stop سراسری) → E3 (مشتریان/اشتراک/پرداخت عملیاتی) → E5 (گزارش + بکاپ + سوییچر org).
 - **قدم بعدی:** تأیید مالک بر سند ۳۷ ← تبدیل به فازبندی اتمی (سند ۳۸) ← شروع E0.
+
+## آپدیت #۴۰ — فاز E0: زیرساخت دادهٔ مالی پلتفرم + تصمیم معماری E — ۲۰۲۶-۰۸-۱۷
+
+- **تصمیم معماری (D-027/D-028):** فلسفهٔ «اتاق فرماندهی استثنامحور» تصویب شد (سیستم خودش اجرا/خبر میدهد؛ فقط تصمیمهای واقعی به مالک میرسد). پلن عمومی admin panel (Filament/Nova) **رد شد** — با استک فعلی (Inertia+Vue) ساخته میشود؛ محتوای خوب آن (بیزینس/مالی/امنیت) در E-رودمپ یکپارچه شد. سند ۳۷ بخش ۳.۵ (معماری سهلایه حسگر→مغز→دست) + سند ۳۸ (پلان اتمی E0–E5) نوشته شد.
+- **E0-01 migration:** جداول `plans`, `subscriptions`, `payments`, `invoices`, `platform_metrics` (همه با soft delete + index) — اجرا روی DB واقعی ✓.
+- **E0-02 دامنهٔ Platform:** مدلهای `Plan`/`Subscription`/`Payment`/`Invoice` (با statusLabel فارسی + remainingDays + limits/features) + سرویسهای `SubscriptionService` (activate/renew/cancel/suspend/reactivate)، `PaymentService` (recordManual/markPaid/markFailed/refund)، `InvoiceService` (generateForSubscription با مالیات ۹٪/markPaid/overdueCheck) — همه با audit (actionهای `platform.*`).
+- **E0-03 seeder:** پلنهای «استارتاپ/رشد/سازمانی» (Tier هماهنگ D-010) + اشتراک فعال/پرداخت/فاکتور برای سازمان demo + ۱۴ روز platform_metrics. تأیید واقعی: plans=3, subs=1, payments=1, invoices=1, metrics=14.
+- **E0-04 تستها:** `tests/Feature/Platform/BillingTest.php` — ۱۰ تست / ۴۰ assert (چرخهٔ کامل اشتراک، پرداخت، فاکتور، معوق).
+- **گیتها:** **335 تست / 1816 assert سبز** ✓ · pint ✓.
+- **مستندات (D-020):** ۳۷ (فلسفه)، ۳۸ (E0 کامل)، ۳۱ (این ورودی)، ۰۴ (D-027/D-028)، ۰۹ (ERD).
+- **قدم بعدی:** E1 — هستهٔ پلتفرم: لایوت + middleware + داشبورد فرماندهی + Triage + صف تصمیم + Daily Briefing.
+
+## آپدیت #۴۱ — فاز E1: هستهٔ پلتفرم (اتاق فرماندهی) — ۲۰۲۶-۰۸-۱۷
+
+- **E1-01 لایوت و مسیر پلتفرم:** `EnsurePlatformAccess` middleware (فقط نقش super-admin + audit ورود با action=platform.access) ثبت با alias `platform.only`؛ گروه روت `/platform/*` جدا از orgها؛ `PlatformLayout.vue` + `PlatformNavigation.vue` (۶ بخش با آیکون: داشبورد/سازمانها/اشتراکها/پرداختها/رصد فنی/گزارشها) با دارکمود و دستیار مشترک.
+- **E1-02 داشبورد فرماندهی:** `PlatformDashboardController` — KPI زنده (orgs_active, orgs_trialing, clients_total, sites_total, sites_connected, revenue_month, tokens_month, reviews_pending, plans_count) + روند ۳۰ روز از `platform_metrics` + فید ۱۰ رویداد اخیر پلتفرم (audit_logs) با برچسب فارسی. `Platform/Dashboard.vue` — ۸ کارت KPI متحرک (VStatCard با 💡) + دو چارت (VAreaChart سازمانهای فعال + VBarChart سایتهای متصل) + رویدادها.
+- **E1-03 Triage Engine (قلب هوشمند):** جدول `platform_events` + سرویس `TriageEngine` (classify: normal/exception/decision + record idempotent + pendingDecisions + resolve با audit) + job `CollectPlatformEvents` (روزانه ۰۶:۰۰: اشتراکهای نزدیک انقضا، past_due، پرداختهای failed، سایتهای قطع، jobs failed، مصرف AI بالای ۸۰٪ سقف، صف بررسی/دستور) + باکس «تصمیم در انتظار شما» در داشبورد + روت resolve.
+- **E1-04 Daily Briefing:** job `SendDailyBriefing` (روزانه ۰۷:۳۰) + `DailyBriefingNotification` (database + mail با متن فارسی روون و لینک به صف تصمیم) — مالک بدون ورود، خلاصهٔ روز را میگیرد.
+- **E2-01 (بخشی):** لیست سازمانها (`Platform/Organizations.vue` با پلن/وضعیت/شمارندهها) + جزئیات (`Show.vue`: اشتراک، کلیدهای AI فقط masked، مصرف توکن، سایتها، اعضا).
+- **تستها:** `PlatformAccessTest` — ۵ تست / ۲۲ assert (403 غیر سوپرادمین، دسترسی داشبورد، KPI/رویدادها، سازمانها، Triage). **340 تست / 1838 assert سبز** ✓.
+- **گیتها:** typecheck ✓ lint ✓ build ✓ pint ✓.
+- **تأیید بصری واقعی:** ورود با superadmin → داشبورد فرماندهی (سازمانهای فعال=۱، مشتریان=۱، سایتهای متصل=۱، درآمد=۳٬۵۰۰٬۰۰۰، پلنها=۳)، سازمانها با پلن «رشد»، جزئیات سازمان با ۱۰ عضو.
+- **مستندات (D-020):** ۳۸ (E1 کامل)، ۳۱ (این ورودی).
+- **قدم بعدی:** E2 کامل (اکشنهای suspend/activate + impersonation با audit) یا E4 (رصد فنی + تلگرام).
+
+## آپدیت #۴۲ — فاز E2 (مدیریت سازمانها + impersonation) و E4 (رصد فنی + تلگرام) — ۲۰۲۶-۰۸-۱۷
+
+- **E2-01 کامل:** اکشنهای suspend/activate سازمان (دلیل الزامی + تعلیق همزمان اشتراک + audit با `platform.organization.suspended/activated`) در جزئیات سازمان + مودال تعلیق با textarea.
+- **E2-02 Impersonation:** `PlatformImpersonationController` (شروع/پایان با ذخیرهٔ هویت اصلی در session + audit کامل `platform.impersonation.started/stopped`) + بنر قرمز `VImpersonationBanner` در هر دو پنل (آژانس/مشتری) + `BlockSensitiveWhileImpersonating` middleware روی اکشنهای حساس (ai-provider، حذف سایت، تعلیق سازمان) — هنگام impersonation فقط مشاهده. دکمهٔ «ورود بهجای او» کنار هر عضو.
+- **E4-01 رصد فنی:** `Platform/Operations.vue` — سلامت صف (pending/failed 24h)، آخرین اجرای ۸ job زمانبندیشده، وضعیت اتصالها + **باکس توقف اضطراری**.
+- **E4-02 مصرف AI:** ویجت per-org (توکن ماه / سقف پلن + درصد + نوار رنگی) + هشدار نزدیک سقف در `CollectPlatformEvents` (ai.cost_spike).
+- **E4-03 Emergency Stop سراسری:** `PlatformEmergencyStop` (همهٔ orgها یا یک org + cancel دستورهای queued + audit) + روت با throttle + مودال تأیید دوتایی + **کانال تلگرام** (`PlatformNotifier` با config/services.telegram + fallback بیصدا بدون توکن) متصل به Briefing و Emergency Stop.
+- **تستهای واقعی:** `PlatformAccessTest` — ۳ تست جدید (operations+emergency stop، suspend/activate، impersonation کامل با بلوک اکشن حساس). **343 تست / 1853 assert سبز** ✓.
+- **تأیید زنجیرهٔ Triage واقعی:** پرداخت failed ساختیم → `CollectPlatformEvents` رویداد `payment.failed [decision]` ساخت → در داشبورد «🔴 ۱ تصمیم در انتظار شما» ظاهر شد → resolve با audit ثبت شد.
+- **گیتها:** typecheck ✓ lint ✓ build ✓ pint ✓.
+- **مستندات (D-020):** ۳۸ (E2/E4 کامل)، ۳۱ (این ورودی).
+- **قدم بعدی:** E3 (پلنها/اشتراکها/پرداختها UI عملیاتی) یا E5 (گزارش + بکاپ + سوییچر org).
+
+## آپدیت #۴۳ — فاز E3 (مالی عملیاتی) و E5 (گزارش + بکاپ) — ۲۰۲۶-۰۸-۱۷ — فاز E کامل شد
+
+- **E3-01 پلنها و اشتراکها:** `Platform/Plans.vue` (کارتهای پلن با قیمت/ظرفیت/ویژگی + ساخت پلن + فعال/بایگانی) و `Platform/Subscriptions.vue` (لیست + ثبت اشتراک + تمدید/لغو/فعالسازی/تعلیق از طریق `SubscriptionService`).
+- **E3-02 پرداختها و فاکتورها:** `Platform/Payments.vue` (ثبت پرداخت دستی با روش/مبلغ + تأیید/بازگشت) و `Platform/Invoices.vue` (صدور فاکتور با مالیات ۹٪ + اسکن معوق + شمارهٔ یکتا) + **`DunningJob`** (روزانه ۰۸:۰۰: فاکتور معوق → بعد از grace ۵ روز → تعلیق اشتراک + audit).
+- **E3-03 درگاه:** روشهای zarinpal/idpay/manual/bank در UI آمادهاند (درگاه واقعی فاز بعدی).
+- **E5-01 گزارشها:** `Platform/Reports.vue` — درآمد ۱۲ ماه + سازمانهای جدید در هفته (چارت) + KPI + **Export CSV پرداختها** (با BOM برای اکسل).
+- **E5-02 بکاپ:** `platform:backup-db` command (dump به storage/backups + نگهداری ۷ نسخه) + schedule روزانه ۰۲:۰۰؛ سوییچر org از قبل موجود بود (تأیید شد). بکاپ واقعی ساخته شد (۱.۴MB).
+- **ناوبری پلتفرم:** ۸ بخش شد (داشبورد/سازمانها/پلنها/اشتراکها/پرداختها/فاکتورها/رصد فنی/گزارشها).
+- **تستها:** ۲ تست جدید (dunning بعد از grace → suspend؛ بکاپ command). **345 تست / 1860 assert سبز** ✓.
+- **گیتها:** typecheck ✓ lint ✓ build ✓ pint ✓ — تأیید بصری: پلنها (۳ کارت)، اشتراکها (تمدید/لغو/تعلیق)، گزارشها (چارت درآمد + CSV).
+- **مستندات (D-020):** ۳۸ (E3/E5 کامل — **فاز E به پایان رسید**)، ۳۱ (این ورودی).
+- **قدم بعدی:** فاز F پیشنهادی — درگاه پرداخت واقعی (زرینپال)، AI Triage (خلاصهٔ هوشمند)، و پولیش امنیت (MFA برای سوپرادمین).
+
+## آپدیت #۴۴ — فاز F: درگاه‌های پرداخت + پنل پیامکی + AI Triage + MFA — ۲۰۲۶-۰۸-۱۷
+
+- **F-01 درگاه‌های چندگانه:** قرارداد `PaymentGateway` + `PaymentGatewayManager` + درایورهای **زرین‌پال (v4) / آقای پرداخت / دستی** — sandbox بدون کلید (شبیه‌سازی موفق) و با کلید (واقعی)؛ تبدیل ریال→تومان در مرز درگاه؛ جریان pay → ریدایرکت → callback عمومی → verify با audit؛ view نتیجهٔ پرداخت. افزودن درگاه جدید = یک کلاس + یک خط رجیستر.
+- **F-02 پنل پیامکی:** قرارداد `SmsSender` + `SmsManager` (کاوه‌نگار واقعی + sandbox) + جدول `sms_logs` + `Platform/Sms.vue` (ارسال با اعتبارسنجی ۰۹ + تاریخچه با وضعیت) + آیتم ناوبری (۹ بخش شد).
+- **F-03 خلاصهٔ هوشمند Triage:** `AiTriageSummary` — با `PLATFORM_AI_API_KEY` خلاصهٔ AI و بدون آن fallback قطعی آفلاین (تعداد بحرانی/هشدار + ۳ مورد اولویت‌دار)؛ کارت «🧠 خلاصهٔ هوشمند تصمیم‌ها» در داشبورد + خط خلاصه در ایمیل Daily Briefing.
+- **F-04 MFA سوپرادمین:** TOTP پیاده‌سازی RFC 6238 بدون کتابخانه (`Totp`) + ستون‌های MFA روی users + میان‌افزار `platform.mfa` (چالش ورود) + `Platform/Mfa.vue` (سکرت + QR + کد پشتیبان) + `MfaChallenge.vue` + غیرفعال‌سازی فقط با کد TOTP.
+- **اتصال SMS به اتوماسیون:** `DunningJob` — فاکتور معوق → پیامک هشدار به شمارهٔ org (`settings.phone`) + ستون `sms_reminder_sent_at` (ارسال یک‌بار per فاکتور)؛ `RemindScheduledPublishes` — یادآوری موعد انتشار یک روز قبل از طریق پیامک.
+- **کدهای پشتیبان MFA در UI:** بعد از فعال‌سازی، مودال ۱۰ کد پشتیبان با دکمهٔ «کپی همه» ظاهر می‌شود — از طریق flash (session pull) فقط یک‌بار و بعد از رفرش دیگر نمایش داده نمی‌شود.
+- **تست‌ها:** `PhaseFTest` — ۱۱ تست / ۳۸ assert (درایورها، SMS log، TOTP، fallback AI، فعال‌سازی MFA + چالش، **dunning→SMS**، **یادآوری→SMS**). **356 تست / 1898 assert سبز** ✓.
+- **گیت‌ها:** typecheck ✓ lint ✓ build ✓ pint ✓ — تأیید بصری: ارسال پیامک از UI (در تاریخچه ثبت شد) + فعال‌سازی MFA با کد واقعی (مودال کدهای پشتیبان ظاهر و بعد از رفرش تکرار نشد).
+- **مستندات (D-020):** ۳۹ (سند جدید فاز F)، ۳۱ (این ورودی)، D-032 در سند ۰۴.
+- **قدم بعدی (پیشنهادی — فاز G):** کلیدهای واقعی درگاه‌ها، اتصال SMS به DunningJob/یادآوری، MFA برای سایر نقش‌ها، نمایش کدهای پشتیبان در UI بعد از فعال‌سازی.

@@ -59,6 +59,17 @@ use App\Http\Controllers\Connector\HealthCheckController;
 use App\Http\Controllers\Connector\PairSiteController;
 use App\Http\Controllers\Marketing\AssistantController;
 use App\Http\Controllers\Marketing\LeadController;
+use App\Http\Controllers\Platform\PlatformBillingController;
+use App\Http\Controllers\Platform\PlatformDashboardController;
+use App\Http\Controllers\Platform\PlatformDecisionController;
+use App\Http\Controllers\Platform\PlatformEmergencyController;
+use App\Http\Controllers\Platform\PlatformImpersonationController;
+use App\Http\Controllers\Platform\PlatformMfaController;
+use App\Http\Controllers\Platform\PlatformOperationsController;
+use App\Http\Controllers\Platform\PlatformOrganizationController;
+use App\Http\Controllers\Platform\PlatformPaymentGatewayController;
+use App\Http\Controllers\Platform\PlatformReportController;
+use App\Http\Controllers\Platform\PlatformSmsController;
 use App\Http\Controllers\TrainingController;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -161,7 +172,7 @@ Route::middleware(['auth', 'current.organization'])->group(function (): void {
     Route::get('/app/url-profiles/{urlProfile}', [UrlProfileController::class, 'show'])->name('app.url-profiles.show');
     Route::get('/app/sites/{site}/edit', [SiteController::class, 'edit'])->name('app.sites.edit');
     Route::put('/app/sites/{site}', [SiteController::class, 'update'])->name('app.sites.update');
-    Route::delete('/app/sites/{site}', [SiteController::class, 'destroy'])->name('app.sites.destroy');
+    Route::delete('/app/sites/{site}', [SiteController::class, 'destroy'])->name('app.sites.destroy')->middleware('impersonation.readonly');
 
     Route::get('/app/sites/{site}/automation', [AutomationPolicyController::class, 'show'])->name('app.sites.automation');
     Route::get('/app/sites/{site}/automation/trust', [AutomationPolicyController::class, 'trust'])->name('app.sites.automation.trust');
@@ -231,8 +242,8 @@ Route::middleware(['auth', 'current.organization'])->group(function (): void {
     Route::put('/app/settings/organization/members/{membership}', [OrganizationSettingsController::class, 'update'])->name('app.settings.organization.members.update');
     Route::delete('/app/settings/organization/members/{membership}', [OrganizationSettingsController::class, 'destroy'])->name('app.settings.organization.members.destroy');
     Route::get('/app/settings/integrations', [IntegrationsSettingsController::class, 'index'])->name('app.settings.integrations');
-    Route::post('/app/settings/ai-provider', [AiSettingsController::class, 'store'])->name('app.settings.ai-provider.store')->middleware('throttle:20,1');
-    Route::delete('/app/settings/ai-provider/{provider}', [AiSettingsController::class, 'destroy'])->name('app.settings.ai-provider.destroy');
+    Route::post('/app/settings/ai-provider', [AiSettingsController::class, 'store'])->name('app.settings.ai-provider.store')->middleware('throttle:20,1', 'impersonation.readonly');
+    Route::delete('/app/settings/ai-provider/{provider}', [AiSettingsController::class, 'destroy'])->name('app.settings.ai-provider.destroy')->middleware('impersonation.readonly');
     Route::get('/app/settings/audit-log', [AuditLogSettingsController::class, 'index'])->name('app.settings.audit-log');
 
     Route::post('/app/ai-drafts', [AiDraftController::class, 'store'])->name('app.ai-drafts.store')->middleware('throttle:10,1');
@@ -240,6 +251,58 @@ Route::middleware(['auth', 'current.organization'])->group(function (): void {
     Route::post('/app/ai-drafts/article', [AiDraftController::class, 'storeArticle'])->name('app.ai-drafts.article')->middleware('throttle:10,1');
     Route::get('/app/ai-drafts/product/create', [AiDraftController::class, 'createProduct'])->name('app.ai-drafts.product.create');
     Route::post('/app/ai-drafts/product', [AiDraftController::class, 'storeProduct'])->name('app.ai-drafts.product')->middleware('throttle:10,1');
+});
+
+// بازگشت از درگاه پرداخت — عمومی است چون درگاه به آن ریدایرکت می‌کند (بدون لاگین)
+Route::get('/platform/payments/callback/{gateway}/{transaction}', [PlatformPaymentGatewayController::class, 'callback'])->name('platform.payments.callback');
+
+// چالش MFA — بعد از لاگین، قبل از ورود به اتاق فرماندهی (auth دارد ولی پلتفرم ندارد)
+Route::middleware(['auth'])->prefix('platform/mfa')->group(function (): void {
+    Route::get('/challenge', [PlatformMfaController::class, 'challenge'])->name('platform.mfa.challenge');
+    Route::post('/verify', [PlatformMfaController::class, 'verify'])->name('platform.mfa.verify')->middleware('throttle:10,1');
+});
+
+// ─── اتاق فرماندهی پلتفرم (Super Admin) — بالای سازمان‌ها ───
+Route::middleware(['auth', 'platform.only', 'platform.mfa'])->prefix('platform')->group(function (): void {
+    Route::get('/dashboard', PlatformDashboardController::class)->name('platform.dashboard');
+    Route::post('/events/{event}/resolve', [PlatformDecisionController::class, 'resolve'])->name('platform.events.resolve')->middleware('throttle:20,1');
+    Route::get('/organizations', [PlatformOrganizationController::class, 'index'])->name('platform.organizations.index');
+    Route::get('/organizations/{organization}', [PlatformOrganizationController::class, 'show'])->name('platform.organizations.show');
+    Route::post('/organizations/{organization}/suspend', [PlatformOrganizationController::class, 'suspend'])->name('platform.organizations.suspend')->middleware('throttle:20,1', 'impersonation.readonly');
+    Route::post('/organizations/{organization}/activate', [PlatformOrganizationController::class, 'activate'])->name('platform.organizations.activate')->middleware('throttle:20,1', 'impersonation.readonly');
+    Route::post('/organizations/{organization}/impersonate/{user}', [PlatformImpersonationController::class, 'start'])->name('platform.organizations.impersonate')->middleware('throttle:10,1');
+    Route::post('/impersonation/stop', [PlatformImpersonationController::class, 'stop'])->name('platform.impersonation.stop')->middleware('throttle:10,1');
+    Route::get('/operations', PlatformOperationsController::class)->name('platform.operations');
+    Route::post('/emergency-stop', [PlatformEmergencyController::class, 'store'])->name('platform.emergency-stop')->middleware('throttle:5,1', 'impersonation.readonly');
+
+    Route::get('/plans', [PlatformBillingController::class, 'plans'])->name('platform.plans');
+    Route::post('/plans', [PlatformBillingController::class, 'storePlan'])->name('platform.plans.store')->middleware('throttle:20,1', 'impersonation.readonly');
+    Route::post('/plans/{plan}/toggle', [PlatformBillingController::class, 'togglePlan'])->name('platform.plans.toggle')->middleware('throttle:20,1', 'impersonation.readonly');
+
+    Route::get('/subscriptions', [PlatformBillingController::class, 'subscriptions'])->name('platform.subscriptions');
+    Route::post('/subscriptions', [PlatformBillingController::class, 'storeSubscription'])->name('platform.subscriptions.store')->middleware('throttle:20,1', 'impersonation.readonly');
+    Route::post('/subscriptions/{subscription}/action', [PlatformBillingController::class, 'subscriptionAction'])->name('platform.subscriptions.action')->middleware('throttle:20,1', 'impersonation.readonly');
+
+    Route::get('/payments', [PlatformBillingController::class, 'payments'])->name('platform.payments');
+    Route::post('/payments', [PlatformBillingController::class, 'storePayment'])->name('platform.payments.store')->middleware('throttle:20,1', 'impersonation.readonly');
+    Route::post('/payments/{payment}/action', [PlatformBillingController::class, 'paymentAction'])->name('platform.payments.action')->middleware('throttle:20,1', 'impersonation.readonly');
+
+    Route::get('/invoices', [PlatformBillingController::class, 'invoices'])->name('platform.invoices');
+    Route::post('/invoices', [PlatformBillingController::class, 'storeInvoice'])->name('platform.invoices.store')->middleware('throttle:20,1', 'impersonation.readonly');
+    Route::post('/invoices/overdue-check', [PlatformBillingController::class, 'runOverdueCheck'])->name('platform.invoices.overdue-check')->middleware('throttle:10,1', 'impersonation.readonly');
+
+    Route::get('/reports', [PlatformReportController::class, 'index'])->name('platform.reports');
+    Route::get('/reports/export', [PlatformReportController::class, 'exportCsv'])->name('platform.reports.export');
+
+    Route::get('/sms', [PlatformSmsController::class, 'index'])->name('platform.sms');
+    Route::post('/sms', [PlatformSmsController::class, 'send'])->name('platform.sms.send')->middleware('throttle:10,1', 'impersonation.readonly');
+
+    Route::get('/mfa', [PlatformMfaController::class, 'index'])->name('platform.mfa.settings');
+    Route::post('/mfa/setup', [PlatformMfaController::class, 'setup'])->name('platform.mfa.setup')->middleware('throttle:10,1', 'impersonation.readonly');
+    Route::post('/mfa/enable', [PlatformMfaController::class, 'enable'])->name('platform.mfa.enable')->middleware('throttle:10,1', 'impersonation.readonly');
+    Route::post('/mfa/disable', [PlatformMfaController::class, 'disable'])->name('platform.mfa.disable')->middleware('throttle:10,1', 'impersonation.readonly');
+
+    Route::post('/payments/{payment}/pay/{gateway}', [PlatformPaymentGatewayController::class, 'pay'])->name('platform.payments.pay')->middleware('throttle:20,1', 'impersonation.readonly');
 });
 
 if (app()->environment(['local', 'testing'])) {

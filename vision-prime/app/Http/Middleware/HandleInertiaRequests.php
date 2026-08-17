@@ -29,6 +29,8 @@ class HandleInertiaRequests extends Middleware
                 // One-time pairing token shown right after creation on the connector page.
                 'pairingToken' => fn (): ?string => $request->session()->get('pairingToken'),
                 'pairingTokenExpiresAt' => fn (): ?string => $request->session()->get('pairingTokenExpiresAt'),
+                // MFA backup codes — one-time: pulled (removed) on first read.
+                'mfaBackupCodes' => fn (): ?array => $request->session()->pull('mfa_backup_codes'),
             ],
             'auth' => [
                 'user' => fn (): ?array => $request->user() === null ? null : [
@@ -74,6 +76,10 @@ class HandleInertiaRequests extends Middleware
                 ->first()
                 ?->role?->key,
             'notificationCount' => fn (): int => $request->user() === null ? 0 : $request->user()->unreadNotifications()->count(),
+            'impersonating' => fn (): ?array => $request->user() === null || ! $request->session()->has('platform_impersonating') ? null : [
+                'name' => $request->user()->name,
+                'email' => $request->user()->email,
+            ],
             'app' => [
                 'name' => config('app.name'),
                 'locale' => config('vision-prime.default_locale'),

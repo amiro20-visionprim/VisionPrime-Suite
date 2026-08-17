@@ -7,6 +7,9 @@ use App\Domains\Automation\Jobs\ProcessQueuedCommands;
 use App\Domains\Automation\Jobs\ReleaseScheduledCommands;
 use App\Domains\Automation\Jobs\RemindScheduledPublishes;
 use App\Domains\Automation\Jobs\RollbackMonitor;
+use App\Domains\Platform\Jobs\CollectPlatformEvents;
+use App\Domains\Platform\Jobs\DunningJob;
+use App\Domains\Platform\Jobs\SendDailyBriefing;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -51,5 +54,29 @@ Schedule::job(new RemindScheduledPublishes)
 // D-013 — پردازش صف خودکار: retry دستورهای به‌تأخیرافتاده (حلقهٔ delay → retry)
 Schedule::job(new ProcessQueuedCommands)
     ->everyThirtyMinutes()
+    ->timezone('Asia/Tehran')
+    ->onOneServer();
+
+// فاز E — حسگر روزانهٔ پلتفرم (Triage Engine): اسکن وضعیت‌ها و ثبت رویداد
+Schedule::job(new CollectPlatformEvents)
+    ->dailyAt('06:00')
+    ->timezone('Asia/Tehran')
+    ->onOneServer();
+
+// فاز E — گزارش روزانهٔ هوشمند (Daily Briefing) برای مدیر ارشد
+Schedule::job(new SendDailyBriefing)
+    ->dailyAt('07:30')
+    ->timezone('Asia/Tehran')
+    ->onOneServer();
+
+// فاز E — Dunning: پیگیری فاکتورهای معوق و تعلیق بعد از grace period
+Schedule::job(new DunningJob)
+    ->dailyAt('08:00')
+    ->timezone('Asia/Tehran')
+    ->onOneServer();
+
+// فاز E — بکاپ روزانهٔ پایگاه داده (نگهداری ۷ نسخه)
+Schedule::command('platform:backup-db')
+    ->dailyAt('02:00')
     ->timezone('Asia/Tehran')
     ->onOneServer();

@@ -9,6 +9,7 @@ import VButton from '@/shared/ui/VButton.vue'
 import VDrawer from '@/shared/ui/VDrawer.vue'
 import VIcon from '@/shared/ui/VIcon.vue'
 import VOnboardingTour from '@/shared/ui/VOnboardingTour.vue'
+import VImpersonationBanner from '@/shared/ui/VImpersonationBanner.vue'
 import VSupportAssistant from '@/shared/ui/VSupportAssistant.vue'
 import VThemeToggle from '@/shared/ui/VThemeToggle.vue'
 import type { AppPageProps } from '@/types/app'
@@ -27,6 +28,7 @@ function logout(): void {
 
 <template>
   <div class="bg-canvas min-h-screen" dir="rtl">
+    <VImpersonationBanner />
     <aside
       class="border-line bg-surface fixed inset-y-0 start-0 z-30 hidden w-64 border-e lg:flex lg:flex-col"
     >

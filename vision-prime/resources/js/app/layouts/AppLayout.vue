@@ -8,6 +8,7 @@ import OrganizationSwitcher from '@/app/components/OrganizationSwitcher.vue'
 import VDrawer from '@/shared/ui/VDrawer.vue'
 import VButton from '@/shared/ui/VButton.vue'
 import VIcon from '@/shared/ui/VIcon.vue'
+import VImpersonationBanner from '@/shared/ui/VImpersonationBanner.vue'
 import VOnboardingTour, { type TourStep } from '@/shared/ui/VOnboardingTour.vue'
 import VSupportAssistant from '@/shared/ui/VSupportAssistant.vue'
 import VThemeToggle from '@/shared/ui/VThemeToggle.vue'
@@ -48,6 +49,7 @@ function logout(): void {
 
 <template>
   <div class="bg-canvas min-h-screen" dir="rtl">
+    <VImpersonationBanner />
     <aside
       class="border-line bg-surface fixed inset-y-0 start-0 z-30 hidden w-68 border-e lg:flex lg:flex-col"
     >

@@ -113,6 +113,25 @@ Organization 1─* AuditLog
 | audit_logs | organization_id, actor_type, actor_id, action, subject_type, subject_id, before_json, after_json, ip_hash, occurred_at | trail غیرقابل تغییر |
 | entitlements | organization_id, key, value_json, starts_at, ends_at | آماده‌سازی Plan بدون Billing آنلاین |
 
+## Platform Billing Domain (جدید — فاز E0، ۲۰۲۶-۰۸-۱۷)
+| Entity | فیلدهای اصلی | مسئولیت |
+|---|---|---|
+| plans | key (unique), name, description, price_monthly, price_yearly, currency (IRT), limits (json: max_sites/max_clients/max_ai_tokens_monthly/max_profiles), features (json), is_active, sort, softDeletes | تعریف پلن‌ها (استارتاپ/رشد/سازمانی) |
+| subscriptions | organization_id, plan_id, status (trialing/active/past_due/canceled/suspended), trial_ends_at, starts_at, current_period_end, auto_renew, cancel_at_period_end, softDeletes | چرخهٔ حیات اشتراک هر سازمان (یک فعال per org) |
+| payments | organization_id, subscription_id (nullable), amount, currency, method (zarinpal/idpay/manual/bank), status (pending/paid/failed/refunded), reference (unique), gateway_transaction_id, paid_at | ثبت و ردیابی پرداخت‌ها |
+| invoices | organization_id, subscription_id, payment_id (nullable), number (unique), amount, tax (۹٪), total, status (draft/issued/paid/overdue/canceled), issued_at, due_at | صدور فاکتور و پیگیری معوق‌ها |
+| platform_metrics | date (unique), orgs_active, orgs_trialing, clients_total, sites_total, sites_connected, tokens_in, tokens_out, ai_cost, commands_executed, commands_rolled_back, reviews_pending | rollup روزانه برای داشبورد سریع پلتفرم |
+| platform_events | type, severity (critical/warning/info), triage (exception/decision), payload (json), organization_id (nullable), resolved_at, resolved_by, resolution_note | حسگر Triage — رویدادهای استثنا و صف تصمیم (E1) |
+| sms_logs | driver, to, message, status (sent/failed), external_id, error | لاگ همهٔ پیامک‌های ارسالی از پنل پیامکی (F-02) |
+
+## Platform Security Domain (جدید — فاز F، ۲۰۲۶-۰۸-۱۷)
+| Entity | فیلدهای اصلی | مسئولیت |
+|---|---|---|
+| users.mfa_secret | string (base32), nullable | سکرت TOTP برای MFA سوپرادمین (F-04) |
+| users.mfa_enabled | boolean | فعال بودن MFA برای کاربر |
+| users.mfa_backup_codes | json (list) | کدهای پشتیبان یکبارمصرف (۱۰ عدد) |
+| users.mfa_enabled_at | timestamp, nullable | زمان فعال‌سازی MFA |
+
 ## Indexing و Retention اولیه
 - metrics: composite index روی `(gsc_property_id, date, page_url/query)`.
 - URL profile: unique روی `(site_id, canonical_url)`.

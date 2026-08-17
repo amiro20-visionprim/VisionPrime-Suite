@@ -80,6 +80,9 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'mfa_enabled' => 'boolean',
+            'mfa_backup_codes' => 'array',
+            'mfa_enabled_at' => 'datetime',
         ];
     }
 }

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domains\Automation\Jobs;
 
+use App\Domains\Organization\Models\Organization;
+use App\Domains\Platform\Services\SmsManager;
 use App\Models\User;
 use App\Notifications\ScheduledPublishReminder;
 use Illuminate\Bus\Queueable;
@@ -70,6 +72,20 @@ class RemindScheduledPublishes implements ShouldQueue
                 'reminder_sent_at' => now(),
                 'updated_at' => now(),
             ]);
+
+            // F-02 (گسترش): یادآوری موعد انتشار از طریق پیامک به شمارهٔ سازمان
+            $org = Organization::query()->find((int) $site->organization_id);
+            $phone = $org?->settings['phone'] ?? null;
+            if (is_string($phone) && $phone !== '') {
+                app(SmsManager::class)->send(
+                    $phone,
+                    sprintf(
+                        'یادآوری: پیش‌نویس «%s» فردا (%s) به‌صورت خودکار منتشر می‌شود.',
+                        $title,
+                        (string) $command->scheduled_for,
+                    ),
+                );
+            }
         }
     }
 }

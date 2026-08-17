@@ -37,4 +37,28 @@ return [
         ],
     ],
 
+    'telegram' => [
+        'bot_token' => env('TELEGRAM_BOT_TOKEN'),
+        'chat_id' => env('TELEGRAM_CHAT_ID'),
+    ],
+
+    'zarinpal' => [
+        'merchant_id' => env('ZARINPAL_MERCHANT_ID'),
+    ],
+
+    'aqayepardakht' => [
+        'pin' => env('AQAYEPARDAKHT_PIN'),
+    ],
+
+    'kavenegar' => [
+        'api_key' => env('KAVENEGAR_API_KEY'),
+        'sender' => env('KAVENEGAR_SENDER', '10004346'),
+    ],
+
+    'platform_ai' => [
+        'api_key' => env('PLATFORM_AI_API_KEY'),
+        'base_url' => env('PLATFORM_AI_BASE_URL'),
+        'model' => env('PLATFORM_AI_MODEL', 'gpt-4o-mini'),
+    ],
+
 ];

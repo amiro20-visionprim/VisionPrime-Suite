@@ -3,8 +3,11 @@
 declare(strict_types=1);
 
 use App\Http\Middleware\AssignRequestId;
+use App\Http\Middleware\BlockSensitiveWhileImpersonating;
 use App\Http\Middleware\EnsureClientPortalAccess;
 use App\Http\Middleware\EnsureCurrentOrganization;
+use App\Http\Middleware\EnsureMfaVerified;
+use App\Http\Middleware\EnsurePlatformAccess;
 use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -33,6 +36,9 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'current.organization' => EnsureCurrentOrganization::class,
             'client.portal' => EnsureClientPortalAccess::class,
+            'platform.only' => EnsurePlatformAccess::class,
+            'impersonation.readonly' => BlockSensitiveWhileImpersonating::class,
+            'platform.mfa' => EnsureMfaVerified::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
