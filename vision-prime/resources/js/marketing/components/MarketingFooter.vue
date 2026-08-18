@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3'
 
+const enamadLogo = '/images/enamad-logo.png'
+
 const productLinks = [
   { label: 'معرفی محصول', href: '/product' },
   { label: 'قابلیت‌ها', href: '/features' },
@@ -89,32 +91,37 @@ const contactLinks = [
         </p>
       </div>
     </div>
-    <div class="border-line border-t">
+    <div class="border-line border-t bg-surface-soft/50">
       <div
-        class="text-ink-muted mx-auto flex max-w-7xl flex-col gap-3 px-5 py-5 text-sm sm:flex-row sm:items-center sm:justify-between sm:px-8 lg:px-10"
+        class="text-ink-muted mx-auto flex max-w-7xl flex-col gap-4 px-5 py-5 text-sm sm:flex-row sm:items-center sm:justify-between sm:px-8 lg:px-10"
       >
-        <span>© {{ new Date().getFullYear() }} Vision Prime SUITE. همه حقوق محفوظ است.</span>
-        <div class="flex items-center gap-3">
+        <div class="flex flex-col gap-1">
+          <span class="text-ink-strong text-xs font-bold">نمادهای اعتماد و مجوزها</span>
+          <span>© {{ new Date().getFullYear() }} Vision Prime SUITE. همه حقوق محفوظ است.</span>
+        </div>
+        <div class="flex items-center gap-4">
           <span class="hidden text-xs md:inline">ساخته‌شده برای عملیات SEO حرفه‌ای</span>
-          <a
-            href="https://trustseal.enamad.ir/?id=7358907&amp;Code=kPxZb4EnUfb7JjJxu6wEyTsRQ4av5iS0"
-            target="_blank"
-            rel="noopener noreferrer"
-            referrerpolicy="origin"
-            class="shrink-0 transition-opacity hover:opacity-80"
-            aria-label="نماد اعتماد الکترونیکی"
-          >
-            <img
-              src="https://trustseal.enamad.ir/logo.aspx?id=7358907&amp;Code=kPxZb4EnUfb7JjJxu6wEyTsRQ4av5iS0"
-              alt="نماد اعتماد الکترونیکی"
-              width="80"
-              height="80"
-              loading="lazy"
-              decoding="async"
+          <div class="flex items-center gap-2">
+            <a
+              href="https://trustseal.enamad.ir/?id=7358907&amp;Code=kPxZb4EnUfb7JjJxu6wEyTsRQ4av5iS0"
+              target="_blank"
+              rel="noopener noreferrer"
               referrerpolicy="origin"
-              class="size-16 rounded-ui bg-white object-contain p-1.5 shadow-sm"
-            />
-          </a>
+              class="shrink-0 transition-opacity hover:opacity-80"
+              aria-label="نماد اعتماد الکترونیکی"
+              title="نماد اعتماد الکترونیکی"
+            >
+              <img
+                :src="enamadLogo"
+                alt="نماد اعتماد الکترونیکی"
+                width="104"
+                height="60"
+                loading="lazy"
+                decoding="async"
+                class="h-14 w-auto rounded-ui bg-white object-contain px-2 py-1.5 shadow-sm"
+              />
+            </a>
+          </div>
         </div>
       </div>
     </div>
