@@ -28,3 +28,4 @@ vision-prime-update.patch
 
 # Machine-specific TLS certificates
 docker/nginx/ssl/*.pem
+/storage/backups
