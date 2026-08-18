@@ -4,16 +4,23 @@
  * Class-based dark mode: the `dark` class lives on <html> and the token
  * overrides in app.css flip the whole suite. The preference is persisted
  * in localStorage; `system` tracks the OS and stays in sync.
+ *
+ * پیش‌فرض از نسخهٔ ۱.۹ به بعد «تاریک» است تا تجربهٔ یکپارچه‌ای در پنل‌ها
+ * و صفحه‌های ورود/ثبت‌نام داشته باشیم؛ کاربر همیشه می‌تواند از توگل
+ * (VThemeToggle) حالت روشن را انتخاب کند.
  */
+
+/** پیش‌فرض هنگام اولین بازدید (قبل از هر انتخاب کاربر). */
+export const DEFAULT_PREFERENCE: ThemePreference = 'dark'
 
 export type ThemePreference = 'light' | 'dark' | 'system'
 
 export const THEME_STORAGE_KEY = 'suite-theme'
 
 export function getStoredPreference(): ThemePreference {
-  if (typeof window === 'undefined') return 'system'
+  if (typeof window === 'undefined') return DEFAULT_PREFERENCE
   const stored = window.localStorage.getItem(THEME_STORAGE_KEY)
-  return stored === 'light' || stored === 'dark' || stored === 'system' ? stored : 'system'
+  return stored === 'light' || stored === 'dark' || stored === 'system' ? stored : DEFAULT_PREFERENCE
 }
 
 export function systemPrefersDark(): boolean {

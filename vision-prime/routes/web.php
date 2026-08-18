@@ -43,6 +43,8 @@ use App\Http\Controllers\App\SiteSyncStatusController;
 use App\Http\Controllers\App\UrlProfileController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\NewPasswordController;
+use App\Http\Controllers\Auth\OtpLoginController;
+use App\Http\Controllers\Auth\OtpRegisterController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Client\ClientActivityController;
@@ -112,9 +114,12 @@ Route::get('/contact', fn () => Inertia::render('Marketing/Contact'))->name('mar
 Route::middleware('guest')->group(function (): void {
     Route::get('/register', [RegisterController::class, 'create'])->name('register');
     Route::post('/register', [RegisterController::class, 'store'])->name('register.store')->middleware('throttle:10,1');
+    Route::post('/register/otp', [OtpRegisterController::class, 'request'])->name('register.otp')->middleware('throttle:5,1');
 
     Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
     Route::post('/login', [AuthenticatedSessionController::class, 'store'])->name('login.store');
+    Route::post('/login/otp', [OtpLoginController::class, 'request'])->name('login.otp')->middleware('throttle:5,1');
+    Route::post('/login/otp/verify', [OtpLoginController::class, 'verify'])->name('login.otp.verify')->middleware('throttle:10,1');
 
     Route::get('/forgot-password', [PasswordResetLinkController::class, 'create'])->name('password.request');
     Route::post('/forgot-password', [PasswordResetLinkController::class, 'store'])->name('password.email');

@@ -13,6 +13,7 @@ import {
   CheckCircle2,
   Clock,
   Eye,
+  EyeOff,
   FileText,
   Gauge,
   GraduationCap,
@@ -23,6 +24,7 @@ import {
   Megaphone,
   Moon,
   Newspaper,
+  Phone,
   PieChart,
   Plane,
   RotateCcw,
@@ -58,6 +60,7 @@ export type IconName =
   | 'check'
   | 'clock'
   | 'eye'
+  | 'eye-off'
   | 'file'
   | 'gauge'
   | 'graduation'
@@ -66,6 +69,7 @@ export type IconName =
   | 'megaphone'
   | 'moon'
   | 'news'
+  | 'phone'
   | 'plane'
   | 'rotate'
   | 'search'
@@ -101,6 +105,7 @@ const registry: Record<IconName, Component> = {
   check: CheckCircle2,
   clock: Clock,
   eye: Eye,
+  'eye-off': EyeOff,
   file: FileText,
   gauge: Gauge,
   graduation: GraduationCap,
@@ -109,6 +114,7 @@ const registry: Record<IconName, Component> = {
   megaphone: Megaphone,
   moon: Moon,
   news: Newspaper,
+  phone: Phone,
   plane: Plane,
   rotate: RotateCcw,
   search: Search,

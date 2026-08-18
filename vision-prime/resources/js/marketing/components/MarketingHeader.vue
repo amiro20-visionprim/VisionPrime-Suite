@@ -4,6 +4,7 @@ import { computed, ref } from 'vue'
 
 import VButton from '@/shared/ui/VButton.vue'
 import VDrawer from '@/shared/ui/VDrawer.vue'
+import VThemeToggle from '@/shared/ui/VThemeToggle.vue'
 
 interface NavigationItem {
   label: string
@@ -64,6 +65,7 @@ function closeMenu(): void {
       </nav>
 
       <div class="hidden items-center gap-3 lg:flex">
+        <VThemeToggle />
         <Link href="/login" class="text-ink hover:text-brand-700 text-sm font-semibold">ورود</Link>
         <VButton href="/demo" size="sm">درخواست دموی اختصاصی</VButton>
       </div>

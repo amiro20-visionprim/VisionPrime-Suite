@@ -6,9 +6,10 @@
         <title inertia>{{ config('app.name', 'Vision Prime SUITE') }}</title>
         <script>
             // Anti-FOUC: apply saved/system theme before first paint (mirrors lib/theme.ts)
+            // پیش‌فرض «تاریک» است — کاربر با توگل می‌تواند روشن را انتخاب کند.
             (function () {
                 try {
-                    var stored = window.localStorage.getItem('suite-theme') || 'system';
+                    var stored = window.localStorage.getItem('suite-theme') || 'dark';
                     var dark =
                         stored === 'dark' ||
                         (stored !== 'light' &&

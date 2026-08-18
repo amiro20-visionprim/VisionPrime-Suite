@@ -26,11 +26,17 @@ class RegisterTest extends TestCase
 
     public function test_registration_creates_user_and_redirects_to_onboarding(): void
     {
+        $request = $this->postJson('/register/otp', ['phone' => '09350000123']);
+        $code = (string) $request->json('code');
+
         $response = $this->post('/register', [
             'name' => 'کاربر جدید',
             'email' => 'new.user@example.ir',
+            'phone' => '09350000123',
+            'otp_code' => $code,
             'password' => 'StrongPass@2026',
             'password_confirmation' => 'StrongPass@2026',
+            'terms' => true,
         ]);
 
         $response->assertRedirect('/app/onboarding');
@@ -44,21 +50,33 @@ class RegisterTest extends TestCase
     {
         User::factory()->create(['email' => 'taken@example.ir']);
 
+        $request = $this->postJson('/register/otp', ['phone' => '09350000124']);
+        $code = (string) $request->json('code');
+
         $this->post('/register', [
             'name' => 'کاربر',
             'email' => 'taken@example.ir',
+            'phone' => '09350000124',
+            'otp_code' => $code,
             'password' => 'StrongPass@2026',
             'password_confirmation' => 'StrongPass@2026',
+            'terms' => true,
         ])->assertSessionHasErrors('email');
     }
 
     public function test_weak_password_is_rejected(): void
     {
+        $request = $this->postJson('/register/otp', ['phone' => '09350000125']);
+        $code = (string) $request->json('code');
+
         $this->post('/register', [
             'name' => 'کاربر',
             'email' => 'weak@example.ir',
+            'phone' => '09350000125',
+            'otp_code' => $code,
             'password' => 'short',
             'password_confirmation' => 'short',
+            'terms' => true,
         ])->assertSessionHasErrors('password');
     }
 }
