@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 
 import { trackEvent } from '@/lib/analytics'
 import VButton from '@/shared/ui/VButton.vue'
+import VIcon from '@/shared/ui/VIcon.vue'
 import type {
   AssistantChatResponse,
   AssistantKnowledge,
@@ -167,10 +168,11 @@ onMounted(() => {
       <div class="bg-brand-900 flex items-center justify-between gap-3 px-4 py-3 text-white">
         <div class="flex items-center gap-2.5">
           <span
-            class="flex size-9 items-center justify-center rounded-full bg-white/15 text-lg"
+            class="bg-brand-700 flex size-9 items-center justify-center rounded-full shadow-inner"
             aria-hidden="true"
-            >🤖</span
           >
+            <VIcon name="sparkles" size="sm" />
+          </span>
           <div>
             <p class="text-sm font-bold">مشاور سوئیت</p>
             <p class="text-brand-200 flex items-center gap-1 text-xs">
@@ -382,8 +384,8 @@ onMounted(() => {
       :aria-label="open ? 'بستن مشاور' : 'باز کردن مشاور'"
       @click="toggle"
     >
-      <span class="relative text-xl" aria-hidden="true">
-        🤖
+      <span class="bg-brand-600 relative flex size-6 items-center justify-center rounded-full" aria-hidden="true">
+        <VIcon name="sparkles" size="sm" />
         <span
           class="absolute -top-0.5 -right-0.5 size-2.5 animate-pulse rounded-full border-2 border-white bg-emerald-400"
         />

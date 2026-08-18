@@ -4,6 +4,7 @@ import { ref } from 'vue'
 
 import PlatformNavigation from '@/platform/components/PlatformNavigation.vue'
 import VButton from '@/shared/ui/VButton.vue'
+import VIcon from '@/shared/ui/VIcon.vue'
 import VDrawer from '@/shared/ui/VDrawer.vue'
 import VSupportAssistant from '@/shared/ui/VSupportAssistant.vue'
 import VThemeToggle from '@/shared/ui/VThemeToggle.vue'
@@ -75,7 +76,9 @@ function logout(): void {
             aria-label="راهنما و پشتیبانی"
             @click="supportOpen = true"
           >
-            راهنما و پشتیبانی
+            <VIcon name="support" tone="brand" size="sm" />
+            <span class="hidden sm:inline">راهنما و پشتیبانی</span>
+            <span class="sm:hidden">راهنما</span>
           </button>
         </div>
       </header>
