@@ -140,3 +140,10 @@
 Foundation → Identity → Connector/GSC → Content & Data → Intelligence → Recommendation/Review → Automation → Reporting/Impact → Hardening.
 
 Marketing می‌تواند بعد از Foundation به‌صورت موازی اجرا شود، اما نباید Design System جداگانه بسازد.
+
+### آپدیت #۵۰ — لوگوی اینماد در فوتر سایت (۲۰۲۶-۰۸-۱۸)
+
+- [x] لوگوی رسمی اینماد (کد `7358907`) در فوتر سایت مارکتینگ (`MarketingFooter.vue`) قرار گرفت
+- [x] هاتلینک رسمی `trustseal.enamad.ir` با `loading="lazy"` + `decoding="async"` + ابعاد ثابت (بدون افت سرعت لود و بدون layout shift)
+- [x] استایل: باکس سفید گرد + سایهٔ ملایم + hover-opacity — تمیز و هماهنگ با فوتر
+- [x] بیلد جدید (`app-CY5Kngc7.js`) ساخته، روی سرور استقرار و تأیید شد (HTTP 200 + رشتهٔ لینک در باندل)
