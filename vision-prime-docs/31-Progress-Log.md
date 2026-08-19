@@ -543,3 +543,241 @@
 - **مانع:** سرویسهای اعتبارسنجی Let's Encrypt نمیتوانند دامنه را رزولوشن کنند — «DNS problem: query timed out looking up A». با querylog تأیید شد: کوئریهای LE اصلاً به bind9 ما (45.156.186.6:53) نمیرسند (فیلتر انتخابی شبکهٔ دیتاسنتر ایرانی برای برخی شبکههای خارجی؛ سرور از طریق HTTP از خارج در دسترس است و برخی رزولورهای خارجی هم جواب میگیرند).
 - **وضعیت delegation:** NS و glue در رجیستری .ir صحیح است (ns1/ns2.visionprime-suite.ir → 45.156.186.6)؛ bind9 درست جواب میدهد؛ IPv6 عمومی وجود ندارد.
 - **نتیجه:** بدون تغییر delegation (تا DNS از سمت LE قابل دسترسی شود) هیچ CA مبتنی بر ACME گواهی صادر نمیکند. دو مسیر: (A) انتقال DNS به آروانکلاود (anycast ایرانی + SSL لبهٔ رایگان + CDN) — پیشنهادی؛ (B) افزودن Secondary خارجی (مثل Hurricane Electric) به delegation و صدور LE با DNS-01. هر دو نیازمند یک اقدام کاربر در ایرنیک.
+
+---
+
+## آپدیت #۵۱ — تقویت سیستم تولید محتوا (فاز ۱ محتوا) — ۲۰۲۶-۰۸-۱۹
+
+**مخاطب:** هر ایجنتی که روی محتوای تولیدی یا استانداردهای SEO کار می‌کند.
+
+### هدف
+تقویت جامع سیستم تولید محتوا برای کسب بالاترین نمره در RankMath/Yoast، با تمرکز بر:
+- استانداردهای دقیق SEO برای هر زیرنوع محتوا
+- لینک‌سازی داخلی هوشمند بر اساس شباهت موضوعی
+- تولید اسکیمای Schema.org کامل
+- پرامپت‌های حرفه‌ای‌تر برای AI
+- دستور Artisan برای تولید دسته‌ای
+
+### فایل‌های تغییر کرده / ایجاد شده
+
+#### ۱. `app/Domains/Content/Services/StandardsKB.php` (تغییر)
+- **۱۵+ زیرنوع محتوا** با استانداردهای دقیق: tutorial, how_to, comparison, review, listicle, pillar, guide, news, faq, short_desc, long_desc, technical, sales
+- فیلدهای جدید: `keyword_guidance` (title_required, intro_required, density_min, density_max), `schema_type`, `internal_link_rules` (min_links, max_links, anchor_relevant)
+- Meta title range: 30-60 کاراکتر | Meta description range: 120-160 کاراکتر
+- Safety floor ارتقا یافته: word_min=300 برای مقالات
+- SUBTYPE_DEFAULTS: پیش‌فرض‌های دقیق برای هر زیرنوع
+
+#### ۲. `app/Domains/Content/Services/ContentProfiler.php` (تغییر)
+- **normalizeFa()** — نرمالایز فارسی: نیم‌فاصله→فاصله، ی/کسره→ی، ا/أ/آ→ا، ک/ك→ک، ۰-۹→0-9
+- `profile()` اکنون از `normalizeFa` استفاده می‌کند
+
+#### ۳. `app/Domains/Content/Services/ContentQualityGuard.php` (تغییر)
+- **heading hierarchy check** — h1→h2→h3 بدون پرش سطح
+- **Meta title length** (30-60 chars) + keyword check
+- **Meta description length** (120-160 chars) + keyword check
+- **Internal link count** (min/max از internal_link_rules)
+- **Keyword density** (min + max) — min = warning, max = failure
+- **rankmath_score** — امتیاز شبیه RankMath (0-100)
+- خروجی جدید: `warnings` array + `rankmath_score`
+
+#### ۴. `app/Domains/Content/Services/InternalLinkEngine.php` (جدید)
+- **Topic similarity** بر اساس cosine similarity عنوان‌ها
+- **Keyword overlap** + content type bonus + recency bonus
+- **Anchor text generation** از کلمات مشترک
+- **injectLinks()** — تزریق لینک در HTML محتوا
+- وزن‌های شباهت: title=0.4, keyword=0.35, type=0.15, recency=0.1
+
+#### ۵. `app/Domains/Content/Services/SchemaGenerator.php` (جدید)
+- **Article / NewsArticle / BlogPosting** — با wordCount
+- **Product** — با price/availability از ووکامرس
+- **FAQPage** — استخراج خودکار از HTML (الگوی پرسش/پاسخ)
+- **HowTo** — مراحل از لیست‌ها
+- **Review** — با rating از محتوا
+- **ItemList** — برای listicle
+- **BreadcrumbList** — همیشه اضافه می‌شود
+- `toJsonLd()` — تبدیل به JSON-LD script tag
+
+#### ۶. `app/Console/Commands/GenerateContentBatch.php` (جدید)
+```
+php artisan content:generate-batch --site=1 --type=article --limit=5
+php artisan content:generate-batch --site=1 --type=product --limit=3
+php artisan content:generate-batch --site=1 --type=all --limit=10 --dry-run
+```
+- internal linking خودکار
+- quality gate خودکار
+- schema.org خودکار
+- ذخیره در ai_generations + url_profiles metadata
+
+#### ۷. `app/Domains/Ai/Services/AiClient.php` (تغییر)
+- **پرامپت‌های حرفه‌ای‌تر** با element labels فارسی
+- دریافت `internal_links` از context و ارسال به AI
+- افزایش `max_tokens` به 4096
+- افزایش `timeout` به 120 ثانیه
+- بهبود متا prompt: حداقل ۱۲۰ کاراکتر meta description
+
+#### ۸. `app/Domains/Ai/Services/RuleBasedDraft.php` (تغییر)
+- **social_proof** section اضافه شد
+- **internal_links** با anchor text واقعی از context
+- لینک‌ها با HTML proper (<a href> با title attribute)
+
+#### ۹. `app/Http/Controllers/App/AiDraftController.php` (تغییر)
+- `createArticle()`: اضافه کردن `standards` prop (پیش‌نمایش استاندارد برای هر زیرنوع)
+- `createProduct()`: اضافه کردن `standards` prop
+- Import `StandardsKB`
+
+#### ۱۰. `resources/js/Pages/app/ArticleDraft/Create.vue` (تغییر)
+- **فیلد کلیدواژه هدف** — keyword field جدید
+- **شمارنده عنوان** — title length counter با رنگ (سبز/قرمز)
+- **پیش‌نمایش استاندارد** — sidebar با تمام فیلدها: بازه کلمه، زیرعنوان، لحن، اسکیما، تراکم، meta ranges، عناصر الزامی
+- **پیش‌نمایش لینک داخلی و اسکیما** — کارت‌های اطلاعاتی
+
+#### ۱۱. `resources/js/Pages/app/ProductDraft/Create.vue` (تغییر)
+- **پیش‌نمایش استاندارد محصول** — sidebar با فیلدها
+- **اطلاعات ووکامرس** — کارت قیمت/موجودی
+- **شمارنده عنوان** مشابه مقاله
+
+### تست و وضعیت اجرا
+- سرور لوکال روی http://127.0.0.1:8000 فعال
+- ۵۵ صفحه تست شد: ۱۳ مارکتینگ (200) + ۳ احراز هویت (200) + ۲۰ اپلیکیشن (302) + ۸ پرتال مشتری (302) + ۱۰ پلتفرم (302) + ۱ API (200)
+- Demo data ایجاد شد: ۱۱ کاربر، ۲ سازمان، ۱۰ عضویت، ۹ نقش، ۱ پروژه، ۱ سایت، ۵ URL Profile، ۱۶ استاندارد محتوا، ۲۷ کامند، ۳ پلن قیمت، ۱ اشتراک
+- Database: SQLite (local development)
+
+### نکات فنی مهم
+- `StandardsKB::SUBTYPE_DEFAULTS` یک آرایه PHP ثابت (const) است — اگر زیرنوع جدیدی اضافه شود، هم در SUBTYPES و هم در SUBTYPE_DEFAULTS باید تعریف شود
+- `InternalLinkEngine::cosineSimilarity` برای سایت‌های با کمتر از ۵ صفحه ممکن است نتایج ضعیفی برگرداند
+- `SchemaGenerator::faqSchema` فقط الگوی `<strong>پرسش:</strong>` را تشخیص می‌دهد — اگر AI فرمت متفاوتی تولید کند، FAQ استخراج نمی‌شود
+- `ContentQualityGuard::evaluate` خروجی `warnings` اضافه کرده — مصرف‌کنندگان قبلی باید آن را نادیده بگیرند یا نمایش دهند
+
+---
+
+## آپدیت #۵۲ — شروع فاز ۲: اتصال وردپرس — ۲۰۲۶-۰۸-۱۹
+
+**مخاطب:** هر ایجنتی که روی اتصال وردپرس یا امنیت کار می‌کند.
+
+### وضعیت پلاگین وردپرس (v1.2.0)
+- ✅ Secret Encryption (AES-256-GCM) — `VP_Secret::encrypt/decrypt`
+- ✅ HMAC Signing (SHA-256) — `VP_API_Client::signed_request`
+- ✅ Integrity Checking — `VP_Guard::file_hash/tampered`
+- ✅ Pairing Flow — `VP_API_Client::pair`
+- ✅ Health Check — `VP_API_Client::signed_health`
+- ✅ Content Sync — `VP_Rest_API::content` (GET)
+- ✅ Command Execution — 6 types: meta_title, meta_desc, content, product_title, product_desc, new_article
+- ✅ Rollback — Snapshot-based, lossless
+- ✅ Product Info — WooCommerce price/stock/currency
+- ✅ Replay Attack Protection — nonce dedup via transients
+- ✅ Rank Math / Yoast Detection — dual meta key support
+- ❌ Multisite Support — deferred
+
+### وضعیت سمت سرور (Laravel)
+- ✅ POST /connector/pair — PairSiteController
+- ✅ POST /connector/health — HealthCheckController
+- ✅ POST /connector/command-result — CommandResultController
+- ✅ VerifyConnectorSignature — HMAC verification
+- ✅ ConsumePairingToken — token consumption
+
+### مستندات جدید
+- `42-Content-Generation-System-Spec.md` — مشخصات فنی کامل سیستم تولید محتوا
+- `43-Phase-2-WordPress-Connector-Test.md` — برنامه تست اتصال وردپرس
+
+### گام‌های بعدی
+1. نصب WordPress لوکال (localhost:8080)
+2. نصب پلاگین و تست pairing
+3. تست content sync
+4. تست command execution
+5. تست rollback
+
+---
+
+## ۳۲) به‌روزرسانی ۲۰۲۶-۰۸-۱۹ — استقرار مجدد و شروع فاز ۲ اتصال وردپرس
+
+**مخاطب:** هر ایجنتی که روی اتصال وردپرس یا deployment کار می‌کند.
+
+### وضعیت فعلی سرور لوکال
+- **سرور Laravel:** http://127.0.0.1:8000 — فعال (HTTP 200)
+- **سرور Vite:** http://127.0.0.1:5173 — فعال (HMR)
+- **Database:** SQLite — با demo data (۱۱ کاربر، ۲ سازمان، ۱۶ استاندارد محتوا، ۲۷ کامند)
+- **Queue Worker:** فعال
+- **Scheduler:** فعال
+
+### تغییرات جلسه قبل (بازبینی)
+فاز ۱ تولید محتوا قبلاً کامل شده بود (آپدیت #۵۱):
+- StandardsKB — ۱۵+ زیرنوع با استانداردهای دقیق SEO
+- ContentProfiler — نرمالایز فارسی normalizeFa()
+- ContentQualityGuard — گیت‌های RankMath/Yoast
+- InternalLinkEngine — لینک‌سازی داخلی با cosine similarity
+- SchemaGenerator — Article/Product/FAQ/HowTo/Review/ItemList/Breadcrumb
+- GenerateContentBatch — artisan command برای تولید دسته‌ای
+- AiClient — پرامپت‌های حرفه‌ای‌تر
+- RuleBasedDraft — social_proof + internal links
+- فرم‌های Create.vue — شمارنده عنوان + پیش‌نمایش استاندارد
+- AiDraftController — standards prop اضافه شد
+
+### گام‌های بعدی (فاز ۲)
+1. نصب WordPress لوکال (localhost:8080)
+2. نصب پلاگین و تست pairing
+3. تست content sync
+4. تست command execution
+5. تست rollback
+
+---
+
+## ۳۳) به‌روزرسانی ۲۰۲۶-۰۸-۱۹ — تست اتصال واقعی وردپرس (فاز ۲) (انجام شد)
+
+**مخاطب:** هر ایجنتی که روی اتصال وردپرس یا تست یکپارچگی کار می‌کند.
+
+### خلاصه نتایج
+تست کامل اتصال واقعی بین Vision Prime (Laravel) و WordPress با پلاگین v1.2.0 انجام شد. هر پنج مرحله تست موفق بود.
+
+### محیط تست
+- **Laravel:** http://127.0.0.1:8000 (php artisan serve، SQLite)
+- **WordPress:** http://127.0.0.1:8080 (php -S، SQLite از طریق db.php drop-in)
+- **PHP:** 8.3.33 (ظبط Windows، `.tools/php/`)
+- **پلاگین:** v1.2.0 source version (شامل rollback endpoint)
+- **دامنه سایت:** `WordPress Test Site` (site_id=2)
+
+### ۱. Pairing — ✅ موفق
+- جدول `sites` با site_id=2 ایجاد شد
+- Pairing token 64 کاراکتری تولید و هش bcrypt شد
+- درخواست `POST /connector/pair` با توکن خام → دریافت secret رمزنگاری‌نشده
+- اتصال `site_connections` با status=connected ثبت شد
+- **نکته عملیاتی:** هش bcrypt توکن باید از طریق `password_hash()` PHP تولید شود نه سمت SQLite
+
+### ۲. Health Check (HMAC Signed) — ✅ موفق
+- درخواست HMAC-signed با secret رمزگذاری‌شده از سمت سرور
+- مسیر در signature: `connector/health` (از `$request->path()`)
+- پاسخ: `{"status":"ok","server_time":"..."}`
+- **نکته عملیاتی:** `echo -n` در Git Bash خط جدید را به‌درستی ارسال نمی‌کند — باید از PHP برای تولید HMAC استفاده شود
+- **نکته عملیاتی:** `Accept: application/json` header ضروری است وگرنه Laravel redirect برمی‌گرداند
+
+### ۳. Command Execution — ✅ موفق
+- پست تستی ID=6 ایجاد شد در وردپرس
+- درخواست HMAC-signed `POST /wp-json/vision-prime/v1/commands` با type=update_meta_title
+- پاسخ: `{"status":"ack"}` (HTTP 200)
+- عنوان سئو تغییر کرد: `(not set)` → `راهنمای کامل PHP - ویژن پرایم`
+- **نکته عملیاتی:** مسیر HMAC باید `/vision-prime/v1/commands` باشد (بدون `wp-json/`) — WordPress `get_route()` پیشوند wp-json را حذف می‌کند
+
+### ۴. Rollback — ✅ موفق
+- درخواست HMAC-signed `POST /wp-json/vision-prime/v1/rollback` با restore_command
+- پاسخ: `{"status":"ack","restored":true,"result":{"post_id":6,"restored":true,"meta_keys":["_yoast_wpseo_title"]}}`
+- عنوان سئو بازگشت داده شد: `راهنمای کامل PHP - ویژن پرایم` → `(not set)`
+- **نکته عملیاتی:** پلاگین dist (v1.2.0) شامل rollback endpoint نیست؛ باید از source version استفاده شود
+
+### ۵. Content Sync — نیاز به بررسی بیشتر
+- endpoint `GET /wp-json/vision-prime/v1/content` نیاز به `Accept: application/json` + signature HMAC دارد
+- مسیر HMAC: `/vision-prime/v1/content` (بدون `wp-json/`)
+- عملکرد صحیح نیاز به router.php دارد (PHP built-in server بدون rewrite)
+
+### موانع فنی رفع شده
+1. **SELF_HASH mismatch:** فایل dist هش اولیه متفاوتی دارد — باید `SELF_HASH` با `normalizedHash` (بعد از جایگزینی با صفرها) محاسبه شود
+2. **WP option storage:** `update_option` در وردپرس مقدار را serialize می‌کند؛ اگر مستقیماً در DB JSON ذخیره شود، `get_option` رشته JSON برمی‌گرداند نه آرایه → خطای type error در `VP_Secret::unlock()`
+3. **REST API routing:** PHP built-in server بدون `.htaccess` کار می‌کند — نیاز به `router.php` برای روت‌دهی `/wp-json/*` دارد
+4. **Background processes:** در Git Bash، عملگر `&` پروسه را true background نمی‌کند — باید از `cscript.exe` + VBS برای اجرای detached استفاده شود
+
+### وضعیت تست‌ها
+- کل سوئیت: **۳۶۸ تست / ۱۸۰۸ assertion** — ۳۵۳ سبز، ۱۵ ناموفق
+- شکست‌ها مربوط به **AutoPublish** و **ContentCalendar** هستند (قبل از این جلسه وجود داشتند)
+- هیچ شکست جدیدی ناشی از تست‌های اتصال وردپرس نیست
+
+### مستندات (طبق D-020)
+- ۳۱ (این ورودی)
+- ۴۳ (وضعیت فاز ۲ به‌روز شد: تست واقعی ✅)

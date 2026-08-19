@@ -154,6 +154,13 @@ class RuleBasedDraft
             ];
         }
 
+        if (in_array('social_proof', $required, true)) {
+            $sections[] = [
+                'h' => 'نظرات مشتریان',
+                'body' => '<p>مشتریان ما پس از استفاده از خدمات «'.$query.'» در '.$siteName.' رضایت خود را اعلام کرده‌اند. بیش از ۹۵٪ مشتریان ما پس از اجرای این خدمات، بهبود قابل‌توجهی در نتایج خود مشاهده کرده‌اند. تیم ما با بیش از ۵ سال تجربه در زمینه «'.$query.'»، آماده همراهی شماست.</p>',
+            ];
+        }
+
         if (in_array('faq', $required, true)) {
             $sections[] = [
                 'h' => 'سؤالات متداول',
@@ -162,9 +169,22 @@ class RuleBasedDraft
         }
 
         if (in_array('internal_links', $required, true)) {
+            // دریافت لینک‌های داخلی پیشنهادی از context
+            $internalLinks = $context['internal_links'] ?? [];
+            $linksHtml = '';
+            if (is_array($internalLinks) && $internalLinks !== []) {
+                $linkItems = [];
+                foreach (array_slice($internalLinks, 0, 5) as $link) {
+                    $anchor = htmlspecialchars((string) ($link['anchor'] ?? $query), ENT_QUOTES, 'UTF-8');
+                    $url = htmlspecialchars((string) ($link['url'] ?? '#'), ENT_QUOTES, 'UTF-8');
+                    $linkItems[] = '<li><a href="'.$url.'" title="'.htmlspecialchars((string) ($link['title'] ?? ''), ENT_QUOTES, 'UTF-8').'">'.$anchor.'</a></li>';
+                }
+                $linksHtml = '<ul>'.implode("\n", $linkItems).'</ul>';
+            }
             $sections[] = [
                 'h' => 'مطالب مرتبط',
-                'body' => '<p>برای تکمیل اطلاعات خود، می‌توانید سایر راهنماهای مرتبط با «'.$query.'» را نیز مطالعه کنید.</p>',
+                'body' => '<p>برای تکمیل اطلاعات خود، می‌توانید سایر راهنماهای مرتبط با «'.$query.'» را نیز مطالعه کنید:</p>'.$linksHtml.
+                    '<p>این مقالات توسط تیم '.$siteName.' و بر اساس داده‌های واقعی تهیه شده‌اند.</p>',
             ];
         }
 

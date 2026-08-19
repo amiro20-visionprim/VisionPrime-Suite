@@ -27,8 +27,8 @@ class ContentQualityGuard
 
     /**
      * @param  array<string, mixed>  $profile  خروجی ContentProfiler
-     * @param  array<string, mixed>  $content  ['title' => string, 'body' => string|null, 'keyword' => string|null, 'headings' => array<int,string>|null]
-     * @return array{passed: bool, score: int, failures: array<int, string>, standard: array<string, mixed>}
+     * @param  array<string, mixed>  $content  ['title' => string, 'body' => string|null, 'keyword' => string|null, 'headings' => array<int,string>|null, 'meta_title' => string|null, 'meta_description' => string|null]
+     * @return array{passed: bool, score: int, failures: array<int, string>, warnings: array<int, string>, standard: array<string, mixed>, rankmath_score: int}
      */
     public function evaluate(array $profile, array $content, ?int $siteId = null, ?StandardsKB $kb = null): array
     {
@@ -36,6 +36,7 @@ class ContentQualityGuard
         $standard = $kb->standardFor($profile, $siteId);
 
         $failures = [];
+        $warnings = [];
         $passed = 0;
         $total = 0;
 
@@ -45,9 +46,12 @@ class ContentQualityGuard
         $title = (string) ($content['title'] ?? '');
         $keyword = mb_strtolower((string) ($content['keyword'] ?? ''), 'UTF-8');
         $headings = (array) ($content['headings'] ?? []);
+        $metaTitle = (string) ($content['meta_title'] ?? '');
+        $metaDescription = (string) ($content['meta_description'] ?? '');
+        $contentType = (string) ($profile['content_type'] ?? 'article');
+        $isMeta = $contentType === 'meta';
 
-        // ۱) طول — برای meta بر حسب کاراکتر (استاندارد صنعت)، بقیه بر حسب کلمه
-        $isMeta = ($profile['content_type'] ?? '') === 'meta';
+        // ─── ۱) طول محتوا ───
         $length = $isMeta ? mb_strlen($plain, 'UTF-8') : $words;
         $unit = $isMeta ? 'chars' : 'words';
         $total++;
@@ -56,7 +60,7 @@ class ContentQualityGuard
         } else {
             $failures[] = "{$unit}:{$length} below min:{$standard['word_min']}";
         }
-        if ($standard['word_max'] !== null) {
+        if (isset($standard['word_max']) && $standard['word_max'] !== null) {
             $total++;
             if ($length <= (int) $standard['word_max']) {
                 $passed++;
@@ -65,7 +69,7 @@ class ContentQualityGuard
             }
         }
 
-        // ۲) ساختار — حداقل heading
+        // ─── ۲) ساختار heading ───
         $total++;
         if (count($headings) >= (int) $standard['min_headings']) {
             $passed++;
@@ -73,7 +77,29 @@ class ContentQualityGuard
             $failures[] = 'headings:'.count($headings).' below min:'.$standard['min_headings'];
         }
 
-        // ۳) عناصر الزامی
+        // ─── ۳) سلسله‌مراتب heading (h1 → h2 → h3) ───
+        if ($body !== '') {
+            $total++;
+            $headingLevels = [];
+            preg_match_all('/<h([1-6])[^>]*>/i', $body, $levelMatches);
+            foreach ($levelMatches[1] as $level) {
+                $headingLevels[] = (int) $level;
+            }
+            $hierarchyValid = true;
+            for ($i = 1; $i < count($headingLevels); $i++) {
+                if ($headingLevels[$i] > $headingLevels[$i - 1] + 1) {
+                    $hierarchyValid = false;
+                    break;
+                }
+            }
+            if ($hierarchyValid && $headingLevels !== []) {
+                $passed++;
+            } else {
+                $failures[] = 'heading_hierarchy_violated';
+            }
+        }
+
+        // ─── ۴) عناصر الزامی ───
         $elements = (array) ($standard['required_elements'] ?? []);
         $hasElement = $this->hasElements($body, $elements);
         foreach ($elements as $element) {
@@ -85,14 +111,16 @@ class ContentQualityGuard
             }
         }
 
-        // ۴) پوشش کلیدواژه در عنوان/مقدمه (اگر راهنما الزامی کند)
+        // ─── ۵) کلیدواژه — عنوان ───
         $keywordGuidance = is_array($standard['keyword_guidance'] ?? null) ? $standard['keyword_guidance'] : [];
         $titleRequired = (bool) ($keywordGuidance['title_required'] ?? false);
         $introRequired = (bool) ($keywordGuidance['intro_required'] ?? false);
-        $densityMax = (float) ($keywordGuidance['density_max'] ?? 3);
-        $intro = mb_substr($plain, 0, 300, 'UTF-8');
+        $densityMax = (float) ($keywordGuidance['density_max'] ?? 3.0);
+        $densityMin = (float) ($keywordGuidance['density_min'] ?? 0.5);
+        $intro = mb_substr($plain, 0, 500, 'UTF-8');
 
         if ($keyword !== '') {
+            // عنوان حتماً کلیدواژه داشته باشد
             if ($titleRequired) {
                 $total++;
                 if ($this->contains($title, $keyword)) {
@@ -101,6 +129,7 @@ class ContentQualityGuard
                     $failures[] = "keyword_not_in_title:{$keyword}";
                 }
             }
+            // مقدمه کلیدواژه داشته باشد
             if ($introRequired) {
                 $total++;
                 if ($this->contains($intro, $keyword)) {
@@ -109,7 +138,18 @@ class ContentQualityGuard
                     $failures[] = "keyword_not_in_intro:{$keyword}";
                 }
             }
-            // تراکم
+            // تراکم — بالای حداقل
+            if ($densityMin > 0) {
+                $total++;
+                $density = $words > 0 ? mb_substr_count(mb_strtolower($plain, 'UTF-8'), $keyword) / $words * 100 : 0;
+                if ($density >= $densityMin) {
+                    $passed++;
+                } else {
+                    $warnings[] = 'keyword_density:'.round($density, 2).' below recommended_min:'.$densityMin;
+                    $passed++; // warning, not failure
+                }
+            }
+            // تراکم — زیر حداکثر
             $total++;
             $density = $words > 0 ? mb_substr_count(mb_strtolower($plain, 'UTF-8'), $keyword) / $words * 100 : 0;
             if ($density <= $densityMax) {
@@ -119,7 +159,7 @@ class ContentQualityGuard
             }
         }
 
-        // ۵) ناخالصی
+        // ─── ۶) ناخالصی ───
         $total++;
         if (! $this->hasPlaceholders($body.$title)) {
             $passed++;
@@ -127,8 +167,8 @@ class ContentQualityGuard
             $failures[] = 'placeholder_content_detected';
         }
 
-        // ۶) عنوان نباید خالی باشد (برای article/product/landing)
-        if (in_array($profile['content_type'] ?? '', ['article', 'product', 'landing'], true)) {
+        // ─── ۷) عنوان خالی نباشد ───
+        if (in_array($contentType, ['article', 'product', 'landing'], true)) {
             $total++;
             if (trim($title) !== '') {
                 $passed++;
@@ -137,13 +177,87 @@ class ContentQualityGuard
             }
         }
 
+        // ─── ۸) Meta Title (طول) ───
+        if ($metaTitle !== '' && ! $isMeta) {
+            $minTitleLen = (int) ($standard['min_title_length'] ?? 30);
+            $maxTitleLen = (int) ($standard['max_title_length'] ?? 60);
+            $titleLen = mb_strlen($metaTitle, 'UTF-8');
+            $total++;
+            if ($titleLen >= $minTitleLen && $titleLen <= $maxTitleLen) {
+                $passed++;
+            } elseif ($titleLen < $minTitleLen) {
+                $failures[] = "meta_title_too_short:{$titleLen} < {$minTitleLen}";
+            } else {
+                $warnings[] = "meta_title_too_long:{$titleLen} > {$maxTitleLen}";
+                $passed++; // warning
+            }
+            // کلیدواژه در meta title
+            if ($keyword !== '') {
+                $total++;
+                if ($this->contains($metaTitle, $keyword)) {
+                    $passed++;
+                } else {
+                    $warnings[] = 'keyword_not_in_meta_title';
+                    $passed++; // warning
+                }
+            }
+        }
+
+        // ─── ۹) Meta Description (طول) ───
+        if ($metaDescription !== '' && ! $isMeta) {
+            $minDescLen = (int) ($standard['min_meta_desc_length'] ?? 120);
+            $maxDescLen = (int) ($standard['max_meta_desc_length'] ?? 160);
+            $descLen = mb_strlen($metaDescription, 'UTF-8');
+            $total++;
+            if ($descLen >= $minDescLen && $descLen <= $maxDescLen) {
+                $passed++;
+            } elseif ($descLen < $minDescLen) {
+                $failures[] = "meta_desc_too_short:{$descLen} < {$minDescLen}";
+            } else {
+                $warnings[] = "meta_desc_too_long:{$descLen} > {$maxDescLen}";
+                $passed++; // warning
+            }
+            // کلیدواژه در meta description
+            if ($keyword !== '') {
+                $total++;
+                if ($this->contains($metaDescription, $keyword)) {
+                    $passed++;
+                } else {
+                    $warnings[] = 'keyword_not_in_meta_description';
+                    $passed++; // warning
+                }
+            }
+        }
+
+        // ─── ۱۰) لینک‌های داخلی ───
+        $linkRules = $standard['internal_link_rules'] ?? [];
+        if ($linkRules !== []) {
+            $minLinks = (int) ($linkRules['min_links'] ?? 1);
+            $maxLinks = (int) ($linkRules['max_links'] ?? 10);
+            $internalLinkCount = preg_match_all('/<a[\s>][^>]*href=["\'][^"\']*["\']/i', $body);
+            $total++;
+            if ($internalLinkCount >= $minLinks) {
+                $passed++;
+            } else {
+                $failures[] = "internal_links:{$internalLinkCount} below min:{$minLinks}";
+            }
+            if ($internalLinkCount > $maxLinks) {
+                $warnings[] = "internal_links:{$internalLinkCount} above suggested_max:{$maxLinks}";
+            }
+        }
+
         $score = $total > 0 ? (int) round($passed / $total * 100) : 0;
+
+        // RankMath-style score (0-100)
+        $rankmathScore = max(0, min(100, $score));
 
         return [
             'passed' => $failures === [],
             'score' => $score,
             'failures' => $failures,
+            'warnings' => $warnings,
             'standard' => $standard,
+            'rankmath_score' => $rankmathScore,
         ];
     }
 

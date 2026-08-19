@@ -78,7 +78,7 @@ class ArticlePublishPipelineTest extends TestCase
     }
 
     /** ساخت پیش‌نویس مقالهٔ تأییدشده + review item. */
-    private function approvedArticleDraft(string $title = 'راهنمای جامع سئو'): int
+    private function approvedArticleDraft(string $title = 'آموزش سئو: راهنمای جامع بهینه‌سازی سایت'): int
     {
         $profileId = \DB::table('url_profiles')->insertGetId([
             'site_id' => $this->site->id,
@@ -91,10 +91,11 @@ class ArticlePublishPipelineTest extends TestCase
         ]);
 
         $paragraph = str_repeat('متن کامل مقاله درباره سئو برای بهبود رتبه سایت شما در نتایج جستجو. ', 40);
-        $content = '<h1>'.$title.'</h1><h2>مقدمه</h2><p>'.$paragraph.'</p>'
-            .'<h2>مراحل اجرا</h2><ol><li>گام اول: تحلیل وضعیت فعلی</li><li>گام دوم: اجرای بهینه‌سازی</li><li>گام سوم: اندازه‌گیری نتیجه</li></ol>'
+        $link = '<a href="https://e.ir/blog/internal-link">لینک داخلی</a>';
+        $content = '<h1>'.$title.'</h1><h2>مقدمه</h2><p>'.$paragraph.' '.$link.'</p>'
+            .'<h2>مراحل اجرا</h2><ol><li>گام اول: تحلیل وضعیت فعلی</li><li>گام دوم: اجرای بهینه‌سازی</li><li>گام سوم: اندازه‌گیری نتیجه</li></ol><p>'.$link.'</p>'
             .'<h2>سؤالات متداول</h2><p><strong>پرسش:</strong> آیا سئو مهم است؟ <strong>پاسخ:</strong> بله، برای دیده شدن در جستجو حیاتی است.</p>'
-            .'<h2>گام بعدی</h2><p>برای مشاوره رایگان همین حالا با تیم ما تماس بگیرید.</p>'
+            .'<h2>گام بعدی</h2><p>برای مشاوره رایگان همین حالا با تیم ما تماس بگیرید. '.$link.'</p>'
             .'<h2>جمع‌بندی</h2><p>'.$paragraph.'</p>';
         $output = [
             'kind' => 'article',
@@ -142,7 +143,7 @@ class ArticlePublishPipelineTest extends TestCase
         $this->assertGreaterThanOrEqual(85, (int) $command->confidence_score);
 
         $payload = json_decode($command->payload, true);
-        $this->assertSame('راهنمای جامع سئو', $payload['title']);
+        $this->assertSame('آموزش سئو: راهنمای جامع بهینه‌سازی سایت', $payload['title']);
         $this->assertStringContainsString('<h1>', (string) $payload['content']);
         $this->assertSame('seo-guide', $payload['slug']);
         $this->assertSame('آموزش سئو', $payload['target_query']);

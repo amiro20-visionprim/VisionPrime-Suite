@@ -78,9 +78,12 @@ class ContentCalendarTest extends TestCase
         // جملهٔ پرکننده بدون کلیدواژه تا تراکم کلیدواژه زیر سقف بماند
         $filler = 'این مقاله شامل نکات کاربردی، مثال‌های واقعی و مراحل گام‌به‌گام برای بهبود عملکرد سایت شما است. ';
         $body = str_repeat($filler, 16); // ≈ ۲۴۰ کلمه
-        $content = '<p>اگر به دنبال راهنمای سئو هستید، این مقاله دقیقاً برای شما نوشته شده است. '.trim($body).'</p>'
-            .'<h2>چرا این موضوع اهمیت دارد؟</h2><p>'.trim($body).'</p>'
-            .'<h2>مراحل اجرا</h2><p>'.trim($body).'</p>'
+        $link = '<a href="https://example.com/guide">راهنمای سئو</a>';
+        $content = '<p>فهرست مطالب: مقدمه، مراحل، سؤالات متداول، جمع‌بندی</p>'
+            .'<p>اگر به دنبال راهنمای سئو هستید، این مقاله دقیقاً برای شما نوشته شده است. '.trim($body).' '.$link.'</p>'
+            .'<h2>چرا این موضوع اهمیت دارد؟</h2><p>'.trim($body).' '.$link.'</p>'
+            .'<h2>مراحل اجرا</h2><ol><li>گام اول: تحلیل</li><li>گام دوم: اجرا</li></ol><p>'.trim($body).' '.$link.'</p>'
+            .'<h2>سؤالات متداول</h2><p><strong>پرسش:</strong> آیا سئو مهم است؟ <strong>پاسخ:</strong> بله.</p>'
             .'<p>در پایان همین راهنمای سئو را دنبال کنید و نتیجه را ببینید. همین حالا اقدام کنید.</p>';
 
         return json_encode([
@@ -89,6 +92,8 @@ class ContentCalendarTest extends TestCase
             'slug' => 'seo-guide',
             'target_query' => 'راهنمای سئو',
             'content_type' => 'article',
+            'standard' => ['standard_key' => 'article\u00d7guide\u00d7informational', 'word_min' => 400, 'word_max' => 2000, 'required_elements' => ['faq', 'cta', 'internal_links', 'h2_structure', 'table_of_contents', 'steps'], 'min_headings' => 3],
+            'profile' => ['content_type' => 'article', 'subtype' => 'guide', 'intent' => 'informational', 'title' => 'بهترین راهنمای سئو برای سایت شما'],
         ], JSON_UNESCAPED_UNICODE);
     }
 

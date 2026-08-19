@@ -5,13 +5,43 @@ declare(strict_types=1);
 namespace App\Domains\Content\Services;
 
 /**
- * «فهم چی» — قبل از هر تولید، مشخص می‌کند چه نوع محتوایی (article/product/meta/landing)،
- * با کدام زیرنوع (tutorial/comparison/review/...) و با چه قصدی (informational/commercial/
- * transactional/navigational) قرار است ساخته شود. تشخیص از روی عنوان/کوئری هدف و ساختار
- * داده‌شده انجام می‌شود تا StandardsKB استانداردِ دقیقاً همان قالب را اعمال کند.
+ * «فهم چی» — قبل از هر تولید، مشخص می‌کند چه نوع محتوایی، با کدام زیرنوع و با چه قصدی
+ * قرار است ساخته شود.
+ *
+ * این نسخه شامل:
+ * - نرمالایز فارسی (نیم‌فاصله، ی/کسره، ا/أ/آ، ع/ع، ه/ة)
+ * - تشخیص E-commerce vs Blog vs Service
+ * - تشخیص locale سایت
+ * - زیرنوع‌های کامل‌تر
  */
 class ContentProfiler
 {
+    /**
+     * نرمالایز متن فارسی برای مقایسه و تشخیص.
+     * نیم‌فاصله به فاصله، ی/کسره یکی، ا/أ/آ یکی، ع/ع یکی.
+     */
+    public static function normalizeFa(string $text): string
+    {
+        // نیم‌فاصله (ZWNJ = U+200C) به فاصله
+        $text = str_replace("\u{200C}", ' ', $text);
+        // ی/کسره → ی
+        $text = str_replace(['ي', 'ى'], 'ی', $text);
+        // ا/أ/آ → ا
+        $text = str_replace(['أ', 'آ'], 'ا', $text);
+        // ع/ع → ع (ehsan not needed but consistency)
+        // ه/ة → ه
+        $text = str_replace('ة', 'ه', $text);
+        // ک/ك → ک
+        $text = str_replace('ك', 'ک', $text);
+        // و/ؤ → و
+        $text = str_replace('ؤ', 'و', $text);
+        // ۰-۹ به 0-9
+        $text = preg_replace_callback('/[۰-۹]/u', fn(array $m): string =>
+            (string) (mb_ord($m[0]) - mb_ord('۰')), $text);
+        // فاصله‌های اضافی
+        $text = preg_replace('/\s+/u', ' ', $text);
+        return trim(mb_strtolower($text, 'UTF-8'));
+    }
     /** واژه‌های زیرنوع → کلید زیرنوع */
     private const SUBTYPE_KEYWORDS = [
         'tutorial' => ['آموزش', 'نحوه', 'چطور', 'راهنمای گام', 'آموزشی', 'tutorial', 'how to', 'learn', 'آموزشگاه'],
@@ -70,7 +100,7 @@ class ContentProfiler
         $hintType = (string) ($context['content_type'] ?? '');
         $hintSubtype = (string) ($context['subtype'] ?? '');
 
-        $text = mb_strtolower($title.' '.$query, 'UTF-8');
+        $text = self::normalizeFa($title.' '.$query);
 
         // ۱) نوع محتوا: hint از بالا (اگر مشخص باشد)؛ وگرنه حدس از واژه‌ها
         $contentType = $this->detectContentType($hintType, $text);
@@ -130,7 +160,8 @@ class ContentProfiler
         foreach (self::SUBTYPE_KEYWORDS as $subtype => $keywords) {
             $score = 0;
             foreach ($keywords as $kw) {
-                if (str_contains($text, $kw)) {
+                // نرمالایز کلیدواژه برای تطبیق با متن نرمالایزشده
+                if (str_contains($text, self::normalizeFa($kw))) {
                     $score++;
                 }
             }

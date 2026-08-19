@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
 /**
- * Client for AI meta-draft generation.
+ * Client for AI content generation.
  *
  * Reads the organization's active provider setting (encrypted). When no
  * provider is configured it falls back to the deterministic RuleBasedDraft
@@ -26,7 +26,7 @@ class AiClient
     public function __construct(private readonly RuleBasedDraft $fallback) {}
 
     /**
-     * @param  array<string, mixed>  $context  page context (kind, url, site_name, top_query, metrics...)
+     * @param  array<string, mixed>  $context
      * @return array{content: string, model: string, source: string, usage: array<string, mixed>}
      */
     public function generateMetaDraft(Organization $org, array $context): array
@@ -40,9 +40,6 @@ class AiClient
 
     /**
      * تولید مقالهٔ کامل — از طریق AI یا fallback آفلاین.
-     *
-     * @param  array<string, mixed>  $context  شامل kind=article، title، target_query، standard{word_min,...}، metrics
-     * @return array{content: string, model: string, source: string, usage: array<string, mixed>}
      */
     public function generateArticleDraft(Organization $org, array $context): array
     {
@@ -53,9 +50,6 @@ class AiClient
 
     /**
      * مسیر مشترک تولید: بدون provider فعال → fallback آفلاین؛ در غیر این صورت provider انتخابی.
-     *
-     * @param  array<string, mixed>  $context
-     * @return array{content: string, model: string, source: string, usage: array<string, mixed>}
      */
     private function generate(Organization $org, string $kind, array $context): array
     {
@@ -92,10 +86,7 @@ class AiClient
     }
 
     /**
-     * پرامپت مقالهٔ کامل — استاندارد مؤثر (word range، ساختار، عناصر الزامی، لحن) و context جستجو.
-     *
-     * @param  array<string, mixed>  $context
-     * @return array{0: string, 1: string}
+     * پرامپت مقالهٔ حرفه‌ای — با تمام استانداردهای RankMath/Yoast.
      */
     private function articlePrompts(array $context): array
     {
@@ -104,12 +95,15 @@ class AiClient
         $siteName = (string) ($context['site_name'] ?? '');
         $standard = (array) ($context['standard'] ?? []);
         $metrics = (array) ($context['metrics'] ?? []);
+        $internalLinks = $context['internal_links'] ?? [];
 
         $wordMin = (int) ($standard['word_min'] ?? 400);
         $wordMax = (int) ($standard['word_max'] ?? 2000);
         $minHeadings = max(2, (int) ($standard['min_headings'] ?? 2));
-        $elements = implode('، ', (array) ($standard['required_elements'] ?? []));
+        $elements = (array) ($standard['required_elements'] ?? []);
         $tone = (string) ($standard['tone'] ?? 'informative');
+        $schemaType = (string) ($standard['schema_type'] ?? 'Article');
+        $keywordGuidance = (array) ($standard['keyword_guidance'] ?? []);
 
         $metricsLine = sprintf(
             'کلیک‌ها: %d · نمایش‌ها: %d · نرخ کلیک: %s · میانگین جایگاه: %s',
@@ -119,10 +113,65 @@ class AiClient
             isset($metrics['position']) ? round((float) $metrics['position'], 1) : '—',
         );
 
-        $system = 'تو یک متخصص سئو و تولیدکنندهٔ محتوای فارسی هستی. خروجی تو فقط HTML با تگ‌های h1/h2/p/ul/table و بدون هیچ توضیح اضافه است. از اعداد و ادعاهای بی‌پشتوانه پرهیز کن؛ اگر داده ندارید نگو. لحن '.$tone.' و ساختار مقاله باید برای کاربر مفید و برای سئو بهینه باشد.';
+        // لینک‌های داخلی پیشنهادی
+        $linksText = '';
+        if (is_array($internalLinks) && $internalLinks !== []) {
+            $linkLines = [];
+            foreach (array_slice($internalLinks, 0, 5) as $link) {
+                $linkLines[] = "- لینک: {$link['url']} (anchor: {$link['anchor']})";
+            }
+            $linksText = "\nلینک‌های داخلی پیشنهادی (حداقل " . count($internalLinks) . " لینک در محتوا قرار بده):\n" . implode("\n", $linkLines);
+        }
+
+        // الزامات عناصر
+        $elementLabels = [
+            'h2_structure' => 'زیرعنوان‌های h2 (حداقل ' . $minHeadings . ' عدد)',
+            'table_of_contents' => 'فهرست مطالب در ابتدای مقاله',
+            'faq' => 'بخش سؤالات متداول (با تگ‌های strong برای پرسش/پاسخ)',
+            'cta' => 'دعوت به اقدام در انتهای مقاله',
+            'internal_links' => 'لینک‌های داخلی',
+            'steps' => 'مراحل گام‌به‌گام (لیست مرتب <ol>)',
+            'list' => 'لیست غیرمرتب <ul>',
+            'table' => 'جدول مقایسه یا مشخصات',
+            'pros_cons' => 'بخش مزایا و معایب',
+            'rating' => 'امتیازدهی (مثلاً ۴ از ۵)',
+            'specs' => 'مشخصات فنی جدولی',
+            'social_proof' => 'نظرات یا رضایت مشتریان',
+        ];
+        $requiredText = '';
+        foreach ($elements as $el) {
+            if (isset($elementLabels[$el])) {
+                $requiredText .= "\n- {$elementLabels[$el]}";
+            }
+        }
+
+        $system = "تو یک متخصص سئو و تولیدکنندهٔ محتوای حرفه‌ای فارسی هستی. خروجی تو فقط HTML معتبر است.
+
+قوانین:
+- فقط از تگ‌های h1/h2/h3/p/ul/ol/table/strong/a استفاده کن
+- h1 فقط یکبار در ابتدای مقاله
+- h2 برای هر بخش اصلی، h3 برای زیربخش
+- کلمهٔ کلیدی حتماً در h1 و اولین پاراگراف و حداقل ۲ h2 باشد
+- لحن {$tone}
+- هرگز ادعای بی‌پشتوانه یا آمار جعلی نزن
+- محتوا باید واقعاً برای خواننده مفید باشد
+- FAQ با فرمت <strong>پرسش:</strong> و <strong>پاسخ:</strong> باشد
+- CTA در انتها شامل نام برند {$siteName} باشد
+- نوع اسکیما: {$schemaType}";
 
         $user = sprintf(
-            "برای صفحهٔ زیر یک مقالهٔ کامل بنویس.\nعنوان: %s\nعبارت اصلی (کلمهٔ کلیدی): %s\nنام برند: %s\nدادهٔ جستجوی صفحه: %s\n\nالزامات فنی:\n- طول: بین %d و %d کلمه\n- حداقل %d زیرعنوان (h2)\n- عناصر الزامی: %s\n- فقط HTML معتبر با تگ‌های h1/h2/p/ul/table، بدون متن خارج از HTML",
+            "یک مقالهٔ حرفه‌ای سئو شده بنویس.\n\n" .
+            "عنوان: %s\n" .
+            "کلمهٔ کلیدی: %s\n" .
+            "نام برند: %s\n" .
+            "دادهٔ GSC: %s\n\n" .
+            "=== الزامات فنی ===\n" .
+            "- طول: بین %d و %d کلمه\n" .
+            "- زیرعنوان‌ها (h2): حداقل %d عدد\n" .
+            "- ساختار h1 > h2 > h3 (بدون پرش سطح)\n" .
+            "- فقط HTML معتبر بدون هیچ متن خارج از تگ\n\n" .
+            "=== الزامات محتوایی ===" . $requiredText . $linksText . "\n\n" .
+            "الان شروع به نوشتن کن — فقط خروجی HTML:",
             $title !== '' ? $title : $targetQuery,
             $targetQuery,
             $siteName,
@@ -130,14 +179,13 @@ class AiClient
             $wordMin,
             $wordMax,
             $minHeadings,
-            $elements !== '' ? $elements : 'پاراگراف‌های ساختارمند',
         );
 
         return [$system, $user];
     }
 
-    /** @param  array<string, mixed>  $context
-     * @return array{0: string, 1: string}
+    /**
+     * پرامپت متا تایتل و دیسکریپشن.
      */
     private function prompts(string $kind, array $context): array
     {
@@ -160,7 +208,7 @@ class AiClient
 
         $user = match ($kind) {
             'meta_title' => sprintf(
-                "برای صفحهٔ زیر یک عنوان متا (meta title) عالی و حداکثر ۶۰ کاراکتر بنویس.\nآدرس: %s\nنام برند: %s\nعبارت اصلی: %s\nدادهٔ جستجو: %s\nعنوان فعلی: %s\nنمونهٔ محتوا: %s",
+                "برای صفحهٔ زیر یک عنوان متا (meta title) عالی بنویس.\nحداکثر ۶۰ کاراکتر.\nکلمهٔ کلیدی حتماً در ابتدا باشد.\nنام برند حتماً در انتها باشد.\nآدرس: %s\nنام برند: %s\nعبارت اصلی: %s\nدادهٔ جستجو: %s\nعنوان فعلی: %s\nنمونهٔ محتوا: %s",
                 $url,
                 $siteName,
                 $topQuery,
@@ -169,7 +217,7 @@ class AiClient
                 $snippet !== '' ? $snippet : 'در دسترس نیست',
             ),
             default => sprintf(
-                "برای صفحهٔ زیر یک توضیح متا (meta description) جذاب، حداکثر ۱۵۵ کاراکتر و با دعوت به اقدام بنویس.\nآدرس: %s\nنام برند: %s\nعبارت اصلی: %s\nدادهٔ جستجو: %s\nتوضیح فعلی: %s\nنمونهٔ محتوا: %s",
+                "برای صفحهٔ زیر یک توضیح متا (meta description) جذاب بنویس.\nبین ۱۲۰ تا ۱۵۵ کاراکتر.\nحتماً شامل کلمهٔ کلیدی و دعوت به اقدام باشد.\nآدرس: %s\nنام برند: %s\nعبارت اصلی: %s\nدادهٔ جستجو: %s\nتوضیح فعلی: %s\nنمونهٔ محتوا: %s",
                 $url,
                 $siteName,
                 $topQuery,
@@ -182,14 +230,13 @@ class AiClient
         return [$system, $user];
     }
 
-    /** @return array{content: string, model: string, source: string, usage: array<string, mixed>} */
     private function openaiCompatible(string $provider, string $apiKey, string $model, string $system, string $user): array
     {
         $endpoint = $provider === 'openrouter'
             ? 'https://openrouter.ai/api/v1/chat/completions'
             : 'https://api.openai.com/v1/chat/completions';
 
-        $response = Http::timeout(60)
+        $response = Http::timeout(120)
             ->acceptJson()
             ->withToken($apiKey)
             ->post($endpoint, [
@@ -199,6 +246,7 @@ class AiClient
                     ['role' => 'user', 'content' => $user],
                 ],
                 'temperature' => 0.7,
+                'max_tokens' => 4096,
             ]);
 
         if (! $response->successful()) {
@@ -218,10 +266,9 @@ class AiClient
         ];
     }
 
-    /** @return array{content: string, model: string, source: string, usage: array<string, mixed>} */
     private function anthropic(string $apiKey, string $model, string $system, string $user): array
     {
-        $response = Http::timeout(60)
+        $response = Http::timeout(120)
             ->acceptJson()
             ->withHeaders([
                 'x-api-key' => $apiKey,
@@ -229,7 +276,7 @@ class AiClient
             ])
             ->post('https://api.anthropic.com/v1/messages', [
                 'model' => $model,
-                'max_tokens' => 1024,
+                'max_tokens' => 4096,
                 'system' => $system,
                 'messages' => [['role' => 'user', 'content' => $user]],
             ]);

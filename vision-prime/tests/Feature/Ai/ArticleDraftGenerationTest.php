@@ -28,6 +28,7 @@ class ArticleDraftGenerationTest extends TestCase
     {
         parent::setUp();
         $this->seed(RolePermissionSeeder::class);
+        $this->seed(ContentStandardsSeeder::class);
     }
 
     private function setUpWorkspace(): array
@@ -158,7 +159,6 @@ class ArticleDraftGenerationTest extends TestCase
 
     public function test_article_draft_includes_featured_image_and_schema_markup(): void
     {
-        $this->seed(ContentStandardsSeeder::class);
         [$organization, $admin, $site, $profileId] = $this->setUpWorkspace();
 
         $this->actingAs($admin)->withSession(['current_organization_id' => $organization->id])
@@ -219,7 +219,6 @@ class ArticleDraftGenerationTest extends TestCase
 
     public function test_product_draft_generates_product_schema_and_square_featured_image(): void
     {
-        $this->seed(ContentStandardsSeeder::class);
         [$organization, $admin, $site, $profileId] = $this->setUpWorkspace();
 
         // پروفایل محصول (ووکامرس)

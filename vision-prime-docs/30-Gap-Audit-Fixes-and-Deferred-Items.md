@@ -57,5 +57,44 @@
 | **فلو 2FA** | ستون‌های migrations موجود است ولی نیاز به انتخاب کانال ارسال (ایمیل/SMS ایرانی) و پیکربندی provider دارد | انتخاب provider + پیاده‌سازی در فاز Security |
 | **Event tracking فانل مارکتینگ** | نیاز به انتخاب ابزار آنالیتیک (Plausible/Matomo و…) دارد | افزودن پس از راه‌اندازی دامنهٔ پروداکشن |
 
+## ✅ رفع‌های انجام‌شده (۲۰۲۶-۰۸-۱۹) — فاز ۱ تولید محتوا
+
+### استانداردهای SEO جامع
+- **StandardsKB**: ۱۵+ زیرنوع محتوا با keyword_guidance, schema_type, internal_link_rules, meta ranges
+- **ContentProfiler**: نرمالایز فارسی (normalizeFa) — نیم‌فاصله، ی/کسره، ا/أ/آ، ک/ك
+- **ContentQualityGuard**: گیت‌های RankMath/Yoast — heading hierarchy, keyword density min/max, meta length, internal links, rankmath_score
+
+### لینک‌سازی داخلی هوشمند
+- **InternalLinkEngine**: cosine similarity + keyword overlap + recency bonus
+- anchor text خودکار + injectLinks() برای تزریق در HTML
+
+### اسکیمای Schema.org کامل
+- **SchemaGenerator**: Article, Product, FAQPage, HowTo, Review, ItemList, BreadcrumbList
+- toJsonLd() برای JSON-LD script tag
+
+### پرامپت‌های حرفه‌ای AI
+- **AiClient**: element labels فارسی, internal links integration, 4096 max_tokens, 120s timeout
+- **RuleBasedDraft**: social_proof section, internal links با anchor text واقعی
+
+### دستور تولید دسته‌ای
+- `php artisan content:generate-batch --site=1 --type=article --limit=5`
+- internal linking + quality gate + schema.org خودکار
+
+### فرانت‌اند
+- فرم تولید مقاله: فیلد کلیدواژه, شمارنده عنوان, پیش‌نمایش استاندارد
+- فرم تولید محصول: پیش‌نمایش استاندارد, اطلاعات ووکامرس
+
+---
+
+## ⏳ موارد defer شده جدید
+
+| مورد | دلیل | پیشنهاد بعدی |
+|---|---|---| 
+| **Local WordPress Test Instance** | نصب وردپرس لوکال برای تست واقعی اتصال | نصب در فاز ۲ |
+| **مهاجرت DB SQLite → PostgreSQL** | برای production; SQLite برای local development کافی است | قبل از deploy |
+| **SSL Certificate** | مانع DNS از سمت LE; نیاز به انتقال DNS به آروانکلاود | تصمیم کاربر |
+
+---
+
 ## پیمانه‌های باز در Decision Log
 O-001 تا O-005 (منبع داده ایران، سیاست خودکارسازی، مدل قیمت‌گذاری، حریم دادهٔ مشتری، کانال تأیید) — بدون مالک و تاریخ. پیشنهاد: مالک/تاریخ در جلسهٔ بعدی تعیین شود.

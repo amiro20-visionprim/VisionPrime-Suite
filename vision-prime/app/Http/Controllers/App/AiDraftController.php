@@ -7,6 +7,7 @@ namespace App\Http\Controllers\App;
 use App\Domains\Ai\Actions\GenerateArticleDraft;
 use App\Domains\Ai\Actions\GenerateMetaDraft;
 use App\Domains\Content\Services\ContentProfiler;
+use App\Domains\Content\Services\StandardsKB;
 use App\Domains\Organization\Contracts\CurrentOrganization;
 use App\Domains\Workspace\Models\Site;
 use App\Http\Controllers\Controller;
@@ -74,10 +75,34 @@ class AiDraftController extends Controller
             ->values()
             ->all();
 
+        // پیش‌نمایش استاندارد برای هر زیرنوع
+        $profiler = app(ContentProfiler::class);
+        $standardsKb = app(StandardsKB::class);
+        $standardsPreview = [];
+        foreach (array_keys(ContentProfiler::SUBTYPES['article'] ?? []) as $sub) {
+            $profiled = $profiler->profile(['title' => '', 'target_query' => '', 'content_type' => 'article', 'subtype' => $sub]);
+            $std = $standardsKb->standardFor($profiled);
+            $standardsPreview[$sub] = [
+                'word_min' => $std['word_min'],
+                'word_max' => $std['word_max'],
+                'min_headings' => $std['min_headings'],
+                'required_elements' => $std['required_elements'],
+                'tone' => $std['tone'] ?? 'informative',
+                'schema_type' => $std['schema_type'] ?? 'Article',
+                'keyword_density' => [
+                    'min' => $std['keyword_guidance']['density_min'] ?? 0.8,
+                    'max' => $std['keyword_guidance']['density_max'] ?? 2.5,
+                ],
+                'meta_title' => $std['meta_title'] ?? ['min_length' => 30, 'max_length' => 60],
+                'meta_description' => $std['meta_description'] ?? ['min_length' => 120, 'max_length' => 160],
+            ];
+        }
+
         return Inertia::render('App/ArticleDraft/Create', [
             'sites' => $sites,
             'profiles' => $profiles,
             'subtypes' => ContentProfiler::subtypeLabels(),
+            'standards' => $standardsPreview,
         ]);
     }
 
@@ -116,10 +141,32 @@ class AiDraftController extends Controller
             array_flip(ContentProfiler::SUBTYPES['product'])
         );
 
+        // پیش‌نمایش استاندارد برای هر زیرنوع محصول
+        $profiler = app(ContentProfiler::class);
+        $standardsKb = app(StandardsKB::class);
+        $standardsPreview = [];
+        foreach (array_keys(ContentProfiler::SUBTYPES['product'] ?? []) as $sub) {
+            $profiled = $profiler->profile(['title' => '', 'target_query' => '', 'content_type' => 'product', 'subtype' => $sub]);
+            $std = $standardsKb->standardFor($profiled);
+            $standardsPreview[$sub] = [
+                'word_min' => $std['word_min'],
+                'word_max' => $std['word_max'],
+                'min_headings' => $std['min_headings'],
+                'required_elements' => $std['required_elements'],
+                'tone' => $std['tone'] ?? 'persuasive',
+                'schema_type' => $std['schema_type'] ?? 'Product',
+                'keyword_density' => [
+                    'min' => $std['keyword_guidance']['density_min'] ?? 1.0,
+                    'max' => $std['keyword_guidance']['density_max'] ?? 3.0,
+                ],
+            ];
+        }
+
         return Inertia::render('App/ProductDraft/Create', [
             'sites' => $sites,
             'profiles' => $profiles,
             'subtypes' => $productSubtypes,
+            'standards' => $standardsPreview,
         ]);
     }
 

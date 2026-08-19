@@ -55,14 +55,12 @@ class AutoPublishGuardrailsTest extends TestCase
             'created_at' => now(), 'updated_at' => now(),
         ]);
         Http::fake(['*/wp-json/vision-prime/v1/commands' => Http::response(['ok' => true, 'result' => ['post_id' => 42, 'previous' => 'old', 'new' => 'new']])]);
-    }
-
-    private function articleCommand(string $body, string $status = 'pending_approval', string $risk = 'R2'): int
+    }    private function articleCommand(string $body, string $status = 'pending_approval', string $risk = 'R2'): int
     {
         return (int) \DB::table('commands')->insertGetId([
             'site_id' => $this->site->id, 'source_type' => 'test', 'type' => 'update_content',
-            'content_type' => 'article',
-            'risk_tier' => $risk, 'payload' => json_encode(['url' => 'https://e.ir/x', 'content' => $body]),
+            'content_type' => 'article', 'risk_tier' => $risk,
+            'payload' => json_encode(['url' => 'https://e.ir/x', 'title' => 'آموزش سئو و بهینه‌سازی سایت', 'content' => $body, 'target_query' => 'آموزش سئو']),
             'idempotency_key' => (string) Str::uuid(), 'status' => $status,
             'confidence_score' => 95,
             'expires_at' => now()->addHour(), 'policy_version' => 3,
@@ -123,10 +121,13 @@ class AutoPublishGuardrailsTest extends TestCase
     public function test_all_gates_pass_auto_publishes(): void
     {
         $this->warmup();
-        $paragraph = str_repeat('متن کامل آموزش سئو برای بهبود رتبه سایت شما در نتایج جستجو. ', 60);
-        $body = '<h2>مقدمه</h2><p>'.$paragraph.'</p>'
-            .'<h2>مراحل</h2><p>'.$paragraph.'</p>'
-            .'<h2>جمع‌بندی</h2><p>'.$paragraph.'</p>';
+        $paragraph = str_repeat('متن کامل درباره بهینه‌سازی موتورهای جستجو و رتبه‌بندی سایت شما در نتایج گوگل و سایر موتورهای جستجوگر معتبر و کسب و کار اینترنتی. ', 15);
+        $link = '<a href="https://e.ir/guide">راهنمای سئو</a>';
+        $body = '<p>فهرست مطالب: مقدمه، مراحل، سؤالات متداول، جمع‌بندی</p>'
+            .'<h2>مقدمه</h2><p>آموزش سئو برای بهبود رتبه سایت شما در نتایج جستجو اهمیت زیادی دارد. '.$paragraph.' '.$link.'</p>'
+            .'<h2>مراحل اجرای سئو</h2><ol><li>گام اول: تحلیل وضعیت فعلی</li><li>گام دوم: اجرای بهینه‌سازی</li><li>گام سوم: اندازه‌گیری نتیجه</li></ol><p>'.$paragraph.' '.$link.'</p>'
+            .'<h2>سؤالات متداول</h2><p><strong>پرسش:</strong> آیا سئو مهم است؟ <strong>پاسخ:</strong> بله.</p>'
+            .'<h2>جمع‌بندی</h2><p>'.$paragraph.' '.$link.' برای مشاوره تماس بگیرید.</p>';
         $id = $this->articleCommand($body);
 
         $result = app(AutoPublish::class)->handle($id);
