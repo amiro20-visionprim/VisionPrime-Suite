@@ -1,105 +1,3 @@
-<script setup lang="ts">
-import { ref, watch, computed } from 'vue'
-import { Head, usePage } from '@inertiajs/vue3'
-import AppLayout from '@/app/layouts/AppLayout.vue'
-import VAlert from '@/shared/ui/VAlert.vue'
-import VBadge from '@/shared/ui/VBadge.vue'
-import VButton from '@/shared/ui/VButton.vue'
-import VCard from '@/shared/ui/VCard.vue'
-import VInput from '@/shared/ui/VInput.vue'
-import VPageHeader from '@/shared/ui/VPageHeader.vue'
-import VSelect from '@/shared/ui/VSelect.vue'
-
-interface SiteOption { id: number; name: string }
-interface GeneratedResult {
-  content: string; model: string; source: string
-  meta_title: string; meta_description: string
-  schemas: unknown[]; links: unknown[]
-  quality: { passed: boolean; score: number; failures: string[]; warnings: string[] }
-  standard: Record<string, unknown>; profile: Record<string, unknown>
-}
-
-const p = defineProps<{
-  sites: SiteOption[]
-  subtypes: Record<string, string>
-  isSuperAdmin: boolean
-}>()
-
-const page = usePage<{ flash?: { status?: string; error?: string } }>()
-
-// State
-const step = ref<'input' | 'generating' | 'result'>('input')
-const loadingGenerate = ref(false)
-const selectedSiteId = ref('')
-const title = ref('')
-const subtype = ref('general')
-const result = ref<GeneratedResult | null>(null)
-const activeResultTab = ref<'content' | 'meta' | 'seo' | 'schema'>('content')
-
-// SEO metrics (computed from result)
-const wordCount = computed(() => {
-  if (!result.value?.content) return 0
-  return result.value.content.replace(/<[^>]+>/g, ' ').trim().split(/\s+/).filter(w => w.length > 0).length
-})
-
-const seoScore = computed(() => result.value?.quality?.score ?? 0)
-const seoChecks = computed(() => {
-  if (!result.value) return []
-  const checks = []
-  checks.push({ label: 'امتیاز کیفیت', value: result.value.quality?.score ?? 0, min: 70 })
-  checks.push({ label: 'تعداد کلمات', value: wordCount.value, min: 400 })
-  checks.push({ label: 'مدل AI', value: result.value.model || '-', min: 0 })
-  checks.push({ label: 'منبع', value: result.value.source || '-', min: 0 })
-  return checks
-})
-
-// Generate with AI
-async function generate() {
-  if (!selectedSiteId.value || !title.value.trim()) return
-  step.value = 'generating'
-  loadingGenerate.value = true
-  result.value = null
-
-  try {
-    const res = await fetch('/api/content/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-      body: JSON.stringify({
-        site_id: Number(selectedSiteId.value),
-        keyword: title.value.trim(),
-        title: title.value.trim(),
-        subtype: subtype.value || undefined,
-      }),
-    })
-    const data = await res.json()
-    if (data.error) {
-      alert('\u274c ' + data.error)
-      step.value = 'input'
-    } else {
-      result.value = data
-      step.value = 'result'
-    }
-  } catch (e: unknown) {
-    alert('\u274c ' + (e instanceof Error ? e.message : String(e)))
-    step.value = 'input'
-  }
-  loadingGenerate.value = false
-}
-
-// Regenerate
-function regenerate() {
-  step.value = 'input'
-  result.value = null
-}
-
-// Auto-generate meta title
-function autoMetaTitle() {
-  if (result.value && title.value) {
-    result.value.meta_title = title.value + ' | ' + (p.sites.find(s => String(s.id) === selectedSiteId.value)?.name ?? '')
-  }
-}
-</script>
-
 <template>
   <Head title="تولید مقاله هوشمند" />
   <AppLayout>
@@ -168,7 +66,7 @@ function autoMetaTitle() {
         <div class="space-y-6">
           <!-- Tabs -->
           <div class="border-line flex gap-1 border-b">
-            <button v-for="tab in [{id:'content' as const,label:'✏️ محتوا'}, {id:'meta' as const,label:'🏷️ Meta'}, {id:'seo' as const,label:'📊 امتیاز'}, {id:'schema' as const,label:'📊 اسکیما'}]" :key="tab.id" type="button" class="border-b-2 px-4 py-2.5 text-sm font-medium transition-colors" :class="activeResultTab === tab.id ? 'border-brand-600 text-brand-700' : 'border-transparent text-ink-muted hover:text-ink-strong'" @click="activeResultTab = tab.id">{{ tab.label }}</button>
+            <button v-for="tab in [{id:'content',label:'✏️ محتوا'}, {id:'meta',label:'🏷️ Meta'}, {id:'seo',label:'📊 امتیاز'}, {id:'schema',label:'📊 اسکیما'}]" :key="tab.id" type="button" class="border-b-2 px-4 py-2.5 text-sm font-medium transition-colors" :class="activeResultTab === tab.id ? 'border-brand-600 text-brand-700' : 'border-transparent text-ink-muted hover:text-ink-strong'" @click="activeResultTab = tab.id">{{ tab.label }}</button>
           </div>
 
           <!-- Content Tab -->
