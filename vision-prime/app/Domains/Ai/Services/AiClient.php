@@ -14,7 +14,7 @@ use App\Domains\Organization\Models\Organization;
  */
 class AiClient
 {
-    public const PROVIDERS = ['openai', 'openrouter', 'deepseek', 'anthropic', 'gapgpt'];
+    public const PROVIDERS = ['openai', 'openrouter', 'deepseek', 'anthropic', 'groq', 'gapgpt'];
 
     public function __construct(private readonly AiGateway $gateway) {}
 

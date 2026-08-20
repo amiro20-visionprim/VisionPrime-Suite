@@ -78,6 +78,7 @@ const providerOptions = [
   { label: 'پارستک (ParsTech)', value: 'parstech' },
   { label: 'آیز (Ayez)', value: 'ayez' },
   { label: 'فال (Fal.ai)', value: 'fal' },
+  { label: 'GapGPT (گپ جی پی تی)', value: 'gapgpt' },
 ]
 
 const providerLabels: Record<string, string> = {
@@ -88,20 +89,14 @@ const providerLabels: Record<string, string> = {
 }
 
 const freeModels = [
-  { id: 'nvidia/nemotron-3-ultra-550b-a55b:free', name: 'Nemotron 3 Ultra (550B)', quality: 'بالا', ctx: '1M' },
-  { id: 'nvidia/nemotron-3-super-120b-a12b:free', name: 'Nemotron 3 Super (120B)', quality: 'بالا', ctx: '262K' },
-  { id: 'z-ai/glm-5.2:free', name: 'GLM 5.2', quality: 'متوسط', ctx: '256K' },
-  { id: 'google/gemma-4-31b-it:free', name: 'Gemma 4 31B', quality: 'متوسط', ctx: '262K' },
-  { id: 'google/gemma-4-26b-a4b-it:free', name: 'Gemma 4 26B', quality: 'متوسط', ctx: '262K' },
-  { id: 'dots-studio/dots-3-note-preview:free', name: 'Dots3 Note Preview', quality: 'متوسط', ctx: '512K' },
-  { id: 'nvidia/nemotron-3.5-lightning:free', name: 'Nemotron 3.5 Lightning', quality: 'سریع', ctx: '1M' },
-  { id: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free', name: 'Nemotron 3 Nano Omni', quality: 'متوسط', ctx: '256K' },
-  { id: 'poolside/laguna-s-2.1:free', name: 'Laguna S 2.1', quality: 'متوسط', ctx: '262K' },
-  { id: 'cohere/north-mini-code:free', name: 'North Mini Code', quality: 'متوسط', ctx: '256K' },
-  { id: 'meta-llama/llama-3.3-8b-instruct:free', name: 'Llama 3.3 8B', quality: 'بالا', ctx: '128K' },
+  { id: 'meta-llama/llama-3.3-70b-versatile:free', name: 'Llama 3.3 70B Versatile', quality: 'بالا', ctx: '128K' },
   { id: 'qwen/qwen3-235b-a22b:free', name: 'Qwen3 235B', quality: 'بالا', ctx: '128K' },
   { id: 'deepseek/deepseek-r1-0528:free', name: 'DeepSeek R1', quality: 'بالا', ctx: '128K' },
+  { id: 'google/gemma-4-31b-it:free', name: 'Gemma 4 31B', quality: 'متوسط', ctx: '262K' },
   { id: 'mistralai/mistral-small-3.2-24b-instruct:free', name: 'Mistral Small 3.2', quality: 'بالا', ctx: '128K' },
+  { id: 'nvidia/nemotron-3-ultra-550b-a55b:free', name: 'Nemotron 3 Ultra 550B', quality: 'بالا', ctx: '1M' },
+  { id: 'meta-llama/llama-3.3-8b-instruct:free', name: 'Llama 3.3 8B (سریع)', quality: 'سریع', ctx: '128K' },
+  { id: 'nvidia/nemotron-3.5-lightning:free', name: 'Nemotron 3.5 Lightning (سریع)', quality: 'سریع', ctx: '1M' },
 ]
 
 const aiForm = useForm({

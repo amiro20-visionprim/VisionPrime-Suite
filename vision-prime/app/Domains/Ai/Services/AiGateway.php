@@ -40,20 +40,14 @@ class AiGateway
      * These rotate automatically when rate-limited.
      */
     private const FREE_MODELS = [
-        'nvidia/nemotron-3-ultra-550b-a55b:free',
-        'nvidia/nemotron-3-super-120b-a12b:free',
-        'z-ai/glm-5.2:free',
-        'google/gemma-4-31b-it:free',
-        'google/gemma-4-26b-a4b-it:free',
-        'dots-studio/dots-3-note-preview:free',
-        'nvidia/nemotron-3.5-lightning:free',
-        'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
-        'poolside/laguna-s-2.1:free',
-        'cohere/north-mini-code:free',
-        'meta-llama/llama-3.3-8b-instruct:free',
+        'meta-llama/llama-3.3-70b-versatile:free',
         'qwen/qwen3-235b-a22b:free',
         'deepseek/deepseek-r1-0528:free',
+        'google/gemma-4-31b-it:free',
         'mistralai/mistral-small-3.2-24b-instruct:free',
+        'nvidia/nemotron-3-ultra-550b-a55b:free',
+        'meta-llama/llama-3.3-8b-instruct:free',
+        'nvidia/nemotron-3.5-lightning:free',
     ];
 
     public function __construct(
@@ -161,7 +155,9 @@ class AiGateway
             'anthropic' => 'claude-3-5-haiku-latest',
             'openrouter' => 'openai/gpt-4o-mini',
             'deepseek' => 'deepseek-chat',
-            'gapgpt' => 'gapgpt-chat',
+
+            'groq' => 'llama-3.3-70b-versatile',
+            'gapgpt' => 'gpt-4o-mini',
             default => 'gpt-4o-mini',
         });
 
@@ -169,6 +165,8 @@ class AiGateway
             $result = match ($settings->provider) {
                 'anthropic' => $this->callAnthropic($apiKey, $model, $system, $user),
                 'deepseek' => $this->callOpenAiCompatible('deepseek', $apiKey, $model, $system, $user),
+
+                'groq' => $this->callOpenAiCompatible('groq', $apiKey, $model, $system, $user),
                 'gapgpt' => $this->callOpenAiCompatible('gapgpt', $apiKey, $model, $system, $user),
                 default => $this->callOpenAiCompatible((string) $settings->provider, $apiKey, $model, $system, $user),
             };
@@ -252,6 +250,8 @@ class AiGateway
         $endpoint = match ($provider) {
             'openrouter' => 'https://openrouter.ai/api/v1/chat/completions',
             'deepseek' => 'https://api.deepseek.com/v1/chat/completions',
+
+            'groq' => 'https://api.groq.com/openai/v1/chat/completions',
             'gapgpt' => config('services.gapgpt.endpoint', 'https://api.gapgpt.app/v1/chat/completions'),
             default => 'https://api.openai.com/v1/chat/completions',
         };
@@ -429,6 +429,8 @@ class AiGateway
 
             $result = match ($provider) {
                 'deepseek' => $this->callOpenAiCompatible('deepseek', $apiKey, $model ?: 'deepseek-chat', $system, $user),
+
+                'groq' => $this->callOpenAiCompatible('groq', $apiKey, $model ?: 'llama-3.3-70b-versatile', $system, $user),
                 'openai' => $this->callOpenAiCompatible('openai', $apiKey, $model ?: 'gpt-4o-mini', $system, $user),
                 'openrouter' => $this->callOpenAiCompatible('openrouter', $apiKey, $model ?: 'openai/gpt-4o-mini', $system, $user),
                 'anthropic' => $this->callAnthropic($apiKey, $model ?: 'claude-3-5-haiku-latest', $system, $user),
