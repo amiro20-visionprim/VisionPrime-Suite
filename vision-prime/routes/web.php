@@ -154,6 +154,7 @@ Route::middleware(['auth', 'current.organization', 'client.portal'])->prefix('cl
 
 Route::middleware(['auth', 'current.organization'])->group(function (): void {
     Route::get('/app/dashboard', DashboardController::class)->name('app.dashboard');
+    Route::get('/app/content-command-center', fn () => Inertia::render('App/ContentCommandCenter/Index'))->name('app.content-command-center');
     Route::get('/app/training', [TrainingController::class, 'agency'])->name('app.training');
 
     Route::get('/app/notifications', [NotificationController::class, 'index'])->name('app.notifications.index');

@@ -56,6 +56,7 @@ const baseGroups: NavigationGroup[] = [
       { label: 'تغییرات اجرایی', href: '/app/commands', icon: 'zap' },
       { label: 'تولید مقاله', href: '/app/ai-drafts/article/create', icon: 'file' },
       { label: 'تولید محصول', href: '/app/ai-drafts/product/create', icon: 'shopping-bag' },
+      { label: 'اتاق فرماندهی محتوا', href: '/app/content-command-center', icon: 'settings' },
       { label: 'تقویم محتوایی', href: '/app/content-calendar', icon: 'calendar' },
       { label: 'گزارش‌ها', href: '/app/reports', icon: 'news' },
     ],
