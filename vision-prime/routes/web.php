@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Http\Controllers\App\AiDraftController;
 use App\Http\Controllers\App\ContentApiController;
 use App\Http\Controllers\App\ContentGuardrailController;
+use App\Http\Controllers\App\ContentCommandCenterController;
 use App\Http\Controllers\App\AutomationPolicyController;
 use App\Http\Controllers\App\ClientController;
 use App\Http\Controllers\App\CommandController;
