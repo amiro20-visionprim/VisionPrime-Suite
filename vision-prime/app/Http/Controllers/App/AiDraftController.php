@@ -47,7 +47,7 @@ class AiDraftController extends Controller
     }
 
     /** صفحهٔ مستقل «تولید مقاله» — انتخاب سایت، URL، عنوان و زیرنوع. */
-    public function createArticle(CurrentOrganization $org): Response
+    public function createArticle(Request $request, CurrentOrganization $org): Response
     {
         $sites = Site::query()
             ->where('organization_id', $org->id())
@@ -103,11 +103,12 @@ class AiDraftController extends Controller
             'profiles' => $profiles,
             'subtypes' => ContentProfiler::subtypeLabels(),
             'standards' => $standardsPreview,
+            'isSuperAdmin' => $request->user()?->isSuperAdmin() ?? false,
         ]);
     }
 
     /** صفحهٔ مستقل «تولید پیشنویس محصول» — سایت، URL محصول و زیرنوع (توضیح کوتاه/بلند/فنی/مقایسه‌ای). */
-    public function createProduct(CurrentOrganization $org): Response
+    public function createProduct(Request $request, CurrentOrganization $org): Response
     {
         $sites = Site::query()
             ->where('organization_id', $org->id())
@@ -167,6 +168,7 @@ class AiDraftController extends Controller
             'profiles' => $profiles,
             'subtypes' => $productSubtypes,
             'standards' => $standardsPreview,
+            'isSuperAdmin' => $request->user()?->isSuperAdmin() ?? false,
         ]);
     }
 

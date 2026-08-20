@@ -40,6 +40,7 @@ const baseGroups: NavigationGroup[] = [
     label: 'هوش رشد',
     icon: 'trend-up',
     items: [
+      { label: 'سرچ کنسول', href: '/app/gsc', icon: 'search' },
       { label: 'فرصت‌های رشد', href: '/app/opportunities', icon: 'lightbulb' },
       { label: 'صفحات درآمدزا', href: '/app/money-pages', icon: 'shopping-bag' },
       { label: 'ریسک‌های تبدیل', href: '/app/conversion-risks', icon: 'trend-down' },

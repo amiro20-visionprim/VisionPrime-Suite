@@ -28,7 +28,7 @@ Roleها در MVP تجاری اولیه قابل استفاده‌اند، ام�
 | Manage clients/projects/sites | ✓ | ✓ | ✓ محدود | - | - | - | - | - |
 | View intelligence | ✓ | ✓ | ✓ | ✓ محدود | ✓ | ✓ محدود | ✓ خلاصه | ✓ خلاصه |
 | Create recommendations | ✓ | ✓ | ✓ | ✓ محتوایی | ✓ | - | - | - |
-| Manage AI templates/settings | ✓ | ✓ محدود | ✓ استفاده | ✓ استفاده | - | - | - | - |
+| Manage AI templates/settings | ✓ | - | - | - | - | - | - | - |
 | Review internal items | ✓ | ✓ | - | - | ✓ | - | - | - |
 | Approve client-facing decision | ✓ | ✓ | ✓ در policy | - | ✓ در policy | - | - | ✓ در policy |
 | Pair/manage connector | ✓ | ✓ | - | - | - | ✓ | - | - |

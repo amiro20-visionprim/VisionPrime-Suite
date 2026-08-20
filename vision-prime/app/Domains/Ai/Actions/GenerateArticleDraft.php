@@ -7,6 +7,7 @@ namespace App\Domains\Ai\Actions;
 use App\Domains\Ai\Services\AiClient;
 use App\Domains\Audit\Actions\RecordAuditLog;
 use App\Domains\Content\Services\ContentProfiler;
+use App\Domains\Content\Models\ContentGuardrail;
 use App\Domains\Content\Services\StandardsKB;
 use App\Domains\Workspace\Models\Site;
 use Illuminate\Support\Facades\DB;
@@ -63,6 +64,15 @@ class GenerateArticleDraft
         // «استاندارد مؤثر» — seed → learned → manual + safety floor
         $standard = $this->standards->standardFor($profiled, (int) $site->id);
 
+        // «گارد rails مؤثر» — سایت-specifc → سازمان-wide → defaults
+        $guardrail = ContentGuardrail::resolve(
+            (int) $site->organization_id,
+            (int) $site->id,
+            $profiled['content_type'] ?? 'article',
+            $profiled['subtype'] ?? 'general',
+        );
+        $guardrails = $guardrail->toPromptArray();
+
         $context = [
             'title' => $profiled['title'],
             'target_query' => $gsc['target_query'],
@@ -72,6 +82,7 @@ class GenerateArticleDraft
             'metrics' => $gsc['metrics'],
             'freshness' => $gsc['freshness'],
             'page_status' => (string) $profile->post_status,
+            'guardrails' => $guardrails,
         ];
 
         $result = $this->client->generateArticleDraft($site->organization, $context);
@@ -175,6 +186,41 @@ class GenerateArticleDraft
             }
         }
 
+        // Top queries for this URL
+        $topQueries = DB::table('keyword_insights')
+            ->where('site_id', $site->id)
+            ->where('mapped_url_profile_id', $profile->id)
+            ->where('status', 'active')
+            ->orderByDesc(DB::raw("(latest_metrics->>'impressions')::int"))
+            ->limit(10)
+            ->pluck('query_normalized')
+            ->filter()
+            ->values()
+            ->toArray();
+
+        // Related pages (same site, similar topic)
+        $relatedPages = DB::table('url_profiles')
+            ->where('site_id', $site->id)
+            ->where('id', '!=', $profile->id)
+            ->where('canonical_url', '!=', '')
+            ->limit(5)
+            ->pluck('metadata')
+            ->map(fn($m) => json_decode($m ?? '{}', true)['title'] ?? '')
+            ->filter()
+            ->values()
+            ->toArray();
+
+        // Opportunities for improvement
+        $opportunities = DB::table('opportunities')
+            ->where('site_id', $site->id)
+            ->where('status', 'open')
+            ->orderByDesc('score')
+            ->limit(5)
+            ->pluck('explanation')
+            ->filter()
+            ->values()
+            ->toArray();
+
         return [
             'target_query' => $targetQuery,
             'metrics' => [
@@ -184,6 +230,9 @@ class GenerateArticleDraft
                 'position' => (float) ($gsc['position'] ?? 0),
             ],
             'freshness' => $freshness,
+            'top_queries' => $topQueries,
+            'related_pages' => $relatedPages,
+            'opportunities' => $opportunities,
         ];
     }
 

@@ -59,8 +59,11 @@ class AiSettingsController extends Controller
 
     private function authorizeManage(Organization $organization): void
     {
-        if (! $this->permission->allows(request()->user(), $organization, 'member.manage.organization')) {
-            abort(403, 'شما دسترسی پیکربندی هوش مصنوعی را ندارید.');
+        $user = request()->user();
+
+        // فقط سوپر ادمین اجازه مدیریت AI Gateway رو داره
+        if (! $user?->isSuperAdmin()) {
+            abort(403, 'فقط مدیر سیستم اجازه پیکربندی هوش مصنوعی را دارد.');
         }
     }
 }

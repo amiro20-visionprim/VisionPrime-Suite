@@ -781,3 +781,58 @@ php artisan content:generate-batch --site=1 --type=all --limit=10 --dry-run
 ### مستندات (طبق D-020)
 - ۳۱ (این ورودی)
 - ۴۳ (وضعیت فاز ۲ به‌روز شد: تست واقعی ✅)
+
+---
+
+## ۱۱) بازسازی مغز متفکر + محدودسازی AI Gateway — ۲۰۲۶-۰۸-۲۰
+
+### خلاصه تغییرات
+
+**الف) بازسازی سیستم تولید محتوا — اتصال کامل بخش‌ها**
+
+قبل از این تغییرات، سیستم تولید محتوا غیر متصل بود:
+- فرم تولید فقط اجازه بازنویسی صفحات موجود را می‌داد (اجبار انتخاب URL Profile)
+- GSC به فرم تولید متصل نبود
+- بخش‌های ContentProfiler, StandardsKB, InternalLinkEngine, SchemaGenerator, ContentQualityGuard هیچکدام قبل از تولید به هم وصل نبودند
+- تصمیم‌سازی هوشمند وجود نداشت
+
+تغییرات اعمال شده:
+1. **AiGateway.php** — Gateway حرفه‌ای با ۱۰+ مدل رایگان OpenRouter + DeepSeek + OpenAI + Anthropic با failover خودکار
+2. **ContentApiController.php** — ۷ API endpoint جدید: research, score, links, schema, generate, providers, test-provider
+3. **AiClient.php** — آپدیت برای استفاده از Gateway
+4. **ArticleDraft/Create.vue** — بازنویسی کامل: حذف اجبار انتخاب صفحه، تحقیق موضوع از GSC، تولید با AI
+5. **ProductDraft/Create.vue** — بازنویسی کامل مشابه مقاله
+6. **۳ کامپوننت مشترک**: ContentScoreCard, InternalLinkSuggestions, SchemaPreview
+7. **مسیرهای API** — ۷ مسیر جدید در web.php
+8. **CSRF** — اضافه شدن api/* به ExcludeCsrfToken
+
+**ب) محدودسازی دسترسی AI Gateway — فقط سوپر ادمین**
+
+تغییرات:
+1. **AiSettingsController.php** — authorizeManage فقط isSuperAdmin
+2. **IntegrationsSettingsController.php** — پاس isSuperAdmin به فرانت + مخفی کردن key/model
+3. **ContentApiController.php** — generate, providers, testProvider فقط isSuperAdmin
+4. **AiDraftController.php** — store, storeArticle, storeProduct فقط isSuperAdmin
+5. **Integrations.vue** — بخش AI فقط سوپر ادمین
+6. **فرم‌ها** — دکمه تولید AI فقط سوپر ادمین
+
+**ج) تست E2E — ۱۲/۱۲**
+
+| # | تست | نتیجه |
+|---|------|--------|
+| 1 | Login (admin) | ✅ 302 |
+| 2 | Integrations (admin) | ✅ 200 |
+| 3 | Article Create (admin) | ✅ 200 |
+| 4 | Product Create (admin) | ✅ 200 |
+| 5 | Research API | ✅ 200 |
+| 6 | Providers API (admin) | ✅ 200 |
+| 7 | Score API | ✅ 200 |
+| 8 | Logout | ✅ 302 |
+| 9 | Login (Sara) | ✅ 302 |
+| 10 | Article Create (Sara) | ✅ 200 |
+| 11 | Providers API (Sara) | ✅ 403 ← محدودسازی درست |
+| 12 | Logout (Sara) | ✅ 302 |
+
+**خطاهای رفع شده:**
+1. Undefined variable $request در AiDraftController — اضافه کردن Request parameter
+2. Syntax error در AiClient.php — اضافه کردن $gateway

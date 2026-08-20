@@ -51,18 +51,111 @@ final class Vision_Prime_Connector {
 
     public function render_settings(): void {
         if (! current_user_can('manage_options')) return;
-        $settings = get_option(self::OPTION, []); ?>
-        <div class="wrap"><h1>Vision Prime Connector</h1><?php if ($notice = get_transient('vision_prime_notice')) { delete_transient('vision_prime_notice'); echo '<div class="notice notice-info"><p>'.esc_html($notice).'</p></div>'; } ?><form method="post" action="options.php"><?php settings_fields('vision-prime'); ?><p><label>Platform URL <input class="regular-text" name="<?php echo esc_attr(self::OPTION); ?>[platform_url]" value="<?php echo esc_attr($settings['platform_url'] ?? ''); ?>"></label></p><p><label>Site ID <input name="<?php echo esc_attr(self::OPTION); ?>[site_id]" value="<?php echo esc_attr($settings['site_id'] ?? ''); ?>"></label></p><?php submit_button('Save connection settings'); ?></form><hr><h2>Pair site</h2><form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"><input type="hidden" name="action" value="vision_prime_pair"><?php wp_nonce_field('vision_prime_pair'); ?><p><label>Pairing Token <input class="regular-text" type="password" name="pairing_token" autocomplete="off"></label></p><?php submit_button('Pair with Vision Prime'); ?></form><p><strong>Status:</strong> <?php echo empty($settings['secret']) ? 'Not connected' : 'Connected'; ?><?php if (VP_Guard::tampered()) { echo ' <strong style="color:#b32d2e;"> — integrity check FAILED</strong>'; } ?></p><?php if (! empty($settings['secret'])) { ?><form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"><input type="hidden" name="action" value="vision_prime_health"><?php wp_nonce_field('vision_prime_health'); submit_button('Run signed health check', 'secondary', 'submit', false); ?></form><?php } ?></div><?php
+        $settings = get_option(self::OPTION, []);
+        $connected = ! empty($settings['secret']);
+        $tamp = VP_Guard::tampered(); ?>
+        <style>
+            .vp-wrap{max-width:720px;margin:20px auto;font-family:Tahoma,sans-serif}
+            .vp-card{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:24px;margin-bottom:16px}
+            .vp-card h2{margin:0 0 16px;font-size:18px;color:#1e293b}
+            .vp-field{margin-bottom:16px}
+            .vp-field label{display:block;font-weight:600;margin-bottom:6px;color:#334155}
+            .vp-field input[type=text],.vp-field input[type=password]{width:100%;padding:10px 14px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;direction:ltr;text-align:left;box-sizing:border-box}
+            .vp-field .hint{color:#64748b;font-size:12px;margin-top:4px}
+            .vp-status{display:flex;align-items:center;gap:10px;padding:14px 18px;border-radius:10px;margin-bottom:16px}
+            .vp-status.ok{background:#f0fdf4;border:1px solid #bbf7d0;color:#166534}
+            .vp-status.off{background:#fefce8;border:1px solid #fde68a;color:#92400e}
+            .vp-status.err{background:#fef2f2;border:1px solid #fecaca;color:#991b1b}
+            .vp-step{display:flex;gap:12px;align-items:flex-start;margin-bottom:12px}
+            .vp-step-num{width:28px;height:28px;border-radius:50%;background:#4338ca;color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0}
+            .vp-step-text{flex:1;color:#475569;font-size:14px;line-height:1.7}
+        </style>
+        <div class="vp-wrap">
+            <div style="text-align:center;margin-bottom:24px">
+                <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#4338CA,#8B5CF6);display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:18px;font-weight:bold">VP</div>
+                <h1 style="margin:12px 0 4px;font-size:22px;color:#1e293b">اتصال وردپرس به ویژن پرایم</h1>
+                <p style="color:#64748b;font-size:14px">همگام‌سازی خودکار محتوا و مدیریت سئو</p>
+            </div>
+
+            <?php if ($notice = get_transient('vision_prime_notice')) { delete_transient('vision_prime_notice'); ?>
+                <div class="vp-status ok"><?php echo esc_html($notice); ?></div>
+            <?php } ?>
+
+            <?php if ($tamp) { ?>
+                <div class="vp-status err">⚠️ بررسی یکپارچگی فایل ناموفق بود. لطفاً افزونه را مجدداً نصب کنید.</div>
+            <?php } ?>
+
+            <div class="vp-status <?php echo $connected ? 'ok' : 'off'; ?>">
+                <?php if ($connected) { ?>
+                    ✅ <strong>وضعیت: متصل</strong> — اتصال با موفقیت برقرار شده است.
+                <?php } else { ?>
+                    ⏳ <strong>وضعیت: متصل نیست</strong> — مراحل زیر را انجام دهید.
+                <?php } ?>
+            </div>
+
+            <?php if (! $connected) { ?>
+            <div class="vp-card">
+                <h2>📋 راهنمای اتصال (گام به گام)</h2>
+                <div class="vp-step"><div class="vp-step-num">۱</div><div class="vp-step-text">وارد پنل مدیریت ویژن پرایم شوید و از بخش <strong>سایت‌ها</strong>، سایت خود را انتخاب کنید.</div></div>
+                <div class="vp-step"><div class="vp-step-num">۲</div><div class="vp-step-text">در صفحه اتصال وردپرس، روی <strong>«صدور کد اتصال»</strong> کلیک کنید تا توکن ساخته شود.</div></div>
+                <div class="vp-step"><div class="vp-step-num">۳</div><div class="vp-step-text">اطلاعات زیر را از پنل کپی کنید و در فرم پایین وارد کنید.</div></div>
+                <div class="vp-step"><div class="vp-step-num">۴</div><div class="vp-step-text">توکن را در فیلد «کد اتصال» وارد کرده و دکمه «اتصال» را بزنید.</div></div>
+            </div>
+            <?php } ?>
+
+            <div class="vp-card">
+                <h2>⚙️ تنظیمات اتصال</h2>
+                <form method="post" action="options.php">
+                    <?php settings_fields('vision-prime'); ?>
+                    <div class="vp-field">
+                        <label>آدرس پلتفرم (Platform URL)</label>
+                        <input type="text" name="<?php echo esc_attr(self::OPTION); ?>[platform_url]" value="<?php echo esc_attr($settings['platform_url'] ?? ''); ?>" placeholder="https://visionprime-suite.ir" dir="ltr">
+                        <div class="hint">آدرس سایت ویژن پرایم را وارد کنید (بدون اسلش انتهایی)</div>
+                    </div>
+                    <div class="vp-field">
+                        <label>شناسه سایت (Site ID)</label>
+                        <input type="text" name="<?php echo esc_attr(self::OPTION); ?>[site_id]" value="<?php echo esc_attr($settings['site_id'] ?? ''); ?>" placeholder="مثلاً 2" dir="ltr">
+                        <div class="hint">عدد شناسه سایت از پنل مدیریت ویژن پرایم</div>
+                    </div>
+                    <?php submit_button('ذخیره تنظیمات', 'primary', 'submit', false, ['style' => 'background:#4338ca;border-color:#4338ca']); ?>
+                </form>
+            </div>
+
+            <div class="vp-card">
+                <h2>🔗 جفت‌سازی (اتصال)</h2>
+                <?php if (! $connected) { ?>
+                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                    <input type="hidden" name="action" value="vision_prime_pair">
+                    <?php wp_nonce_field('vision_prime_pair'); ?>
+                    <div class="vp-field">
+                        <label>کد اتصال (Pairing Token)</label>
+                        <input type="password" name="pairing_token" autocomplete="off" placeholder="کد ۶۴ کاراکتری را اینجا وارد کنید" dir="ltr">
+                        <div class="hint">کد را از پنل مدیریت ویژن پرایم کپی کنید</div>
+                    </div>
+                    <?php submit_button('اتصال با ویژن پرایم', 'primary', 'submit', false, ['style' => 'background:#4338ca;border-color:#4338ca']); ?>
+                </form>
+                <?php } else { ?>
+                <p style="color:#166534;font-weight:600">✅ این سایت قبلاً با موفقیت متصل شده است.</p>
+                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="margin-top:12px">
+                    <input type="hidden" name="action" value="vision_prime_health">
+                    <?php wp_nonce_field('vision_prime_health'); ?>
+                    <?php submit_button('بررسی سلامت اتصال', 'secondary', 'submit', false); ?>
+                </form>
+                <?php } ?>
+            </div>
+        </div>
+        <?php
     }
 
-    public function pair(): void {
+
+        public function pair(): void {
         if (! current_user_can('manage_options')) wp_die('Unauthorized.');
         check_admin_referer('vision_prime_pair');
         $settings = get_option(self::OPTION, []);
         $token = sanitize_text_field($_POST['pairing_token'] ?? '');
         $result = VP_API_Client::pair($settings, $token);
         if (is_wp_error($result)) { set_transient('vision_prime_notice', $result->get_error_message(), 60); }
-        else { $settings['secret'] = VP_Secret::encrypt($result['secret']); update_option(self::OPTION, $settings, false); set_transient('vision_prime_notice', 'Connected successfully.', 60); }
+        else { $settings['secret'] = VP_Secret::encrypt($result['secret']); update_option(self::OPTION, $settings, false); set_transient('vision_prime_notice', '✅ اتصال با موفقیت انجام شد.', 60); }
         wp_safe_redirect(admin_url('admin.php?page=vision-prime'));
         exit;
     }
@@ -71,8 +164,8 @@ final class Vision_Prime_Connector {
         if (! current_user_can('manage_options')) wp_die('Unauthorized.');
         check_admin_referer('vision_prime_health');
         $settings = VP_Secret::unlock(get_option(self::OPTION, []));
-        $result = empty($settings['secret']) ? new WP_Error('vision_prime_not_connected', 'Site is not paired.') : VP_API_Client::signed_health($settings);
-        $message = is_wp_error($result) ? $result->get_error_message() : (wp_remote_retrieve_response_code($result) === 200 ? 'Health check succeeded.' : 'Health check failed.');
+        $result = empty($settings['secret']) ? new WP_Error('vision_prime_not_connected', 'سایت هنوز متصل نشده است.') : VP_API_Client::signed_health($settings);
+        $message = is_wp_error($result) ? $result->get_error_message() : (wp_remote_retrieve_response_code($result) === 200 ? '✅ بررسی سلامت موفقیت‌آمیز بود.' : '❌ بررسی سلامت ناموفق بود.');
         set_transient('vision_prime_notice', $message, 60);
         wp_safe_redirect(admin_url('admin.php?page=vision-prime'));
         exit;
@@ -93,7 +186,7 @@ final class Vision_Prime_Connector {
     public function content(WP_REST_Request $request): WP_REST_Response {
         $page = max(1, absint($request->get_param('page') ?: 1));
         $per_page = min(100, max(1, absint($request->get_param('per_page') ?: 50)));
-        $query = new WP_Query(['post_type' => ['post','page'], 'post_status' => ['publish','draft','private'], 'posts_per_page' => $per_page, 'paged' => $page, 'orderby' => 'modified', 'order' => 'DESC']);
+        $query = new WP_Query(['post_type' => ['post','page','product'], 'post_status' => ['publish','draft','private'], 'posts_per_page' => $per_page, 'paged' => $page, 'orderby' => 'modified', 'order' => 'DESC']);
         $items = array_map(function (WP_Post $post): array {
             $content = (string) $post->post_content;
             preg_match_all('/<h[1-6][^>]*>(.*?)<\/h[1-6]>/is', $content, $matches);

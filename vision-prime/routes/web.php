@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\App\AiDraftController;
+use App\Http\Controllers\App\ContentApiController;
+use App\Http\Controllers\App\ContentGuardrailController;
 use App\Http\Controllers\App\AutomationPolicyController;
 use App\Http\Controllers\App\ClientController;
 use App\Http\Controllers\App\CommandController;
@@ -256,7 +258,25 @@ Route::middleware(['auth', 'current.organization'])->group(function (): void {
     Route::post('/app/ai-drafts/article', [AiDraftController::class, 'storeArticle'])->name('app.ai-drafts.article')->middleware('throttle:10,1');
     Route::get('/app/ai-drafts/product/create', [AiDraftController::class, 'createProduct'])->name('app.ai-drafts.product.create');
     Route::post('/app/ai-drafts/product', [AiDraftController::class, 'storeProduct'])->name('app.ai-drafts.product')->middleware('throttle:10,1');
-});
+
+    // ─── Content API (AI Gateway + SEO Intelligence) ───
+    Route::get("/api/content/research", [ContentApiController::class, "research"])->name("api.content.research");
+    Route::post("/api/content/score", [ContentApiController::class, "score"])->name("api.content.score")->middleware("throttle:30,1");
+    Route::post("/api/content/links", [ContentApiController::class, "links"])->name("api.content.links")->middleware("throttle:30,1");
+    Route::post("/api/content/schema", [ContentApiController::class, "schema"])->name("api.content.schema")->middleware("throttle:30,1");
+    Route::post("/api/content/generate", [ContentApiController::class, "generate"])->name("api.content.generate")->middleware("throttle:5,1");
+    Route::get("/api/content/providers", [ContentApiController::class, "providers"])->name("api.content.providers");
+    Route::post("/api/content/test-provider", [ContentApiController::class, "testProvider"])->name("api.content.test-provider")->middleware("throttle:5,1");
+    Route::post("/api/content/detect-models", [\App\Http\Controllers\App\AiModelDetectionController::class, "detectModels"])->name("api.content.detect-models")->middleware("throttle:10,1");
+    Route::post("/api/content/provider-usage", [\App\Http\Controllers\App\AiModelDetectionController::class, "getUsage"])->name("api.content.provider-usage")->middleware("throttle:10,1");
+
+
+        // Content Guardrails (Command Center)
+        Route::get("/api/content/guardrails", [ContentGuardrailController::class, "index"])->name("api.content.guardrails.index");
+        Route::get("/api/content/guardrails/resolve", [ContentGuardrailController::class, "resolve"])->name("api.content.guardrails.resolve");
+        Route::post("/api/content/guardrails", [ContentGuardrailController::class, "store"])->name("api.content.guardrails.store")->middleware("throttle:20,1");
+        Route::delete("/api/content/guardrails/{guardrail}", [ContentGuardrailController::class, "destroy"])->name("api.content.guardrails.destroy")->middleware("throttle:20,1");
+        Route::post("/api/content/guardrails/seed", [ContentGuardrailController::class, "seed"])->name("api.content.guardrails.seed")->middleware("throttle:10,1");});
 
 // بازگشت از درگاه پرداخت — عمومی است چون درگاه به آن ریدایرکت می‌کند (بدون لاگین)
 Route::get('/platform/payments/callback/{gateway}/{transaction}', [PlatformPaymentGatewayController::class, 'callback'])->name('platform.payments.callback');

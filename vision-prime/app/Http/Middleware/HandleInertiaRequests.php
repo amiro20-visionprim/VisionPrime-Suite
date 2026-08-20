@@ -17,7 +17,9 @@ class HandleInertiaRequests extends Middleware
 
     public function version(Request $request): ?string
     {
-        return parent::version($request);
+        // Return a fixed version from config. Change ASSET_VERSION in .env
+        // on every frontend deploy to force browsers to reload.
+        return config('app.asset_version', '1.0.0');
     }
 
     public function share(Request $request): array

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head } from '@inertiajs/vue3'
+import { Head, router } from '@inertiajs/vue3'
 import AppLayout from '@/app/layouts/AppLayout.vue'
 import { formatJalaliDate } from '@/lib/locale'
 import VBadge from '@/shared/ui/VBadge.vue'
@@ -40,7 +40,20 @@ interface ConnectorStatus {
   lastSeenAt: string | null
 }
 
-defineProps<{ site: Site; gsc: GscStatus; connector: ConnectorStatus }>()
+interface ContentSummary {
+  total: number
+  byType: Record<string, number>
+  recent: Array<{ id: number; url: string; type: string; status: string; lastSyncedAt: string | null }>
+}
+
+const props = defineProps<{
+  site: Site
+  gsc: GscStatus
+  connector: ConnectorStatus
+  content: ContentSummary
+  isSuperAdmin?: boolean
+  isAdmin?: boolean
+}>()
 
 const runStatusLabel: Record<string, string> = {
   pending: 'در صف',
@@ -56,6 +69,11 @@ const runStatusTone: Record<string, BadgeTone> = {
   running: 'info',
   completed: 'success',
   failed: 'danger',
+}
+
+function disconnectSite(): void {
+  if (!confirm('آیا مطمئنید اتصال این سایت قطع شود؟ تمام داده‌های همگام‌سازی حذف خواهند شد.')) return
+  router.post(`/app/sites/${props.site.id}/connector/disconnect`)
 }
 </script>
 <template>
@@ -124,9 +142,17 @@ const runStatusTone: Record<string, BadgeTone> = {
           <p v-if="connector.lastSeenAt" class="text-ink-muted mt-1 text-sm">
             آخرین ارتباط: {{ formatJalaliDate(connector.lastSeenAt) }}
           </p>
-          <div class="mt-4">
+          <div class="mt-4 flex items-center gap-2">
             <VButton :href="`/app/sites/${site.id}/connector`" variant="secondary" size="sm">
               مدیریت اتصال
+            </VButton>
+            <VButton
+              v-if="isSuperAdmin || isAdmin"
+              variant="danger"
+              size="sm"
+              @click="disconnectSite"
+            >
+              قطع اتصال
             </VButton>
           </div>
         </template>
@@ -138,6 +164,50 @@ const runStatusTone: Record<string, BadgeTone> = {
             </VButton>
           </div>
         </template>
+      </VCard>
+    </div>
+
+    <!-- Content Summary -->
+    <div v-if="content.total > 0" class="mt-8">
+      <h2 class="text-ink-strong mb-4 text-lg font-bold">محتوای همگام‌سازی شده</h2>
+      <div class="grid gap-4 md:grid-cols-3 mb-5">
+        <VCard v-for="(count, type) in content.byType" :key="type">
+          <div class="text-center">
+            <p class="text-ink-strong text-2xl font-bold">{{ count }}</p>
+            <p class="text-ink-muted text-sm">{{ type === 'page' ? 'صفحه' : type === 'post' ? 'مقاله' : type === 'product' ? 'محصول' : type }}</p>
+          </div>
+        </VCard>
+      </div>
+      <VCard title="آخرین صفحات همگام‌سازی شده">
+        <div class="space-y-2">
+          <div
+            v-for="item in content.recent"
+            :key="item.id"
+            class="border-line flex items-center justify-between rounded-lg border px-4 py-3"
+          >
+            <div class="min-w-0 flex-1">
+              <p class="text-ink-strong truncate text-sm font-medium" dir="ltr">{{ item.url }}</p>
+              <p class="text-ink-muted text-xs">
+                {{ item.type === 'page' ? 'صفحه' : item.type === 'post' ? 'مقاله' : 'محصول' }}
+                · {{ item.status === 'publish' ? 'منتشر شده' : item.status }}
+              </p>
+            </div>
+            <VBadge :tone="item.status === 'publish' ? 'success' : 'neutral'" size="sm">
+              {{ item.status === 'publish' ? 'فعال' : item.status }}
+            </VBadge>
+          </div>
+        </div>
+        <p v-if="content.total > 10" class="text-ink-muted mt-3 text-center text-xs">
+          و {{ content.total - 10 }} صفحه دیگر...
+        </p>
+      </VCard>
+    </div>
+
+    <div v-else class="mt-8">
+      <VCard>
+        <p class="text-ink-muted text-center text-sm">
+          هنوز محتوایی از این سایت همگام‌سازی نشده است.
+        </p>
       </VCard>
     </div>
   </AppLayout>

@@ -74,6 +74,8 @@ billing.manage.organization
 | Client Viewer | report و client-safe projection در scope assigned |
 | Client Approver | Client Viewer + review.decide روی itemهای client-visible |
 
+> **تغییر ۲۰۲۶-۰۸-۲۰:** محدودسازی AI Gateway — `ai.provider.manage.organization` + تولید محتوا با AI + مشاهده تنظیمات provider **فقط توسط Super Admin** امکان‌پذیر است. هیچ نقش دیگری (حتی Agency Admin) اجازه دسترسی ندارد.
+
 ## Test Matrix حداقلی
 - Client Viewer با URL مستقیم به `/app/gsc/queries` پاسخ 403 می‌گیرد.
 - SEO Manager نمی‌تواند Site خارج از assignment را mutate کند.

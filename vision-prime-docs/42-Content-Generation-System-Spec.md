@@ -239,11 +239,49 @@ php artisan content:generate-batch --site=1 --type=all --limit=10 --dry-run
 
 ---
 
-## ۵) فازهای بعدی
+## ۵) بازسازی مغز متفکر — ۲۰۲۶-۰۸-۲۰
+
+### AiGateway — سیستم Failover خودکار
+
+یک Gateway حرفه‌ای اضافه شد که:
+- ۱۰+ مدل رایگان OpenRouter + DeepSeek + OpenAI + Anthropic پشتیبانی می‌کند
+- تشخیص خودکار لیمیت (429/402) → سوئیچ به مدل بعدی
+- Retry حداکثر ۳ بار → Fallback RuleBased
+- Cache وضعیت لیمیت در Cache (60 ثانیه)
+
+### ContentApiController — ۷ API Endpoint
+
+| Endpoint | Method | توضیح |
+|----------|--------|--------|
+| `/api/content/research` | GET | تحقیق موضوع از GSC |
+| `/api/content/score` | POST | امتیازدهی RankMath لحظه‌ای |
+| `/api/content/links` | POST | لینک‌سازی داخلی |
+| `/api/content/schema` | POST | پیش‌نمایش اسکیما |
+| `/api/content/generate` | POST | تولید با AI + کیفیت + لینک + اسکیما |
+| `/api/content/providers` | GET | وضعیت مدل‌ها (فقط سوپر ادمین) |
+| `/api/content/test-provider` | POST | تست اتصال (فقط سوپر ادمین) |
+
+### محدودسازی دسترسی — فقط سوپر ادمین
+
+- `AiSettingsController::authorizeManage()` → فقط `isSuperAdmin()`
+- `ContentApiController::generate/providers/testProvider()` → فقط `isSuperAdmin()`
+- `AiDraftController::store/storeArticle/storeProduct()` → فقط `isSuperAdmin()`
+- فرانت‌اند: بخش AI Gateway فقط برای سوپر ادمین، دکمه تولید AI فقط سوپر ادمین
+
+### جریان کاری جدید
+
+```
+تحقیق موضوع (GSC) → انتخاب موضوع → تولید با AI → امتیازدهی RankMath → لینک داخلی → اسکیما → ذخیره پیش‌نویس
+```
+
+قبل: فرم فقط بازنویسی صفحات موجود (اجبار انتخاب URL Profile)
+بعد: تولید مستقل بدون نیاز به صفحه موجود + تحقیق خودکار موضوع از GSC
+
+## ۶) فازهای بعدی
 
 | فاز | توضیح |
 |-----|--------|
-| فاز ۲ | اتصال وردپرس و تست واقعی |
-| فاز ۳ | GSC integration و تولید محتوا با داده واقعی |
+| فاز ۲ | اتصال وردپرس و انتشار خودکار |
+| فاز ۳ | GSC واقعی و تولید محتوا با داده لحظه‌ای |
 | فاز ۴ | Content Calendar و زمان‌بندی انتشار |
 | فاز ۵ | Performance optimization و caching |

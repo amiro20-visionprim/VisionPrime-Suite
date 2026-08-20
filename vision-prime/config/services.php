@@ -56,7 +56,6 @@ return [
     ],
 
     'sms' => [
-        // شمارهٔ مالک برای گزارش هفتگی/هشدارهای پیامکی (خالی = بی‌صدا غیرفعال)
         'owner_phone' => env('OWNER_PHONE', ''),
     ],
 
@@ -64,6 +63,15 @@ return [
         'api_key' => env('PLATFORM_AI_API_KEY'),
         'base_url' => env('PLATFORM_AI_BASE_URL'),
         'model' => env('PLATFORM_AI_MODEL', 'gpt-4o-mini'),
+    ],
+
+    'openrouter' => [
+        'key' => env('OPENROUTER_API_KEY', ''),
+        'proxy' => env('OPENROUTER_HTTP_PROXY', ''),
+    ],
+
+    'gapgpt' => [
+        'endpoint' => env('GAPGPT_ENDPOINT', 'https://api.gapgpt.app/v1/chat/completions'),
     ],
 
 ];

@@ -50,11 +50,15 @@ class SiteController extends Controller
     {
         Gate::authorize('view', $site);
         $site->load('project.client:id,name');
+        $user = request()->user();
 
         return Inertia::render('App/Sites/Show', [
             'site' => $this->item($site),
             'gsc' => $this->gscStatus($site),
             'connector' => $this->connectorStatus($site),
+            'content' => $this->contentSummary($site),
+            'isSuperAdmin' => $user?->isSuperAdmin() ?? false,
+            'isAdmin' => $user?->memberships()->where('status', 'active')->with('role')->get()->contains(fn ($m) => in_array($m->role?->key, ['agency-admin', 'super-admin'])) ?? false,
         ]);
     }
 
@@ -118,5 +122,25 @@ class SiteController extends Controller
         }
 
         return ['connected' => true, 'status' => $connection->status, 'platformUrl' => $connection->platform_url, 'pluginVersion' => $connection->plugin_version, 'lastSeenAt' => $connection->last_seen_at];
+    }
+
+    private function contentSummary(Site $site): array
+    {
+        $profiles = \DB::table('url_profiles')->where('site_id', $site->id)->get();
+        $total = $profiles->count();
+        $byType = $profiles->groupBy('content_type')->map(fn ($items) => $items->count())->toArray();
+        $recent = $profiles->sortByDesc('last_synced_at')->take(10)->values()->map(fn ($p) => [
+            'id' => (int) $p->id,
+            'url' => $p->canonical_url,
+            'type' => $p->content_type,
+            'status' => $p->post_status,
+            'lastSyncedAt' => $p->last_synced_at,
+        ])->toArray();
+
+        return [
+            'total' => $total,
+            'byType' => $byType,
+            'recent' => $recent,
+        ];
     }
 }

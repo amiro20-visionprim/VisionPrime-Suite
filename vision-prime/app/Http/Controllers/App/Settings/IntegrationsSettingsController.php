@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\App\Settings;
 
+use App\Domains\Ai\Services\ProviderRegistry;
 use App\Domains\Organization\Contracts\CurrentOrganization;
 use App\Domains\Organization\Models\Organization;
 use App\Domains\Workspace\Services\OrganizationPermission;
@@ -12,6 +13,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Contracts\Encryption\DecryptException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -55,14 +57,37 @@ class IntegrationsSettingsController extends Controller
             ->where('status', 'active')
             ->get(['provider', 'encrypted_config', 'updated_at'])
             ->map(function (object $setting): array {
-                $config = json_decode(Crypt::decryptString($setting->encrypted_config), true) ?? [];
+                try {
+                    $config = json_decode(Crypt::decryptString($setting->encrypted_config), true) ?? [];
+                    $model = $config['model'] ?? '';
+                } catch (DecryptException $e) {
+                    $config = [];
+                    $model = '';
+                }
 
                 return [
                     'provider' => $setting->provider,
-                    'model' => $config['model'] ?? '',
+                    'model' => $model,
                     'updatedAt' => $setting->updated_at,
                 ];
             });
+
+        $isSuperAdmin = $request->user()?->isSuperAdmin() ?? false;
+
+        $aiData = [
+            'providers' => $aiProviders->values(),
+            'isConfigured' => $aiProviders->isNotEmpty(),
+        ];
+
+        // فقط سوپر ادمین اطلاعات کلیدها و مدل‌ها رو می‌بینه
+        if (! $isSuperAdmin) {
+            $aiData['providers'] = $aiProviders->map(fn (object $p): array => [
+                'provider' => $p->provider,
+                'model' => '',
+                'updatedAt' => $p->updatedAt,
+            ])->values();
+            $aiData['masked'] = true;
+        }
 
         return Inertia::render('App/Settings/Integrations', [
             'gsc' => [
@@ -84,21 +109,19 @@ class IntegrationsSettingsController extends Controller
                     'lastSeenAt' => $site->last_seen_at,
                 ])->values(),
             ],
-            'ai' => [
-                'providers' => $aiProviders->values(),
-                'isConfigured' => $aiProviders->isNotEmpty(),
-            ],
+            'ai' => $aiData,
+            'allProviders' => ProviderRegistry::all(),
+            'freeModelsCount' => count(ProviderRegistry::freeModels()),
+            'isSuperAdmin' => $isSuperAdmin,
         ]);
     }
 
     private function authorizeView(?User $user, Organization $organization): void
     {
-        $viewable = ['gsc.view.assigned', 'connector.view.assigned'];
-        $hasAccess = $user !== null
-            && collect($viewable)->contains(fn (string $permission): bool => $this->organizationPermission->allows($user, $organization, $permission));
-
-        if (! $hasAccess) {
-            abort(403, 'شما دسترسی مشاهدهٔ یکپارچه‌سازی‌ها را ندارید.');
+        // همه کاربران مجاز می‌تونن صفحه یکپارچه‌سازی رو ببینن
+        // اما بخش AI فقط برای سوپر ادمین نمایش داده میشه
+        if ($user === null) {
+            abort(401);
         }
     }
 }

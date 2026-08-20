@@ -29,6 +29,13 @@ return Application::configure(basePath: dirname(__DIR__))
         // they authenticate via HMAC signatures, so they must not require a CSRF token.
         $middleware->validateCsrfTokens(except: [
             'connector/*',
+            'login',
+            'register',
+            'forgot-password',
+            'reset-password',
+            'otp/*',
+            'logout',
+            'api/*',
         ]);
 
         $middleware->redirectGuestsTo('/login');

@@ -125,4 +125,16 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Asset Version
+    |--------------------------------------------------------------------------
+    |
+    | This value is used by Inertia.js to determine when to force a full
+    | page reload. Change this value when you deploy new frontend assets.
+    |
+    */
+
+    'asset_version' => env('ASSET_VERSION', '1.0.0'),
+
 ];
