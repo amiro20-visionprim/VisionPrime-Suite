@@ -154,7 +154,20 @@ Route::middleware(['auth', 'current.organization', 'client.portal'])->prefix('cl
 
 Route::middleware(['auth', 'current.organization'])->group(function (): void {
     Route::get('/app/dashboard', DashboardController::class)->name('app.dashboard');
-    Route::get('/app/content-command-center', fn () => Inertia::render('App/ContentCommandCenter/Index'))->name('app.content-command-center');
+    Route::get('/app/content-command-center', function () {
+        $org = app(\App\Domains\Organization\Contracts\CurrentOrganization::class);
+        $sites = \App\Domains\Workspace\Models\Site::query()
+            ->where('organization_id', $org->id())
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->values()
+            ->all();
+        $isSuperAdmin = auth()->user()?->isSuperAdmin() ?? false;
+        return Inertia::render('App/ContentCommandCenter/Index', [
+            'sites' => $sites,
+            'isSuperAdmin' => $isSuperAdmin,
+        ]);
+    })->name('app.content-command-center');
     Route::get('/app/training', [TrainingController::class, 'agency'])->name('app.training');
 
     Route::get('/app/notifications', [NotificationController::class, 'index'])->name('app.notifications.index');
