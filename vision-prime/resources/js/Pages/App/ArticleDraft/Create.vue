@@ -101,29 +101,29 @@ function autoMetaTitle() {
 </script>
 
 <template>
-  <Head title="\u062a\u0648\u0644\u06cc\u062f \u0645\u0642\u0627\u0644\u0647 \u0647\u0648\u0634\u0645\u0646\u062f" />
+  <Head title="تولید مقاله هوشمند" />
   <AppLayout>
-    <VPageHeader title="\u{1f4dd} \u062a\u0648\u0644\u06cc\u062f \u0645\u0642\u0627\u0644\u0647 \u0647\u0648\u0634\u0645\u0646\u062f" description="\u0633\u0627\u062f\u0647 \u062a\u0648\u0644\u06cc\u062f \u0628\u0627 \u0631\u0648\u06cc \u0627\u0639\u062a\u0628\u0627\u0631\u06cc \u0635\u0641\u062d\u0647 \u0634\u0648\u06cc\u062f." />
+    <VPageHeader title="📝 تولید مقاله هوشمند" description="با وارد کردن عنوان، سیستم خودکار محتوا را تولید می‌کند." />
 
     <VAlert v-if="page.props.flash?.status" tone="success" class="mt-6">{{ page.props.flash.status }}</VAlert>
 
     <!-- STEP 1: Input -->
     <div v-if="step === 'input'" class="mt-6 max-w-2xl mx-auto">
-      <VCard title="\u0639\u0646\u0648\u0627\u0635\u0631 \u0645\u0642\u0627\u0644\u0647 \u0631\u0627 \u0648\u0627\u0631\u062f \u06a9\u0646\u06cc\u062f">
+      <VCard title="عنوان مقاله را وارد کنید">
         <div class="space-y-4">
-          <VSelect v-model="selectedSiteId" label="\u0633\u0627\u06cc\u062a" :options="p.sites.map(s => ({ label: s.name, value: String(s.id) }))" placeholder="\u0627\u0646\u062a\u062e\u0627\u0628 \u0633\u0627\u06cc\u062a" />
+          <VSelect v-model="selectedSiteId" label="سایت" :options="p.sites.map(s => ({ label: s.name, value: String(s.id) }))" placeholder="انتخاب سایت" />
 
           <div>
-            <label class="text-ink-strong text-sm font-semibold">\u0639\u0646\u0648\u0627\u0635\u0631 \u0645\u0642\u0627\u0644\u0647 (\u0635\u0641\u062d\u0647 \u0631\u0627 \u0627\u0646\u062a\u062e\u0627\u0628 \u06a9\u0646\u06cc\u062f)</label>
-            <input v-model="title" type="text" dir="auto" class="border-line mt-2 w-full rounded-xl border px-4 py-3 text-lg focus:ring-2 focus:ring-brand-500" placeholder="\u0645\u062b\u0644: \u0631\u0627\u0647\u0646\u0645\u0627\u06cc \u062c\u0627\u0645\u0639 \u0633\u0626\u0648 \u0628\u0631\u0627\u06cc \u0633\u0627\u06cc\u062a \u0641\u0631\u0648\u0634\u06af\u0627\u0647\u06cc" @keyup.enter="generate" />
-            <p class="text-ink-muted mt-1 text-xs">\u0628\u0627 \u0627\u0646\u062a\u062e\u0627\u0628 \u0639\u0646\u0648\u0627\u0635\u0631 \u0645\u0642\u0627\u0644\u0647\u060c \u0633\u06cc\u0633\u062a\u0645 \u062e\u0648\u062f\u06a9\u0627\u0631 \u0631\u0627 \u062a\u0648\u0633\u0637 \u0645\u06cc\u062f\u0647\u062f.</p>
+            <label class="text-ink-strong text-sm font-semibold">عنوان مقاله را وارد کنید</label>
+            <input v-model="title" type="text" dir="auto" class="border-line mt-2 w-full rounded-xl border px-4 py-3 text-lg focus:ring-2 focus:ring-brand-500" placeholder="مثل: راهنمای جامع سئو برای سایت فروشگاهی" @keyup.enter="generate" />
+            <p class="text-ink-muted mt-1 text-xs">با انتخاب عنوان مقاله، سیستم خودکار محتوا را تولید می‌کند.</p>
           </div>
 
-          <VSelect v-model="subtype" label="\u0632\u06cc\u0631\u0646\u0648\u0639 (\u062e\u0648\u062f\u06a9\u0627\u0631)" :options="Object.entries(p.subtypes).map(([v,l]) => ({label:l, value:v}))" />
+          <VSelect v-model="subtype" label="زیرنوع (خودکار)" :options="Object.entries(p.subtypes).map(([v,l]) => ({label:l, value:v}))" />
 
           <VButton @click="generate" :loading="loadingGenerate" :disabled="!selectedSiteId || !title.trim()" variant="primary" size="lg" class="w-full">
-            <span v-if="!loadingGenerate">\u{1f680} \u0634\u0631\u0648\u0639 \u062a\u0648\u0644\u06cc\u062f</span>
-            <span v-else>\u062f\u0631 \u062d\u0627\u0644 \u062a\u0648\u0644\u06cc\u062f...</span>
+            <span v-if="!loadingGenerate">🚀 شروع تولید</span>
+            <span v-else>در حال تولید...</span>
           </VButton>
         </div>
       </VCard>
@@ -131,14 +131,14 @@ function autoMetaTitle() {
 
     <!-- STEP 2: Generating -->
     <div v-if="step === 'generating'" class="mt-6 max-w-2xl mx-auto text-center py-16">
-      <div class="text-6xl mb-4 animate-pulse">\u{1f916}</div>
-      <h2 class="text-xl font-bold text-ink-strong">\u062f\u0631 \u062d\u0627\u0644 \u062a\u0648\u0644\u06cc\u062f \u0645\u0642\u0627\u0644\u0647...</h2>
-      <p class="text-ink-muted mt-2">\u0647\u0648\u0634\u0645\u0646\u062f \u0627\u0635\u0644\u06cc \u0628\u0647 \u062a\u062d\u0644\u06cc\u0644 \u0627\u0637\u0644\u0627\u0639\u0627\u062a GSC \u0648 \u062a\u0648\u0644\u06cc\u062f \u0645\u0642\u0627\u0644\u0647 \u0638\u0631\u06cc\u0641\u0647 \u0634\u062f...</p>
+      <div class="text-6xl mb-4 animate-pulse">🤖</div>
+      <h2 class="text-xl font-bold text-ink-strong">در حال تولید مقاله...</h2>
+      <p class="text-ink-muted mt-2">هوش مصنوعی در حال تحلیل اطلاعات GSC و تولید مقاله است...</p>
       <div class="mt-8 space-y-2 text-sm text-ink-muted">
-        <p>\u2705 \u062a\u062d\u0644\u06cc\u0644 \u0627\u0637\u0644\u0627\u0639\u0627\u062a GSC</p>
-        <p>\u2705 \u067e\u0631\u0648\u0641\u0627\u06cc\u0644 \u0646\u0648\u0639 \u0645\u062d\u062a\u0648\u0627</p>
-        <p>\u2705 \u0627\u0639\u0645\u0627\u0644 \u06af\u0627\u0631\u062f\u0631\u0627\u06cc\u0644\u0633</p>
-        <p class="animate-pulse">\u062f\u0631 \u0627\u0646\u062a\u0638\u0627\u0631 \u062a\u0648\u0644\u06cc\u062f \u0645\u0642\u0627\u0644\u0647 \u0628\u0627 AI...</p>
+        <p>✅ تحلیل اطلاعات GSC</p>
+        <p>✅ پروفایل نوع محتوا</p>
+        <p>✅ اعمال گاردرایلس</p>
+        <p class="animate-pulse">در انتظار تولید مقاله با AI...</p>
       </div>
     </div>
 
@@ -148,17 +148,17 @@ function autoMetaTitle() {
       <VCard class="mb-6">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-3">
-            <span class="text-2xl">\u2705</span>
+            <span class="text-2xl">✅</span>
             <div>
-              <h3 class="font-bold text-ink-strong">\u0645\u0642\u0627\u0644\u0647 \u062a\u0648\u0644\u06cc\u062f \u0634\u062f!</h3>
-              <p class="text-ink-muted text-sm">\u0645\u062f\u0644: {{ result.model }} | \u0645\u0646\u0628\u0639: {{ result.source }} | \u06a9\u0644\u0645\u0627\u062a: {{ wordCount }}</p>
+              <h3 class="font-bold text-ink-strong">مقاله تولید شد!</h3>
+              <p class="text-ink-muted text-sm">مدل: {{ result.model }} | منبع: {{ result.source }} | کلمات: {{ wordCount }}</p>
             </div>
           </div>
           <div class="flex items-center gap-2">
             <VBadge :tone="seoScore >= 70 ? 'success' : seoScore >= 40 ? 'warning' : 'danger'" size="lg">
-              \u0627\u0645\u062a\u06cc\u0627\u0632: {{ seoScore }}/100
+              امتیاز: {{ seoScore }}/100
             </VBadge>
-            <VButton @click="regenerate" variant="secondary">\u{1f504} \u062a\u0648\u0644\u06cc\u062f \u0645\u062c\u062f\u062f</VButton>
+            <VButton @click="regenerate" variant="secondary">🔄 تولید مجدد</VButton>
           </div>
         </div>
       </VCard>
@@ -168,7 +168,7 @@ function autoMetaTitle() {
         <div class="space-y-6">
           <!-- Tabs -->
           <div class="border-line flex gap-1 border-b">
-            <button v-for="tab in [{id:'content' as const,label:'\u270f\ufe0f \u0645\u062d\u062a\u0648\u0627'}, {id:'meta' as const,label:'\u{1f3f7}\ufe0f Meta'}, {id:'seo' as const,label:'\u{1f4ca} \u0627\u0645\u062a\u06cc\u0627\u0632'}, {id:'schema' as const,label:'\u{1f4ca} \u0627\u0633\u06a9\u06cc\u0645\u0627'}]" :key="tab.id" type="button" class="border-b-2 px-4 py-2.5 text-sm font-medium transition-colors" :class="activeResultTab === tab.id ? 'border-brand-600 text-brand-700' : 'border-transparent text-ink-muted hover:text-ink-strong'" @click="activeResultTab = tab.id">{{ tab.label }}</button>
+            <button v-for="tab in [{id:'content' as const,label:'✏️ محتوا'}, {id:'meta' as const,label:'🏷️ Meta'}, {id:'seo' as const,label:'📊 امتیاز'}, {id:'schema' as const,label:'📊 اسکیما'}]" :key="tab.id" type="button" class="border-b-2 px-4 py-2.5 text-sm font-medium transition-colors" :class="activeResultTab === tab.id ? 'border-brand-600 text-brand-700' : 'border-transparent text-ink-muted hover:text-ink-strong'" @click="activeResultTab = tab.id">{{ tab.label }}</button>
           </div>
 
           <!-- Content Tab -->
@@ -180,7 +180,7 @@ function autoMetaTitle() {
           <VCard v-if="activeResultTab === 'meta'">
             <div class="space-y-4">
               <div>
-                <div class="flex items-center justify-between"><label class="text-ink-strong text-sm font-semibold">Meta Title</label><button type="button" class="text-brand-700 text-xs" @click="autoMetaTitle">\u062a\u0648\u0644\u06cc\u062f \u062e\u0648\u062f\u06a9\u0627\u0631</button></div>
+                <div class="flex items-center justify-between"><label class="text-ink-strong text-sm font-semibold">Meta Title</label><button type="button" class="text-brand-700 text-xs" @click="autoMetaTitle">تولید خودکار</button></div>
                 <input v-model="result.meta_title" dir="auto" maxlength="70" class="border-line mt-1 w-full rounded-xl border px-4 py-2.5 text-sm" />
                 <div class="mt-1 flex items-center gap-2">
                   <div class="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-muted"><div class="h-full rounded-full transition-all" :class="(result.meta_title?.length ?? 0) >= 30 && (result.meta_title?.length ?? 0) <= 60 ? 'bg-green-500' : 'bg-red-500'" :style="{ width: Math.min(100, ((result.meta_title?.length ?? 0) / 60) * 100) + '%' }" /></div>
@@ -208,12 +208,12 @@ function autoMetaTitle() {
                 </VBadge>
               </div>
               <div v-if="result.quality?.failures?.length" class="mt-4">
-                <p class="text-red-600 text-sm font-semibold">\u274c \u0645\u0634\u06a9\u0644\u0627\u062a:</p>
-                <ul class="mt-1 space-y-1"><li v-for="f in result.quality.failures" :key="f" class="text-red-500 text-xs">\u2022 {{ f }}</li></ul>
+                <p class="text-red-600 text-sm font-semibold">❌ مشکلات:</p>
+                <ul class="mt-1 space-y-1"><li v-for="f in result.quality.failures" :key="f" class="text-red-500 text-xs">• {{ f }}</li></ul>
               </div>
               <div v-if="result.quality?.warnings?.length" class="mt-4">
-                <p class="text-yellow-600 text-sm font-semibold">\u26a0\ufe0f \u0646\u06a9\u0627\u062a:</p>
-                <ul class="mt-1 space-y-1"><li v-for="w in result.quality.warnings" :key="w" class="text-yellow-500 text-xs">\u2022 {{ w }}</li></ul>
+                <p class="text-yellow-600 text-sm font-semibold">⚠️ نکات:</p>
+                <ul class="mt-1 space-y-1"><li v-for="w in result.quality.warnings" :key="w" class="text-yellow-500 text-xs">• {{ w }}</li></ul>
               </div>
             </div>
           </VCard>
@@ -230,28 +230,28 @@ function autoMetaTitle() {
 
         <!-- Sidebar -->
         <div class="space-y-6">
-          <VCard title="\u{1f4ca} \u062e\u0644\u0627\u0635\u0647">
+          <VCard title="📊 خلاصه">
             <div class="space-y-2 text-sm">
-              <div class="flex justify-between"><span class="text-ink-muted">\u06a9\u0644\u0645\u0627\u062a:</span><span class="font-medium">{{ wordCount }}</span></div>
-              <div class="flex justify-between"><span class="text-ink-muted">\u0627\u0645\u062a\u06cc\u0627\u0632:</span><span class="font-medium">{{ seoScore }}/100</span></div>
-              <div class="flex justify-between"><span class="text-ink-muted">\u0644\u06cc\u0646\u06a9\u200c\u0647\u0627:</span><span class="font-medium">{{ result.links?.length ?? 0 }}</span></div>
-              <div class="flex justify-between"><span class="text-ink-muted">\u0627\u0633\u06a9\u06cc\u0645\u0627:</span><span class="font-medium">{{ result.schemas?.length ?? 0 }}</span></div>
+              <div class="flex justify-between"><span class="text-ink-muted">کلمات:</span><span class="font-medium">{{ wordCount }}</span></div>
+              <div class="flex justify-between"><span class="text-ink-muted">امتیاز:</span><span class="font-medium">{{ seoScore }}/100</span></div>
+              <div class="flex justify-between"><span class="text-ink-muted">لینک‌ها:</span><span class="font-medium">{{ result.links?.length ?? 0 }}</span></div>
+              <div class="flex justify-between"><span class="text-ink-muted">اسکیما:</span><span class="font-medium">{{ result.schemas?.length ?? 0 }}</span></div>
             </div>
           </VCard>
 
-          <VCard v-if="result.links?.length" title="\u{1f517} \u0644\u06cc\u0646\u06a9\u200c\u0647\u0627\u06cc \u062f\u0627\u062e\u0644\u06cc">
+          <VCard v-if="result.links?.length" title="🔗 لینک‌های داخلی">
             <div class="space-y-2">
               <div v-for="link in result.links.slice(0, 5)" :key="link.url" class="text-xs">
-                <span class="text-brand-700">{{ link.anchor }}</span> \u2192 <span class="text-ink-muted">{{ link.url }}</span>
+                <span class="text-brand-700">{{ link.anchor }}</span> → <span class="text-ink-muted">{{ link.url }}</span>
               </div>
             </div>
           </VCard>
 
-          <VCard v-if="result.profile" title="\u{1f3af} \u067e\u0631\u0648\u0641\u0627\u06cc\u0644">
+          <VCard v-if="result.profile" title="🎯 پروفایل">
             <div class="space-y-1 text-xs">
-              <div>\u0646\u0648\u0639: {{ result.profile.content_type }}</div>
-              <div>\u0632\u06cc\u0631\u0646\u0648\u0639: {{ result.profile.subtype }}</div>
-              <div>\u0642\u0635\u062f: {{ result.profile.intent }}</div>
+              <div>نوع: {{ result.profile.content_type }}</div>
+              <div>زیرنوع: {{ result.profile.subtype }}</div>
+              <div>قصد: {{ result.profile.intent }}</div>
             </div>
           </VCard>
         </div>
