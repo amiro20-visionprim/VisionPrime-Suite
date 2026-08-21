@@ -370,7 +370,7 @@ class ContentApiController extends Controller
                 'subtype' => $profiled['subtype'] ?? 'article',
                 'model_used' => $result['model'],
                 'status' => 'draft',
-                'audit_log' => $evaluation['details'] ?? [],
+                'audit_log' => $evaluation['audit_log'] ?? [],
             ]);
 
             // Auto expert analysis
@@ -380,7 +380,7 @@ class ContentApiController extends Controller
                     'body' => $result['content'],
                     'title' => $data['title'] ?? $data['keyword'],
                     'keyword' => $data['keyword'],
-                    'audit_log' => $evaluation['details'] ?? [],
+                    'audit_log' => $evaluation['audit_log'] ?? [],
                 ]);
                 ContentDraft::where('title', $data['title'] ?? $data['keyword'])
                     ->latest()->first()?->update(['expert_analysis' => $expertResult]);
