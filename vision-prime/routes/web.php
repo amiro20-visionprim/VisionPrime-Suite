@@ -306,6 +306,11 @@ Route::middleware(['auth', 'current.organization'])->group(function (): void {
         Route::put("/api/content/prompt-templates/{template}", [PromptTemplateController::class, "update"])->name("api.content.prompt-templates.update")->middleware("throttle:20,1");
         Route::delete("/api/content/prompt-templates/{template}", [PromptTemplateController::class, "destroy"])->name("api.content.prompt-templates.destroy")->middleware("throttle:20,1");
         Route::post("/api/content/prompt-templates/{template}/render", [PromptTemplateController::class, "render"])->name("api.content.prompt-templates.render")->middleware("throttle:10,1");
+        Route::post("/api/content/publish", [ContentApiController::class, "publishToWordPress"])->name("api.content.publish")->middleware("throttle:5,1");
+        Route::post("/api/content/test-wp", [ContentApiController::class, "testWordPress"])->name("api.content.test-wp")->middleware("throttle:5,1");
+        Route::get("/api/content/drafts", [ContentApiController::class, "listDrafts"])->name("api.content.drafts");
+        Route::get("/api/content/drafts/{id}", [ContentApiController::class, "getDraft"])->name("api.content.drafts.show");
+        Route::delete("/api/content/drafts/{id}", [ContentApiController::class, "deleteDraft"])->name("api.content.drafts.delete")->middleware("throttle:10,1");
         Route::post("/api/content/apply-suggestions", [ContentApiController::class, "applySuggestions"])->name("api.content.apply-suggestions")->middleware("throttle:10,1");
         Route::post("/api/content/save-user-template", [PromptTemplateController::class, "store"])->name("api.content.save-user-template")->middleware("throttle:20,1");
         Route::post("/api/content/regenerate-section", [ContentApiController::class, "regenerateSection"])->name("api.content.regenerate-section")->middleware("throttle:10,1");});

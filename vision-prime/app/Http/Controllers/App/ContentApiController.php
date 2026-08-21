@@ -15,6 +15,7 @@ use App\Domains\Content\Models\ContentDraft;
 use App\Domains\Content\Services\StandardsKB;
 use App\Domains\Content\Services\SERPAnalyzer;
 use App\Domains\Content\Services\SEOExpertAnalyzer;
+use App\Domains\Content\Services\WordPressPublisher;
 use App\Domain\Content\Services\ImageSuggestionService;
 use App\Domains\Organization\Contracts\CurrentOrganization;
 use App\Domains\Workspace\Models\Site;
@@ -901,4 +902,124 @@ class ContentApiController extends Controller
         ]);
 
         return response()->json($template, 201);
-    }}
+    }
+
+    /**
+     * Publish article to WordPress.
+     * POST /api/content/publish
+     */
+    public function publishToWordPress(Request $request, CurrentOrganization $org): JsonResponse
+    {
+        $this->authorizeSuperAdmin();
+        $data = $request->validate([
+            'draft_id' => 'required|integer|exists:content_drafts,id',
+            'status' => 'nullable|string|in:publish,draft,pending',
+            'wp_url' => 'required|string|max:500',
+            'wp_username' => 'required|string|max:200',
+            'wp_app_password' => 'required|string|max:200',
+        ]);
+
+        $draft = ContentDraft::findOrFail($data['draft_id']);
+        $publisher = app(WordPressPublisher::class);
+
+        $result = $publisher->publish(
+            [
+                'wp_url' => $data['wp_url'],
+                'wp_username' => $data['wp_username'],
+                'wp_app_password' => $data['wp_app_password'],
+            ],
+            [
+                'title' => $draft->title,
+                'content' => $draft->content,
+                'meta_title' => $draft->meta_title,
+                'meta_description' => $draft->meta_description,
+                'slug' => $draft->slug,
+                'status' => $data['status'] ?? 'draft',
+            ]
+        );
+
+        if ($result['success']) {
+            $draft->update([
+                'status' => 'published',
+                'audit_log' => array_merge($draft->audit_log ?? [], [
+                    'wp_post_id' => $result['post_id'],
+                    'wp_post_url' => $result['post_url'],
+                    'published_at' => now()->toISOString(),
+                ]),
+            ]);
+        }
+
+        return response()->json($result);
+    }
+
+    /**
+     * Test WordPress connection.
+     * POST /api/content/test-wp
+     */
+    public function testWordPress(Request $request): JsonResponse
+    {
+        $this->authorizeSuperAdmin();
+        $data = $request->validate([
+            'wp_url' => 'required|string|max:500',
+            'wp_username' => 'required|string|max:200',
+            'wp_app_password' => 'required|string|max:200',
+        ]);
+
+        $publisher = app(WordPressPublisher::class);
+        return response()->json($publisher->testConnection(
+            $data['wp_url'], $data['wp_username'], $data['wp_app_password']
+        ));
+    }
+
+    /**
+     * List content drafts with filters.
+     * GET /api/content/drafts
+     */
+    public function listDrafts(Request $request, CurrentOrganization $org): JsonResponse
+    {
+        $query = ContentDraft::query()
+            ->whereHas('site', fn($q) => $q->where('organization_id', $org->id()));
+
+        if ($status = $request->query('status')) {
+            $query->where('status', $status);
+        }
+        if ($siteId = $request->query('site_id')) {
+            $query->where('site_id', (int) $siteId);
+        }
+        if ($search = $request->query('search')) {
+            $query->where('title', 'LIKE', '%' . $search . '%');
+        }
+
+        $drafts = $query->orderByDesc('created_at')
+            ->limit(50)
+            ->get(['id', 'title', 'slug', 'status', 'quality_score', 'model_used', 'subtype', 'created_at', 'updated_at']);
+
+        return response()->json(['drafts' => $drafts]);
+    }
+
+    /**
+     * Get single draft with full content.
+     * GET /api/content/drafts/{id}
+     */
+    public function getDraft(int $id, CurrentOrganization $org): JsonResponse
+    {
+        $draft = ContentDraft::whereHas('site', fn($q) => $q->where('organization_id', $org->id()))
+            ->findOrFail($id);
+
+        return response()->json($draft);
+    }
+
+    /**
+     * Delete a draft.
+     * DELETE /api/content/drafts/{id}
+     */
+    public function deleteDraft(int $id, CurrentOrganization $org): JsonResponse
+    {
+        $this->authorizeSuperAdmin();
+        ContentDraft::whereHas('site', fn($q) => $q->where('organization_id', $org->id()))
+            ->findOrFail($id)
+            ->delete();
+
+        return response()->json(['ok' => true]);
+    }
+}

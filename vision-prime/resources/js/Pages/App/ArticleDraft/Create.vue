@@ -78,6 +78,12 @@ const gscLoading = ref(false)
 const autoDetectedSubtype = ref("")
 const autoDetectedTone = ref("")
 const applyingSuggestions = ref(false)
+const wpUrl = ref('')
+const wpUser = ref('')
+const wpPass = ref('')
+const publishing = ref(false)
+const publishResult = ref<any>(null)
+const showPublishDialog = ref(false)
 
 
 // Section editing
@@ -195,6 +201,22 @@ fetchTemplates()
 
 function dismissDuplicates() {
   showDuplicates.value = false
+}
+
+async function quickGenerate() {
+  if (!selectedSiteId.value || !title.value.trim()) return
+  generatingLoading.value = true; generatingStatus.value = 'تولید سریع...'
+  step.value = 'generating'
+  try {
+    const res = await fetch('/api/content/generate', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+      body: JSON.stringify({ site_id: Number(selectedSiteId.value), keyword: title.value.trim(), title: title.value.trim(), subtype: autoDetectedSubtype.value || undefined })
+    });
+    const d = await res.json()
+    if (d.error) { errorMsg.value = d.error; step.value = 'input'; return }
+    result.value = d; activeResultTab.value = 'content'; step.value = 'result'; parseSections(d.content)
+  } catch (e: any) { errorMsg.value = 'خطا: ' + e.message; step.value = 'input' }
+  generatingLoading.value = false
 }
 
 async function fetchGscContext() {
@@ -471,6 +493,30 @@ function autoMetaTitle() {
     result.value.meta_title = title.value.substring(0, 50) + ' | ' + siteName
   }
 }
+async function publishToWordPress(status: string) {
+  if (!result.value || !wpUrl.value || !wpUser.value || !wpPass.value) return
+  publishing.value = true
+  try {
+    // First save draft
+    const saveRes = await fetch('/api/content/generate', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+      body: JSON.stringify({ site_id: Number(selectedSiteId.value), keyword: title.value, title: title.value, subtype: autoDetectedSubtype.value })
+    });
+    const saveData = await saveRes.json()
+    // Get latest draft ID
+    const draftsRes = await fetch('/api/content/drafts?search=' + encodeURIComponent(title.value), { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+    const draftsData = await draftsRes.json()
+    const draftId = draftsData.drafts?.[0]?.id
+    if (!draftId) { publishResult.value = { success: false, error: 'Draft یافت نشد' }; return }
+    const res = await fetch('/api/content/publish', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+      body: JSON.stringify({ draft_id: draftId, status, wp_url: wpUrl.value, wp_username: wpUser.value, wp_app_password: wpPass.value })
+    });
+    publishResult.value = await res.json()
+  } catch (e: any) { publishResult.value = { success: false, error: e.message } }
+  publishing.value = false
+}
+
 watch(title, (v) => { if (v && v.trim().length > 5) autoDetect(v) })
 
 </script>
@@ -575,7 +621,15 @@ watch(title, (v) => { if (v && v.trim().length > 5) autoDetect(v) })
             </div>
           </VAlert>
 
-          <VButton @click="generateOutline" :loading="outlineLoading" :disabled="!selectedSiteId || !title.trim()" variant="primary" size="lg" class="w-full">
+          <div class="flex gap-2">
+          <VButton @click="quickGenerate" :loading="generatingLoading" :disabled="!selectedSiteId || !title.trim()" variant="primary" size="lg" class="flex-1">
+            {{ generatingLoading ? 'در حال تولید...' : '⚡ تولید سریع' }}
+          </VButton>
+          <VButton @click="generateOutline" :loading="outlineLoading" :disabled="!selectedSiteId || !title.trim()" variant="secondary" size="lg" class="flex-1">
+            {{ outlineLoading ? 'در حال تحلیل...' : '📋 با Outline' }}
+          </VButton>
+        </div>
+        <VButton @click="generateOutline" style="display:none" :loading="outlineLoading" :disabled="!selectedSiteId || !title.trim()" variant="primary" size="lg" class="w-full">
             <span v-if="!outlineLoading">تولید Outline</span>
             <span v-else>در حال تحلیل...</span>
           </VButton>
