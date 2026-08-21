@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Ai\Services;
 
+use App\Domains\Organization\Contracts\CurrentOrganization;
 use App\Domains\Organization\Models\Organization;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Crypt;
@@ -78,6 +79,15 @@ class AiGateway
 
         [$system, $user] = $this->metaPrompts($kind, $context);
 
+        return $this->generateWithFailover($org, $kind, $system, $user);
+    }
+
+    /**
+     * Generate raw content from system+user prompts.
+     */
+    public function generate(string $system, string $user, string $kind = 'article'): array
+    {
+        $org = app(CurrentOrganization::class)->get();
         return $this->generateWithFailover($org, $kind, $system, $user);
     }
 
@@ -442,6 +452,80 @@ class AiGateway
         } catch (\Throwable $e) {
             return ['success' => false, 'error' => $e->getMessage()];
         }
+    }
+
+    /**
+     * Generate content outline (H2/H3 structure) for a given title.
+     *
+     * @return array{system: string, user: string}
+     */
+    public function generateOutline(string $title, string $subtype = 'how_to_guide', string $siteName = '', array $gscData = []): array
+    {
+        $subtypeLabels = [
+            'how_to_guide' => 'راهنمای گام‌به‌گام',
+            'listicle' => 'لیستی (فهرستی)',
+            'comparison' => 'مقایسه‌ای',
+            'review' => 'بررسی و نقد',
+            'tutorial' => 'آموزشی',
+            'guide' => 'راهنمای جامع',
+            'news' => 'خبری',
+            'opinion' => 'نظری',
+        ];
+        $subtypeLabel = $subtypeLabels[$subtype] ?? 'عمومی';
+
+        $gscHint = '';
+        if (!empty($gscData['queries'])) {
+            $queries = array_slice($gscData['queries'], 0, 5);
+            $queryList = [];
+            foreach ($queries as $q) {
+                $queryList[] = $q['query'] . ' (position: ' . $q['position'] . ', impressions: ' . $q['impressions'] . ')';
+            }
+            $gscHint = "
+
+کوئری‌های مرتبط در Google Search Console:
+" . implode("
+", $queryList);
+        }
+
+        $system = 'تو یک متخصص سئو و ساختار محتوا هستی. وظیفه تو ایجاد یک outline (ساختار) برای مقاله است.
+'
+            . 'خروجی تو باید یک JSON array باشد که هر آیتم شامل "heading" (متن عنوان) و "level" (2 یا 3) و "note" (توضیح کوتاه اختیاری) باشد.
+'
+            . 'حتماً شامل حداقل ۵ H2 و حداقل ۲ H3 باش.
+'
+            . 'H2 اول باید "مقدمه" یا معادل فارسی آن باشد.
+'
+            . 'H2 آخر باید "نتیجه‌گیری" یا "جمع‌بندی" باشد.
+'
+            . 'فقط JSON array برگردان — بدون توضیح اضافه.';
+
+        $user = "ساختار outline برای مقاله زیر بساز:
+
+"
+            . "عنوان: {$title}
+"
+            . "زیرنوع: {$subtypeLabel}
+"
+            . ($siteName !== '' ? "نام برند: {$siteName}
+" : '')
+            . $gscHint . "
+
+"
+            . "الزامات:
+"
+            . "- حداقل ۵ بخش اصلی (H2)
+"
+            . "- حداقل ۲ زیربخش (H3)
+"
+            . "- H2 اول: مقدمه
+"
+            . "- H2 آخر: نتیجه‌گیری
+"
+            . "- هر عنوان کوتاه و مشخص باشد (حداکثر ۶۰ کاراکتر)
+"
+            . "- فقط خروجی JSON array: [{\"heading\": \"...\", \"level\": 2, \"note\": \"...\"}]";
+
+        return [$system, $user];
     }
 
     private function articlePrompts(array $context): array

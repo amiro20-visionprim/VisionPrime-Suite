@@ -10,6 +10,7 @@ import VPageHeader from '@/shared/ui/VPageHeader.vue'
 import VSelect from '@/shared/ui/VSelect.vue'
 
 interface SiteOption { id: number; name: string; canonical_url: string }
+interface OutlineItem { heading: string; level: 2 | 3; note: string }
 interface SchemaItem { '@type': string; [key: string]: unknown }
 interface QualityResult { passed: boolean; score: number; failures: string[]; warnings: string[] }
 interface LinkSuggestion { url: string; title: string; anchor: string; relevance_score: number }
@@ -34,11 +35,20 @@ const p = defineProps<{
 
 const page = usePage<{ flash?: { status?: string; error?: string } }>()
 
-const step = ref<'input' | 'generating' | 'result'>('input')
+const step = ref<'input' | 'outline' | 'generating' | 'result'>('input')
+
 const selectedSiteId = ref('')
 const title = ref('')
 const subtype = ref('how_to_guide')
-const loadingGenerate = ref(false)
+
+const outline = ref<OutlineItem[]>([])
+const outlineLoading = ref(false)
+const outlineError = ref('')
+const outlineModel = ref('')
+const dragging = ref<number | null>(null)
+
+const generatingLoading = ref(false)
+const generatingStatus = ref('')
 const result = ref<GeneratedResult | null>(null)
 const activeResultTab = ref<'content' | 'meta' | 'seo' | 'schema'>('content')
 const errorMsg = ref('')
@@ -64,11 +74,79 @@ const seoChecks = computed(() => {
   ]
 })
 
-async function generate() {
+const outlineH2Count = computed(() => outline.value.filter(i => i.level === 2).length)
+const outlineH3Count = computed(() => outline.value.filter(i => i.level === 3).length)
+
+async function generateOutline() {
   if (!selectedSiteId.value || !title.value.trim()) return
+  outlineLoading.value = true
+  outlineError.value = ''
+  try {
+    const res = await fetch('/api/content/outline', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+      body: JSON.stringify({
+        site_id: Number(selectedSiteId.value),
+        title: title.value.trim(),
+        subtype: subtype.value || undefined,
+      }),
+    })
+    const data = await res.json()
+    if (data.error) {
+      outlineError.value = data.error
+      return
+    }
+    outline.value = data.outline ?? []
+    outlineModel.value = data.model ?? ''
+    if (outline.value.length === 0) {
+      outlineError.value = 'Outline خالی برگشت — دوباره تلاش کنید'
+      return
+    }
+    step.value = 'outline'
+  } catch (e: unknown) {
+    outlineError.value = 'خطا: ' + (e instanceof Error ? e.message : String(e))
+  }
+  outlineLoading.value = false
+}
+
+function addOutlineItem(level: 2 | 3) {
+  outline.value.push({ heading: '', level, note: '' })
+}
+
+function removeOutlineItem(index: number) {
+  outline.value.splice(index, 1)
+}
+
+function moveOutlineItem(index: number, direction: -1 | 1) {
+  const newIndex = index + direction
+  if (newIndex < 0 || newIndex >= outline.value.length) return
+  const temp = outline.value[index]
+  outline.value[index] = outline.value[newIndex]
+  outline.value[newIndex] = temp
+}
+
+function startDrag(index: number) {
+  dragging.value = index
+}
+
+function onDragOver(event: DragEvent, index: number) {
+  event.preventDefault()
+  if (dragging.value === null || dragging.value === index) return
+  const item = outline.value.splice(dragging.value, 1)[0]
+  outline.value.splice(index, 0, item)
+  dragging.value = index
+}
+
+function endDrag() {
+  dragging.value = null
+}
+
+async function generateWithOutline() {
+  if (outline.value.length === 0) return
   step.value = 'generating'
+  generatingLoading.value = true
+  generatingStatus.value = 'تحلیل outline و اعمال گاردرایل‌ها...'
   errorMsg.value = ''
-  loadingGenerate.value = true
   try {
     const res = await fetch('/api/content/generate', {
       method: 'POST',
@@ -78,24 +156,42 @@ async function generate() {
         keyword: title.value.trim(),
         title: title.value.trim(),
         subtype: subtype.value || undefined,
+        outline: outline.value.map(i => i.heading),
       }),
     })
     const data = await res.json()
     if (data.error) {
       errorMsg.value = data.error
-      step.value = 'input'
+      step.value = 'outline'
     } else {
       result.value = data
       step.value = 'result'
     }
   } catch (e: unknown) {
     errorMsg.value = 'خطا: ' + (e instanceof Error ? e.message : String(e))
-    step.value = 'input'
+    step.value = 'outline'
   }
-  loadingGenerate.value = false
+  generatingLoading.value = false
 }
 
-function regenerate() { result.value = null; step.value = 'input' }
+function goToInput() {
+  step.value = 'input'
+  result.value = null
+  outline.value = []
+  errorMsg.value = ''
+}
+
+function goToOutline() {
+  step.value = 'outline'
+  result.value = null
+  errorMsg.value = ''
+}
+
+function regenerate() {
+  result.value = null
+  step.value = 'outline'
+}
+
 function autoMetaTitle() {
   if (result.value && title.value) {
     const siteName = p.sites.find(s => String(s.id) === selectedSiteId.value)?.name ?? ''
@@ -107,48 +203,106 @@ function autoMetaTitle() {
 <template>
   <Head title="تولید مقاله هوشمند" />
   <AppLayout>
-    <VPageHeader title="📝 تولید مقاله هوشمند" description="با وارد کردن عنوان، سیستم خودکار محتوا را تولید می‌کند." />
+    <VPageHeader title="تولید مقاله هوشمند" description="با وارد کردن عنوان، outline پیشنهادی را بررسی و سپس مقاله را تولید کنید." />
 
     <VAlert v-if="page.props.flash?.status" tone="success" class="mt-6">{{ page.props.flash.status }}</VAlert>
+    <VAlert v-if="errorMsg" tone="danger" class="mt-6">{{ errorMsg }}</VAlert>
 
-    <!-- STEP 1: Input -->
+    <!-- Breadcrumb -->
+    <div class="mt-6 flex items-center gap-2 text-sm text-ink-muted">
+      <span :class="step === 'input' ? 'font-bold text-brand-700' : ''">۱. ورودی</span>
+      <span>›</span>
+      <span :class="step === 'outline' ? 'font-bold text-brand-700' : ''">۲. Outline</span>
+      <span>›</span>
+      <span :class="step === 'generating' || step === 'result' ? 'font-bold text-brand-700' : ''">۳. نتیجه</span>
+    </div>
+
+    <!-- STEP 1: INPUT -->
     <div v-if="step === 'input'" class="mt-6 max-w-2xl mx-auto">
       <VCard title="عنوان مقاله را وارد کنید">
         <div class="space-y-4">
           <VSelect v-model="selectedSiteId" label="سایت" :options="p.sites.map(s => ({ label: s.name, value: String(s.id) }))" placeholder="انتخاب سایت" />
-
           <div>
-            <label class="text-ink-strong text-sm font-semibold">عنوان مقاله را وارد کنید</label>
-            <input v-model="title" type="text" dir="auto" class="border-line mt-2 w-full rounded-xl border px-4 py-3 text-lg focus:ring-2 focus:ring-brand-500" placeholder="مثل: راهنمای جامع سئو برای سایت فروشگاهی" @keyup.enter="generate" />
-            <p class="text-ink-muted mt-1 text-xs">با انتخاب عنوان مقاله، سیستم خودکار محتوا را تولید می‌کند.</p>
+            <label class="text-ink-strong text-sm font-semibold">عنوان مقاله</label>
+            <input v-model="title" type="text" dir="auto" class="border-line mt-2 w-full rounded-xl border px-4 py-3 text-lg focus:ring-2 focus:ring-brand-500" placeholder="مثال: راهنمای جامع سئو برای سایت فروشگاهی" @keyup.enter="generateOutline" />
+            <p class="text-ink-muted mt-1 text-xs">بعد از وارد کردن عنوان، سیستم ابتدا outline (ساختار) پیشنهادی را نمایش می‌دهد.</p>
           </div>
-
-          <VSelect v-model="subtype" label="زیرنوع (خودکار)" :options="Object.entries(p.subtypes).map(([v,l]) => ({label:l, value:v}))" />
-
-          <VButton @click="generate" :loading="loadingGenerate" :disabled="!selectedSiteId || !title.trim()" variant="primary" size="lg" class="w-full">
-            <span v-if="!loadingGenerate">🚀 شروع تولید</span>
-            <span v-else>در حال تولید...</span>
+          <VSelect v-model="subtype" label="زیرنوع" :options="Object.entries(p.subtypes).map(([v,l]) => ({label:l, value:v}))" />
+          <VButton @click="generateOutline" :loading="outlineLoading" :disabled="!selectedSiteId || !title.trim()" variant="primary" size="lg" class="w-full">
+            <span v-if="!outlineLoading">تولید Outline</span>
+            <span v-else>در حال تحلیل...</span>
           </VButton>
+          <VAlert v-if="outlineError" tone="danger">{{ outlineError }}</VAlert>
         </div>
       </VCard>
     </div>
 
-    <!-- STEP 2: Generating -->
+    <!-- STEP 2: OUTLINE EDITOR -->
+    <div v-if="step === 'outline'" class="mt-6 max-w-3xl mx-auto">
+      <VCard title="ساختار پیشنهادی مقاله">
+        <div class="mb-4 flex items-center gap-3 text-sm text-ink-muted">
+          <span>H2: {{ outlineH2Count }}</span>
+          <span>H3: {{ outlineH3Count }}</span>
+          <span>کل: {{ outline.length }}</span>
+          <VBadge tone="info" size="sm">مدل: {{ outlineModel }}</VBadge>
+        </div>
+        <div class="space-y-2">
+          <div v-for="(item, index) in outline" :key="index"
+            class="group flex items-center gap-2 rounded-xl border border-surface-muted bg-surface p-3 transition-all hover:border-brand-300"
+            :class="{ 'opacity-50': dragging === index }"
+            :style="{ paddingLeft: item.level === 3 ? '2.5rem' : '1rem' }"
+            draggable="true"
+            @dragstart="startDrag(index)"
+            @dragover="(e: DragEvent) => onDragOver(e, index)"
+            @dragend="endDrag">
+            <span class="cursor-grab text-ink-muted opacity-0 transition-opacity group-hover:opacity-100" title="جابجایی">⠿</span>
+            <VBadge :tone="item.level === 2 ? 'brand' : 'info'" size="sm">H{{ item.level }}</VBadge>
+            <input v-model="item.heading" dir="auto" class="flex-1 bg-transparent text-sm font-medium outline-none" :placeholder="item.level === 2 ? 'عنوان بخش اصلی...' : 'عنوان زیربخش...'" />
+            <input v-model="item.note" dir="auto" class="w-48 bg-transparent text-xs text-ink-muted outline-none placeholder:text-ink-muted/50" placeholder="توضیح (اختیاری)" />
+            <div class="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+              <button type="button" class="rounded p-1 text-ink-muted hover:bg-surface-muted" @click="moveOutlineItem(index, -1)" title="بالا">↑</button>
+              <button type="button" class="rounded p-1 text-ink-muted hover:bg-surface-muted" @click="moveOutlineItem(index, 1)" title="پایین">↓</button>
+              <button type="button" class="rounded p-1 text-ink-muted hover:bg-red-100 hover:text-red-600" @click="removeOutlineItem(index)" title="حذف">✕</button>
+            </div>
+          </div>
+        </div>
+        <div class="mt-4 flex gap-2">
+          <VButton variant="secondary" size="sm" @click="addOutlineItem(2)">+ افزودن H2</VButton>
+          <VButton variant="secondary" size="sm" @click="addOutlineItem(3)">+ افزودن H3</VButton>
+        </div>
+        <div class="mt-6 flex items-center justify-between border-t border-surface-muted pt-4">
+          <VButton variant="secondary" @click="goToInput">بازگشت</VButton>
+          <VButton variant="primary" size="lg" :disabled="outline.length === 0 || outline.some(i => !i.heading.trim())" :loading="generatingLoading" @click="generateWithOutline">
+            <span v-if="!generatingLoading">تولید مقاله بر اساس Outline</span>
+            <span v-else>در حال تولید...</span>
+          </VButton>
+        </div>
+      </VCard>
+      <VCard class="mt-4" title="نکات">
+        <ul class="space-y-1 text-xs text-ink-muted">
+          <li>عنوان‌ها را می‌توانید ویرایش، حذف یا جابجا کنید.</li>
+          <li>H2 برای بخش‌های اصلی و H3 برای زیربخش‌هاست.</li>
+          <li>کشیدن و رها کردن (drag and drop) برای جابجایی سریع.</li>
+          <li>بعد از تایید، مقاله دقیقاً بر اساس این ساختار تولید می‌شود.</li>
+        </ul>
+      </VCard>
+    </div>
+
+    <!-- STEP 3: GENERATING -->
     <div v-if="step === 'generating'" class="mt-6 max-w-2xl mx-auto text-center py-16">
       <div class="text-6xl mb-4 animate-pulse">🤖</div>
       <h2 class="text-xl font-bold text-ink-strong">در حال تولید مقاله...</h2>
-      <p class="text-ink-muted mt-2">هوش مصنوعی در حال تحلیل اطلاعات GSC و تولید مقاله است...</p>
+      <p class="text-ink-muted mt-2">{{ generatingStatus }}</p>
       <div class="mt-8 space-y-2 text-sm text-ink-muted">
-        <p>✅ تحلیل اطلاعات GSC</p>
-        <p>✅ پروفایل نوع محتوا</p>
-        <p>✅ اعمال گاردرایلس</p>
+        <p>✅ تحلیل outline پیشنهادی</p>
+        <p>✅ اعمال گاردرایل‌ها و استانداردها</p>
+        <p>✅ تحلیل داده GSC</p>
         <p class="animate-pulse">در انتظار تولید مقاله با AI...</p>
       </div>
     </div>
 
-    <!-- STEP 3: Result -->
+    <!-- STEP 4: RESULT -->
     <div v-if="step === 'result' && result" class="mt-6">
-      <!-- Success Banner -->
       <VCard class="mb-6">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-3">
@@ -159,28 +313,20 @@ function autoMetaTitle() {
             </div>
           </div>
           <div class="flex items-center gap-2">
-            <VBadge :tone="seoScore >= 70 ? 'success' : seoScore >= 40 ? 'warning' : 'danger'" size="lg">
-              امتیاز: {{ seoScore }}/100
-            </VBadge>
+            <VBadge :tone="seoScore >= 70 ? 'success' : seoScore >= 40 ? 'warning' : 'danger'" size="lg">امتیاز: {{ seoScore }}/100</VBadge>
+            <VButton @click="goToOutline" variant="secondary">بازگشت به Outline</VButton>
             <VButton @click="regenerate" variant="secondary">🔄 تولید مجدد</VButton>
           </div>
         </div>
       </VCard>
-
       <div class="grid gap-6 lg:grid-cols-[2fr_1fr]">
-        <!-- Main Content -->
         <div class="space-y-6">
-          <!-- Tabs -->
           <div class="border-line flex gap-1 border-b">
             <button v-for="tab in [{id:'content',label:'✏️ محتوا'}, {id:'meta',label:'🏷️ Meta'}, {id:'seo',label:'📊 امتیاز'}, {id:'schema',label:'📊 اسکیما'}]" :key="tab.id" type="button" class="border-b-2 px-4 py-2.5 text-sm font-medium transition-colors" :class="activeResultTab === tab.id ? 'border-brand-600 text-brand-700' : 'border-transparent text-ink-muted hover:text-ink-strong'" @click="activeResultTab = tab.id">{{ tab.label }}</button>
           </div>
-
-          <!-- Content Tab -->
           <VCard v-if="activeResultTab === 'content'">
             <div class="prose prose-sm max-w-none" dir="auto" v-html="result.content" />
           </VCard>
-
-          <!-- Meta Tab -->
           <VCard v-if="activeResultTab === 'meta'">
             <div class="space-y-4">
               <div>
@@ -201,28 +347,22 @@ function autoMetaTitle() {
               </div>
             </div>
           </VCard>
-
-          <!-- SEO Tab -->
           <VCard v-if="activeResultTab === 'seo'">
             <div class="space-y-3">
               <div v-for="check in seoChecks" :key="check.label" class="flex items-center justify-between">
                 <span class="text-ink-strong text-sm">{{ check.label }}</span>
-                <VBadge :tone="check.label === 'امتیاز کیفیت' ? (check.value >= check.min ? 'success' : 'danger') : 'info'">
-                  {{ check.value }}
-                </VBadge>
+                <VBadge :tone="check.passed ? 'success' : 'danger'">{{ check.value }}</VBadge>
               </div>
               <div v-if="result.quality?.failures?.length" class="mt-4">
-                <p class="text-red-600 text-sm font-semibold">❌ مشکلات:</p>
+                <p class="text-red-600 text-sm font-semibold">مشکلات:</p>
                 <ul class="mt-1 space-y-1"><li v-for="f in result.quality.failures" :key="f" class="text-red-500 text-xs">• {{ f }}</li></ul>
               </div>
               <div v-if="result.quality?.warnings?.length" class="mt-4">
-                <p class="text-yellow-600 text-sm font-semibold">⚠️ نکات:</p>
+                <p class="text-yellow-600 text-sm font-semibold">نکات:</p>
                 <ul class="mt-1 space-y-1"><li v-for="w in result.quality.warnings" :key="w" class="text-yellow-500 text-xs">• {{ w }}</li></ul>
               </div>
             </div>
           </VCard>
-
-          <!-- Schema Tab -->
           <VCard v-if="activeResultTab === 'schema'">
             <div class="space-y-2">
               <div v-for="(schema, i) in (result.schemas || [])" :key="i">
@@ -231,8 +371,6 @@ function autoMetaTitle() {
             </div>
           </VCard>
         </div>
-
-        <!-- Sidebar -->
         <div class="space-y-6">
           <VCard title="📊 خلاصه">
             <div class="space-y-2 text-sm">
@@ -242,7 +380,6 @@ function autoMetaTitle() {
               <div class="flex justify-between"><span class="text-ink-muted">اسکیما:</span><span class="font-medium">{{ result.schemas?.length ?? 0 }}</span></div>
             </div>
           </VCard>
-
           <VCard v-if="result.links?.length" title="🔗 لینک‌های داخلی">
             <div class="space-y-2">
               <div v-for="link in result.links.slice(0, 5)" :key="link.url" class="text-xs">
@@ -250,7 +387,6 @@ function autoMetaTitle() {
               </div>
             </div>
           </VCard>
-
           <VCard v-if="result.profile" title="🎯 پروفایل">
             <div class="space-y-1 text-xs">
               <div>نوع: {{ result.profile.content_type }}</div>

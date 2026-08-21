@@ -468,6 +468,80 @@ class ContentApiController extends Controller
      *
      * GET /api/content/providers
      */
+
+    /**
+     * Generate outline for article.
+     *
+     * POST /api/content/outline
+     */
+    public function outline(Request $request, CurrentOrganization $org): JsonResponse
+    {
+        $this->authorizeSuperAdmin();
+
+        $data = $request->validate([
+            'site_id' => 'required|integer|exists:sites,id',
+            'title'   => 'required|string|max:500',
+            'subtype' => 'nullable|string|max:100',
+        ]);
+
+        $siteId = (int) $data['site_id'];
+        $title = $data['title'];
+        $subtype = $data['subtype'] ?? 'how_to_guide';
+        $site = Site::query()->where('organization_id', $org->id())->findOrFail($siteId);
+
+        // Fetch GSC data for context
+        $gscData = $this->fetchGscMetrics($siteId, $title);
+
+        // Get guardrails for context
+        $guardrails = ContentGuardrail::resolve($org->id(), $siteId, 'article', $subtype);
+        $guardrailConfig = $guardrails->toArray();
+
+        // Generate outline via AI
+        [$system, $user] = $this->gateway->generateOutline($title, $subtype, $site->name, $gscData);
+
+        // Use the AI gateway to generate
+        $result = $this->gateway->generate($system, $user, 'outline');
+
+        // Parse JSON from response
+        $content = $result['content'] ?? '[]';
+        // Strip markdown code fences if present
+        $content = preg_replace('/^```json\s*/i', '', trim($content));
+        $content = preg_replace('/\s*```$/', '', $content);
+        $outline = json_decode($content, true);
+
+        if (!is_array($outline)) {
+            // Try to extract JSON array from the text
+            if (preg_match('/\[.*\]/s', $content, $matches)) {
+                $outline = json_decode($matches[0], true);
+            }
+        }
+
+        if (!is_array($outline)) {
+            $outline = [];
+        }
+
+        // Validate and normalize each item
+        $normalized = [];
+        foreach ($outline as $item) {
+            if (!is_array($item) || empty($item['heading'])) {
+                continue;
+            }
+            $normalized[] = [
+                'heading' => (string) $item['heading'],
+                'level' => in_array(($item['level'] ?? 2), [2, 3]) ? (int) $item['level'] : 2,
+                'note' => (string) ($item['note'] ?? ''),
+            ];
+        }
+
+        return response()->json([
+            'outline' => $normalized,
+            'model' => $result['model'] ?? 'unknown',
+            'source' => $result['source'] ?? 'unknown',
+            'gsc_queries_count' => count($gscData['related_queries'] ?? []),
+            'guardrails_applied' => !empty($guardrailConfig),
+        ]);
+    }
+
     public function providers(): JsonResponse
     {
         $this->authorizeSuperAdmin();
