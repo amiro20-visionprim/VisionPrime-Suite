@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { Head, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/app/layouts/AppLayout.vue'
 import VAlert from '@/shared/ui/VAlert.vue'
@@ -29,6 +29,7 @@ interface GeneratedResult {
 
 
 interface PromptTemplate { id: number; title: string; content_type: string; subtype: string; tone: string; system_prompt: string; user_prompt_template: string; usage_count: number; avg_quality_score: number; is_featured: boolean; tags: string[]; }
+interface PromptTemplate { id: number; title: string; content_type: string; tone: string; system_prompt: string; user_prompt_template: string; usage_count: number; avg_quality_score: number; is_featured: boolean; is_user_created: boolean; tags: string[] }
 interface DuplicateDraft { id: number; title: string; status: string; quality_score: number; similarity: number; created_at: string }
 interface SectionItem { heading: string; level: number; content: string; regenerating: boolean }
 
@@ -67,6 +68,16 @@ const duplicateLoading = ref(false)
 const templates = ref<PromptTemplate[]>([])
 const selectedTemplateId = ref<number | null>(null)
 const templatesLoading = ref(false)
+const customPrompt = ref("")
+const showCustomPrompt = ref(false)
+const savingTemplate = ref(false)
+const newTemplateName = ref("")
+const showSaveDialog = ref(false)
+const gscContext = ref<any>(null)
+const gscLoading = ref(false)
+const autoDetectedSubtype = ref("")
+const autoDetectedTone = ref("")
+const applyingSuggestions = ref(false)
 
 
 // Section editing
@@ -184,6 +195,47 @@ fetchTemplates()
 
 function dismissDuplicates() {
   showDuplicates.value = false
+}
+
+async function fetchGscContext() {
+  if (!selectedSiteId.value || !title.value.trim()) return
+  gscLoading.value = true
+  try {
+    const url = '/api/content/gsc-context?site_id=' + selectedSiteId.value + '&title=' + encodeURIComponent(title.value)
+    const r = await fetch(url, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+    if (r.ok) gscContext.value = await r.json()
+  } catch { }
+  gscLoading.value = false
+}
+function autoDetect(t: string) {
+  const l = t.toLowerCase()
+  if (/comp|compare|comparison|مقایسه|vs|بهترین/.test(l)) { autoDetectedSubtype.value = 'comparison'; autoDetectedTone.value = 'neutral' }
+  else if (/tutorial|how.to|guide|آموزش|چگونه|راهنمای/.test(l)) { autoDetectedSubtype.value = 'tutorial'; autoDetectedTone.value = 'informative' }
+  else if (/review|نقد|بررسی/.test(l)) { autoDetectedSubtype.value = 'review'; autoDetectedTone.value = 'professional' }
+  else if (/buy|price|sale|خرید|قیمت|فروش/.test(l)) { autoDetectedSubtype.value = 'sales'; autoDetectedTone.value = 'persuasive' }
+  else { autoDetectedSubtype.value = 'tutorial'; autoDetectedTone.value = 'informative' }
+}
+async function saveAsTemplate() {
+  if (!newTemplateName.value.trim()) return; savingTemplate.value = true
+  try {
+    const r = await fetch('/api/content/save-user-template', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+      body: JSON.stringify({ title: newTemplateName.value.trim(), system_prompt: customPrompt.value || 'system', user_prompt_template: customPrompt.value || 'write {title}', tone: autoDetectedTone.value || 'informative', content_type: 'article' })
+    });
+    if (r.ok) { await fetchTemplates(); showSaveDialog.value = false; newTemplateName.value = '' }
+  } catch { }
+  savingTemplate.value = false
+}
+async function applySuggestions(suggestions: string[]) {
+  if (!result.value || suggestions.length === 0) return; applyingSuggestions.value = true
+  try {
+    const r = await fetch('/api/content/apply-suggestions', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+      body: JSON.stringify({ content: result.value.content, suggestions, title: title.value, keyword: title.value })
+    });
+    const d = await r.json(); if (d.content) { result.value.content = d.content; parseSections(d.content) }
+  } catch { }
+  applyingSuggestions.value = false
 }
 
 async function generateOutline() {
@@ -419,6 +471,8 @@ function autoMetaTitle() {
     result.value.meta_title = title.value.substring(0, 50) + ' | ' + siteName
   }
 }
+watch(title, (v) => { if (v && v.trim().length > 5) autoDetect(v) })
+
 </script>
 
 <template>
@@ -446,7 +500,8 @@ function autoMetaTitle() {
           <div>
             <label class="text-ink-strong text-sm font-semibold">عنوان مقاله</label>
             <input v-model="title" type="text" dir="auto" class="border-line mt-2 w-full rounded-xl border px-4 py-3 text-lg focus:ring-2 focus:ring-brand-500" placeholder="مثال: راهنمای جامع سئو برای سایت فروشگاهی" @keyup.enter="generateOutline" />
-            <p class="text-ink-muted mt-1 text-xs">بعد از وارد کردن عنوان، سیستم ابتدا outline (ساختار) پیشنهادی را نمایش می‌دهد.</p>
+            <div v-if="autoDetectedSubtype" class="flex items-center gap-2 text-xs mt-2"><span class="text-ink-muted">تشخیص خودکار:</span><VBadge tone="info" size="sm">{{ autoDetectedSubtype }}</VBadge><VBadge tone="success" size="sm">{{ autoDetectedTone }}</VBadge></div>
+          <p class="text-ink-muted mt-1 text-xs">بعد از وارد کردن عنوان، سیستم ابتدا outline (ساختار) پیشنهادی را نمایش می‌دهد.</p>
           </div>
           
           <!-- Prompt Template Selector -->
@@ -470,9 +525,43 @@ function autoMetaTitle() {
               </button>
             </div>
           </div>
+          
+          <!-- Custom Prompt -->
+          <div>
+            <button type="button" @click="showCustomPrompt = !showCustomPrompt" class="text-brand-600 text-sm hover:underline">
+              {{ showCustomPrompt ? '⬆️ بستن پرامپت دستی' : '✏️ نوشتن پرامپت اختیاری' }}
+            </button>
+            <div v-if="showCustomPrompt" class="mt-3 space-y-3">
+              <textarea v-model="customPrompt" dir="auto" rows="4" class="border-line w-full rounded-xl border px-4 py-3 text-sm focus:ring-2 focus:ring-brand-500" placeholder="پرامپت اختیاری خود را بنویسید..."></textarea>
+              <div class="flex gap-2">
+                <VButton size="sm" variant="secondary" @click="showSaveDialog = true" :disabled="!customPrompt.trim()">💾 ذخیره به عنوان قالب</VButton>
+              </div>
+              <div v-if="showSaveDialog" class="flex gap-2 items-center bg-surface-muted rounded-xl p-3">
+                <input v-model="newTemplateName" type="text" class="border-line flex-1 rounded-lg border px-3 py-1.5 text-sm" placeholder="نام قالب..." />
+                <VButton size="sm" variant="primary" @click="saveAsTemplate" :loading="savingTemplate">ذخیره</VButton>
+                <VButton size="sm" variant="secondary" @click="showSaveDialog = false">لغو</VButton>
+              </div>
+            </div>
+          </div>
           <VSelect v-model="subtype" label="زیرنوع" :options="Object.entries(p.subtypes).map(([v,l]) => ({label:l, value:v}))" />
 
           <!-- Duplicate Warning -->
+          
+          <!-- GSC Context -->
+          <div v-if="selectedSiteId && title.trim().length > 5" class="bg-surface rounded-xl p-4 border border-surface-muted">
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-sm font-semibold">📊 Context سایت</span>
+              <button type="button" @click="fetchGscContext" class="text-brand-600 text-xs hover:underline" :disabled="gscLoading">{{ gscLoading ? '...' : 'بروزرسانی' }}</button>
+            </div>
+            <div v-if="gscContext?.has_data" class="grid grid-cols-2 md:grid-cols-4 gap-3 text-center text-xs">
+              <div><div class="font-bold text-brand-700">{{ gscContext.summary?.total_queries }}</div><div class="text-ink-muted">کوئری</div></div>
+              <div><div class="font-bold text-green-600">{{ gscContext.summary?.total_clicks }}</div><div class="text-ink-muted">کلیک</div></div>
+              <div><div class="font-bold text-blue-600">{{ gscContext.summary?.total_impressions }}</div><div class="text-ink-muted">نمایش</div></div>
+              <div><div class="font-bold text-orange-600">{{ gscContext.summary?.avg_ctr }}%</div><div class="text-ink-muted">CTR</div></div>
+            </div>
+            <div v-else class="text-xs text-ink-muted">داده GSC یافت نشد — سایت را در GSC ثبت کنید.</div>
+          </div>
+
           <VAlert v-if="showDuplicates && duplicates.length > 0" tone="warning">
             <div class="space-y-2">
               <p class="font-semibold">⚠️ {{ duplicates.length }} مقاله مشابه یافت شد:</p>
@@ -560,7 +649,8 @@ function autoMetaTitle() {
                 <p class="text-ink-muted text-xs">{{ comp.url }} · {{ comp.word_count }} کلمه</p>
               </div>
             </div>
-            <p class="text-ink-muted mt-1 text-xs">{{ comp.snippet }}</p>
+            <div v-if="autoDetectedSubtype" class="flex items-center gap-2 text-xs mt-2"><span class="text-ink-muted">تشخیص خودکار:</span><VBadge tone="info" size="sm">{{ autoDetectedSubtype }}</VBadge><VBadge tone="success" size="sm">{{ autoDetectedTone }}</VBadge></div>
+          <p class="text-ink-muted mt-1 text-xs">{{ comp.snippet }}</p>
             <div class="mt-2 flex flex-wrap gap-1">
               <VBadge v-for="h in comp.headings.slice(0, 6)" :key="h" tone="brand" size="sm">{{ h }}</VBadge>
             </div>

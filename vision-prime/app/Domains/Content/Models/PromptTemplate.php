@@ -8,12 +8,13 @@ class PromptTemplate extends Model
     protected $fillable = [
         "title", "slug", "content_type", "subtype", "tone",
         "system_prompt", "user_prompt_template", "usage_count",
-        "avg_quality_score", "is_featured", "is_active", "tags",
+        "avg_quality_score", "is_featured", "is_active", "tags", "is_user_created", "created_by_user_id",
     ];
     protected $casts = [
         "tags" => "array",
         "is_featured" => "boolean",
         "is_active" => "boolean",
+        "is_user_created" => "boolean",
         "usage_count" => "integer",
         "avg_quality_score" => "float",
     ];

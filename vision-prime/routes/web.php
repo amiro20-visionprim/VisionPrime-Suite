@@ -306,6 +306,8 @@ Route::middleware(['auth', 'current.organization'])->group(function (): void {
         Route::put("/api/content/prompt-templates/{template}", [PromptTemplateController::class, "update"])->name("api.content.prompt-templates.update")->middleware("throttle:20,1");
         Route::delete("/api/content/prompt-templates/{template}", [PromptTemplateController::class, "destroy"])->name("api.content.prompt-templates.destroy")->middleware("throttle:20,1");
         Route::post("/api/content/prompt-templates/{template}/render", [PromptTemplateController::class, "render"])->name("api.content.prompt-templates.render")->middleware("throttle:10,1");
+        Route::post("/api/content/apply-suggestions", [ContentApiController::class, "applySuggestions"])->name("api.content.apply-suggestions")->middleware("throttle:10,1");
+        Route::post("/api/content/save-user-template", [PromptTemplateController::class, "store"])->name("api.content.save-user-template")->middleware("throttle:20,1");
         Route::post("/api/content/regenerate-section", [ContentApiController::class, "regenerateSection"])->name("api.content.regenerate-section")->middleware("throttle:10,1");});
 
 // بازگشت از درگاه پرداخت — عمومی است چون درگاه به آن ریدایرکت می‌کند (بدون لاگین)

@@ -14,6 +14,7 @@ use App\Domains\Content\Models\PromptTemplate;
 use App\Domains\Content\Models\ContentDraft;
 use App\Domains\Content\Services\StandardsKB;
 use App\Domains\Content\Services\SERPAnalyzer;
+use App\Domains\Content\Services\SEOExpertAnalyzer;
 use App\Domain\Content\Services\ImageSuggestionService;
 use App\Domains\Organization\Contracts\CurrentOrganization;
 use App\Domains\Workspace\Models\Site;
@@ -369,7 +370,24 @@ class ContentApiController extends Controller
                 'subtype' => $profiled['subtype'] ?? 'article',
                 'model_used' => $result['model'],
                 'status' => 'draft',
+                'audit_log' => $evaluation['details'] ?? [],
             ]);
+
+            // Auto expert analysis
+            try {
+                $analyzer = app(SEOExpertAnalyzer::class);
+                $expertResult = $analyzer->analyze([
+                    'body' => $result['content'],
+                    'title' => $data['title'] ?? $data['keyword'],
+                    'keyword' => $data['keyword'],
+                    'audit_log' => $evaluation['details'] ?? [],
+                ]);
+                ContentDraft::where('title', $data['title'] ?? $data['keyword'])
+                    ->latest()->first()?->update(['expert_analysis' => $expertResult]);
+                $evaluation['expert_analysis'] = $expertResult;
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Expert analysis failed');
+            }
 
             return response()->json([
                 'content' => $result['content'],
@@ -833,4 +851,54 @@ class ContentApiController extends Controller
     }
 
 
-}
+    public function applySuggestions(Request $request, CurrentOrganization $org): JsonResponse
+    {
+        $this->authorizeSuperAdmin();
+        $data = $request->validate([
+            'content' => 'required|string',
+            'suggestions' => 'required|array',
+            'title' => 'required|string|max:200',
+            'keyword' => 'required|string|max:200',
+        ]);
+
+        $system = "تو یک متخصص سئو و ویرایش محتوا هستی. محتوا را بر اساس پیشنهادات بهبود بده. فقط HTML بهبود یافته را برگردان.";
+        $user = "پیشنهادات:\n";
+        foreach ($data['suggestions'] as $s) {
+            $user .= "- {$s}\n";
+        }
+        $user .= "\nمحتوای فعلی:\n{$data['content']}\n\nفقط HTML بهبود یافته را برگردان:";
+
+        try {
+            $result = $this->gateway->generate($system, $user, 'apply_suggestions');
+            return response()->json(['content' => $result['content'], 'model' => $result['model']]);
+        } catch (\Throwable $e) {
+            return response()->json(['error' => 'اعمال پیشنهادات ناموفق: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function saveUserTemplate(Request $request): JsonResponse
+    {
+        $this->authorizeSuperAdmin();
+        $data = $request->validate([
+            'title' => 'required|string|max:255',
+            'system_prompt' => 'required|string',
+            'user_prompt_template' => 'required|string',
+            'tone' => 'nullable|string|max:50',
+            'content_type' => 'nullable|string|max:50',
+        ]);
+
+        $template = PromptTemplate::create([
+            'title' => $data['title'],
+            'slug' => \Str::slug($data['title']),
+            'content_type' => $data['content_type'] ?? 'article',
+            'tone' => $data['tone'] ?? 'informative',
+            'system_prompt' => $data['system_prompt'],
+            'user_prompt_template' => $data['user_prompt_template'],
+            'is_user_created' => true,
+            'created_by_user_id' => $request->user()->id,
+            'is_active' => true,
+            'is_featured' => false,
+        ]);
+
+        return response()->json($template, 201);
+    }}
