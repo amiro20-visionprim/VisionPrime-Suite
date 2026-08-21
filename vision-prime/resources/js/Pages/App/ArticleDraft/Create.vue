@@ -77,6 +77,21 @@ const seoChecks = computed(() => {
 const outlineH2Count = computed(() => outline.value.filter(i => i.level === 2).length)
 const outlineH3Count = computed(() => outline.value.filter(i => i.level === 3).length)
 
+// SERP Intelligence
+interface SerpCompetitor { title: string; url: string; headings: string[]; word_count: number; snippet: string }
+interface SerpAnalysis {
+  competitors: SerpCompetitor[]
+  avg_word_count: number
+  common_headings: string[]
+  content_gaps: string[]
+  recommendations: string[]
+  model: string
+}
+const serpAnalysis = ref<SerpAnalysis | null>(null)
+const serpLoading = ref(false)
+const serpError = ref('')
+const showSerpPanel = ref(false)
+
 async function generateOutline() {
   if (!selectedSiteId.value || !title.value.trim()) return
   outlineLoading.value = true
@@ -174,10 +189,44 @@ async function generateWithOutline() {
   generatingLoading.value = false
 }
 
+async function analyzeSerp() {
+  if (!title.value.trim()) return
+  serpLoading.value = true
+  serpError.value = ''
+  try {
+    const res = await fetch('/api/content/serp-analysis', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+      body: JSON.stringify({
+        keyword: title.value.trim(),
+        subtype: subtype.value || undefined,
+        outline: outline.value.map(i => ({ heading: i.heading, level: i.level })),
+      }),
+    })
+    const data = await res.json()
+    if (data.error) {
+      serpError.value = data.error
+    } else {
+      serpAnalysis.value = data
+      showSerpPanel.value = true
+    }
+  } catch (e: unknown) {
+    serpError.value = 'خطا: ' + (e instanceof Error ? e.message : String(e))
+  }
+  serpLoading.value = false
+}
+
+function addSerpHeading(heading: string) {
+  // Add a heading from SERP analysis to the outline
+  outline.value.push({ heading: heading.replace(/^H[23]:\s*/, ''), level: 2, note: 'از تحلیل رقبا' })
+}
+
 function goToInput() {
   step.value = 'input'
   result.value = null
   outline.value = []
+  serpAnalysis.value = null
+  showSerpPanel.value = false
   errorMsg.value = ''
 }
 
@@ -271,13 +320,81 @@ function autoMetaTitle() {
           <VButton variant="secondary" size="sm" @click="addOutlineItem(3)">+ افزودن H3</VButton>
         </div>
         <div class="mt-6 flex items-center justify-between border-t border-surface-muted pt-4">
-          <VButton variant="secondary" @click="goToInput">بازگشت</VButton>
+          <div class="flex items-center gap-2">
+            <VButton variant="secondary" @click="goToInput">بازگشت</VButton>
+            <VButton variant="secondary" size="sm" @click="analyzeSerp" :loading="serpLoading" :disabled="!title.trim()">
+              🔍 تحلیل رقبا (SERP)
+            </VButton>
+          </div>
           <VButton variant="primary" size="lg" :disabled="outline.length === 0 || outline.some(i => !i.heading.trim())" :loading="generatingLoading" @click="generateWithOutline">
             <span v-if="!generatingLoading">تولید مقاله بر اساس Outline</span>
             <span v-else>در حال تولید...</span>
           </VButton>
         </div>
       </VCard>
+
+      <!-- SERP Intelligence Panel -->
+      <VCard v-if="showSerpPanel && serpAnalysis" class="mt-4">
+        <template #title>
+          <div class="flex items-center justify-between">
+            <span>🔍 تحلیل رقبا (SERP Intelligence)</span>
+            <VBadge tone="info" size="sm">مدل: {{ serpAnalysis.model }}</VBadge>
+          </div>
+        </template>
+
+        <!-- Competitors -->
+        <div class="space-y-3">
+          <h4 class="text-ink-strong text-sm font-semibold">صفحات برتر رقبا:</h4>
+          <div v-for="(comp, i) in serpAnalysis.competitors" :key="i" class="rounded-xl border border-surface-muted bg-surface p-3">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-ink-strong text-sm font-medium">{{ comp.title }}</p>
+                <p class="text-ink-muted text-xs">{{ comp.url }} · {{ comp.word_count }} کلمه</p>
+              </div>
+            </div>
+            <p class="text-ink-muted mt-1 text-xs">{{ comp.snippet }}</p>
+            <div class="mt-2 flex flex-wrap gap-1">
+              <VBadge v-for="h in comp.headings.slice(0, 6)" :key="h" tone="brand" size="sm">{{ h }}</VBadge>
+            </div>
+          </div>
+        </div>
+
+        <!-- Common Headings -->
+        <div class="mt-4">
+          <h4 class="text-ink-strong text-sm font-semibold">عنوان‌های مشترک رقبا:</h4>
+          <div class="mt-2 flex flex-wrap gap-1">
+            <button v-for="h in serpAnalysis.common_headings" :key="h" type="button"
+              class="rounded-full border border-brand-300 bg-brand-50 px-3 py-1 text-xs text-brand-700 hover:bg-brand-100 transition-colors"
+              @click="addSerpHeading(h)">
+              + {{ h }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Content Gaps -->
+        <div v-if="serpAnalysis.content_gaps.length > 0" class="mt-4">
+          <h4 class="text-ink-strong text-sm font-semibold">⚠️ شکاف‌های محتوایی:</h4>
+          <ul class="mt-2 space-y-1">
+            <li v-for="gap in serpAnalysis.content_gaps" :key="gap" class="text-yellow-600 text-xs">• {{ gap }}</li>
+          </ul>
+        </div>
+
+        <!-- Recommendations -->
+        <div v-if="serpAnalysis.recommendations.length > 0" class="mt-4">
+          <h4 class="text-ink-strong text-sm font-semibold">💡 پیشنهادات:</h4>
+          <ul class="mt-2 space-y-1">
+            <li v-for="rec in serpAnalysis.recommendations" :key="rec" class="text-green-600 text-xs">✓ {{ rec }}</li>
+          </ul>
+        </div>
+
+        <!-- Avg word count -->
+        <div class="mt-4 text-sm text-ink-muted">
+          میانگین کلمات رقبا: <span class="font-bold text-ink-strong">{{ serpAnalysis.avg_word_count }}</span> کلمه
+        </div>
+      </VCard>
+
+      <VAlert v-if="serpError" tone="danger" class="mt-4">{{ serpError }}</VAlert>
+
       <VCard class="mt-4" title="نکات">
         <ul class="space-y-1 text-xs text-ink-muted">
           <li>عنوان‌ها را می‌توانید ویرایش، حذف یا جابجا کنید.</li>

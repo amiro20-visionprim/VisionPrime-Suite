@@ -12,6 +12,7 @@ use App\Domains\Content\Services\SchemaGenerator;
 use App\Domains\Content\Models\ContentGuardrail;
 use App\Domains\Content\Models\ContentDraft;
 use App\Domains\Content\Services\StandardsKB;
+use App\Domains\Content\Services\SERPAnalyzer;
 use App\Domains\Organization\Contracts\CurrentOrganization;
 use App\Domains\Workspace\Models\Site;
 use App\Http\Controllers\Controller;
@@ -540,6 +541,31 @@ class ContentApiController extends Controller
             'gsc_queries_count' => count($gscData['related_queries'] ?? []),
             'guardrails_applied' => !empty($guardrailConfig),
         ]);
+    }
+
+
+    /**
+     * SERP Intelligence — analyze competitor content for a keyword.
+     *
+     * POST /api/content/serp-analysis
+     */
+    public function serpAnalysis(Request $request, CurrentOrganization $org): JsonResponse
+    {
+        $this->authorizeSuperAdmin();
+
+        $data = $request->validate([
+            'keyword'  => 'required|string|max:500',
+            'subtype'  => 'nullable|string|max:100',
+            'outline'  => 'nullable|array',
+        ]);
+
+        $keyword = $data['keyword'];
+        $subtype = $data['subtype'] ?? 'how_to_guide';
+        $outline = $data['outline'] ?? [];
+
+        $analysis = app(\App\Domains\Content\Services\SERPAnalyzer::class)->analyze($keyword, $subtype, $outline);
+
+        return response()->json($analysis);
     }
 
     public function providers(): JsonResponse
