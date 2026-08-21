@@ -113,11 +113,16 @@ class ContentProfiler
         // ۳) قصد
         $intent = $this->detectIntent($text);
 
+        $audience = $this->detectAudience($text);
+        $contentDepth = $this->detectContentDepth($text, $subtype);
+
         return [
             'content_type' => $contentType,
             'subtype' => $subtype,
             'intent' => $intent,
             'title' => $title !== '' ? $title : $query,
+            'audience' => $audience,
+            'content_depth' => $contentDepth,
         ];
     }
 
@@ -171,6 +176,45 @@ class ContentProfiler
         }
 
         return $best['subtype'] === 'article' ? 'article' : $best['subtype'];
+    }
+
+    /**
+     * تشخیص مخاطب هدف بر اساس عنوان و کلمات کلیدی.
+     */
+    public function detectAudience(string $text): string
+    {
+        $normalized = self::normalizeFa($text);
+        // مبتدی
+        $beginner = ['مبتدی', 'شروع', 'اصول', 'مقدمه', 'پایه', 'ساده', 'آسان', 'از صفر', 'قدم اول', 'beginner', 'basics', 'introduction', 'how to start'];
+        foreach ($beginner as $kw) {
+            if (str_contains($normalized, self::normalizeFa($kw))) return 'beginner';
+        }
+        // متخصص
+        $expert = ['پیشرفته', 'حرفه‌ای', 'متخصص', 'تکنیک', 'استراتژی', 'عمیق', 'تکمیلی', 'advanced', 'expert', 'professional', 'master'];
+        foreach ($expert as $kw) {
+            if (str_contains($normalized, self::normalizeFa($kw))) return 'expert';
+        }
+        // پیش‌فرض: متوسط
+        return 'intermediate';
+    }
+
+    /**
+     * تشخیص عمق محتوا بر اساس عنوان و زیرنوع.
+     */
+    public function detectContentDepth(string $text, string $subtype): string
+    {
+        $normalized = self::normalizeFa($text);
+        // خیلی عمیق (Pillar/Comprehensive)
+        $deep = ['جامع', 'کامل', 'all in one', 'comprehensive', 'ultimate', 'definitive', 'complete guide'];
+        foreach ($deep as $kw) {
+            if (str_contains($normalized, self::normalizeFa($kw))) return 'very_deep';
+        }
+        if (in_array($subtype, ['pillar', 'guide'], true)) return 'very_deep';
+        // عمیق
+        if (in_array($subtype, ['tutorial', 'how_to', 'comparison'], true)) return 'deep';
+        // سطحی (لیستی/خبری)
+        if (in_array($subtype, ['listicle', 'news', 'short_desc'], true)) return 'shallow';
+        return 'moderate';
     }
 
     private function detectIntent(string $text): string

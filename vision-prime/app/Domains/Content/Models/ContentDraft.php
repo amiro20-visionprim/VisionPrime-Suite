@@ -22,11 +22,13 @@ class ContentDraft extends Model
         'subtype',
         'model_used',
         'status',
+        'audit_log',
     ];
 
     protected $casts = [
         'schemas' => 'array',
         'quality_score' => 'integer',
+        'audit_log' => 'array',
     ];
 
     public function site(): BelongsTo
