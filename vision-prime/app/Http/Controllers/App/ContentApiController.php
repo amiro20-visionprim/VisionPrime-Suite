@@ -13,6 +13,7 @@ use App\Domains\Content\Models\ContentGuardrail;
 use App\Domains\Content\Models\ContentDraft;
 use App\Domains\Content\Services\StandardsKB;
 use App\Domains\Content\Services\SERPAnalyzer;
+use App\Domain\Content\Services\ImageSuggestionService;
 use App\Domains\Organization\Contracts\CurrentOrganization;
 use App\Domains\Workspace\Models\Site;
 use App\Http\Controllers\Controller;
@@ -358,7 +359,7 @@ class ContentApiController extends Controller
             ContentDraft::create([
                 'site_id' => (int) $site->id,
                 'title' => $data['title'] ?? $data['keyword'],
-                'slug' => str()->slug($data['title'] ?? $data['keyword']),
+                'slug' => $this->validateSlug(str()->slug($data['title'] ?? $data['keyword']), $data['keyword'] ?? ''),
                 'content' => $result['content'],
                 'meta_title' => $metaTitle,
                 'meta_description' => $metaDesc,
@@ -723,6 +724,34 @@ class ContentApiController extends Controller
         );
 
         return response()->json($result);
+    }
+
+    /**
+     * Validate and sanitize slug.
+     * Rules: max 75 chars, lowercase, contains keyword, no special chars.
+     */
+    private function validateSlug(string $slug, string $keyword = ''): string
+    {
+        // Transliterate Persian/Arabic to ASCII-safe
+        $slug = mb_strtolower($slug, 'UTF-8');
+        // Remove special chars, keep alphanumeric and hyphens
+        $slug = preg_replace('/[^a-z0-9\s-]/u', '', $slug);
+        // Replace spaces with hyphens
+        $slug = preg_replace('/[\s]+/', '-', $slug);
+        // Remove consecutive hyphens
+        $slug = preg_replace('/-+/', '-', $slug);
+        // Trim hyphens from start/end
+        $slug = trim($slug, '-');
+        // Enforce max length
+        if (mb_strlen($slug, 'UTF-8') > 75) {
+            $slug = mb_substr($slug, 0, 75, 'UTF-8');
+            $slug = rtrim($slug, '-');
+        }
+        // Ensure slug is not empty
+        if ($slug === '') {
+            $slug = str()->slug($keyword ?: 'article');
+        }
+        return $slug;
     }
 
     private function extractHeadings(string $html): array

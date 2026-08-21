@@ -360,6 +360,143 @@ class ContentQualityGuard
             $passed++; // warning only
         }
 
+        // ─── ۱۶) LSI Keywords ───
+        $lsCount = 0;
+        if ($keyword !== '' && $plain !== '') {
+            // Simple LSI detection: words that are NOT the keyword but are related (appear in headings or bold)
+            $headingsText = implode(' ', $headings);
+            $boldText = '';
+            preg_match_all('/<strong[^>]*>(.*?)<\/strong>/is', $body, $boldMatches);
+            foreach ($boldMatches[1] as $bm) { $boldText .= ' ' . strip_tags($bm); }
+            $contextWords = mb_strtolower($headingsText . ' ' . $boldText, 'UTF-8');
+            // Count unique significant words (3+ chars) that are not the keyword itself
+            $kwWords = array_filter(explode(' ', mb_strtolower($keyword, 'UTF-8')), fn($w) => mb_strlen($w) > 2);
+            $allWords = preg_split('/[\s,.؟!؛:،\[\](){}*#\-\–—\/\\|]+/u', $contextWords, -1, PREG_SPLIT_NO_EMPTY);
+            $significantWords = array_unique(array_filter($allWords, fn($w) => mb_strlen($w) > 2 && !in_array($w, $kwWords)));
+            $lsCount = count(array_slice($significantWords, 0, 20));
+            $total++;
+            if ($lsCount >= 5) {
+                $passed++;
+            } else {
+                $warnings[] = "ls_keywords:{$lsCount} below recommended:5";
+                $passed++;
+            }
+        }
+
+        // ─── ۱۷) Introduction Length ───
+        if ($body !== '') {
+            // Extract first paragraph after h1
+            $introWords = 0;
+            if (preg_match('/<h1[^>]*>.*?<\/h1>\s*(?:<[^>]+>)*\s*<p[^>]*>(.*?)<\/p>/is', $body, $introMatch)) {
+                $introPlain = strip_tags($introMatch[1]);
+                $introWords = count(array_filter(explode(' ', trim($introPlain)), fn($w) => strlen($w) > 0));
+            }
+            $total++;
+            if ($introWords > 0 && $introWords <= 100) {
+                $passed++;
+            } elseif ($introWords > 100) {
+                $warnings[] = "intro_too_long:{$introWords} words (max 100)";
+                $passed++;
+            } else {
+                $passed++; // Can't detect, pass
+            }
+        }
+
+        // ─── ۱۸) Bold/Strong Count ───
+        if ($body !== '') {
+            $boldCount = preg_match_all('/<strong[^>]*>/i', $body);
+            $total++;
+            if ($boldCount >= 5) {
+                $passed++;
+            } else {
+                $warnings[] = "bold_count:{$boldCount} below recommended:5";
+                $passed++;
+            }
+        }
+
+        // ─── ۱۹) Table of Contents ───
+        if ($body !== '') {
+            $hasTOC = preg_match('/<ul[^>]*>\s*<li[^>]*>\s*<a\s+href="#/i', $body);
+            $total++;
+            if ($hasTOC) {
+                $passed++;
+            } else {
+                $warnings[] = 'no_toc';
+                $passed++;
+            }
+        }
+
+        // ─── ۲۰) Active Sentences ───
+        if ($plain !== '') {
+            $sentences = preg_split('/[.؟!]+/u', $plain, -1, PREG_SPLIT_NO_EMPTY);
+            $sentenceCount = count($sentences);
+            $activeCount = 0;
+            $passiveMarkers = ['می‌شود', 'می شود', 'شده است', 'شده‌اند', 'انجام می‌شود', 'صورت می‌گیرد', 'اعلام شد', 'ارائه می‌شود'];
+            foreach ($sentences as $s) {
+                $sTrimmed = trim($s);
+                if (mb_strlen($sTrimmed, 'UTF-8') < 5) continue;
+                $isActive = true;
+                foreach ($passiveMarkers as $pm) {
+                    if (mb_strpos(mb_strtolower($sTrimmed, 'UTF-8'), mb_strtolower($pm, 'UTF-8')) !== false) {
+                        $isActive = false;
+                        break;
+                    }
+                }
+                if ($isActive) $activeCount++;
+            }
+            $activePct = $sentenceCount > 0 ? ($activeCount / $sentenceCount) * 100 : 0;
+            $total++;
+            if ($activePct >= 70 || $sentenceCount === 0) {
+                $passed++;
+            } else {
+                $warnings[] = "active_sentences:" . round($activePct, 0) . "% below 70%";
+                $passed++;
+            }
+        }
+
+        // ─── ۲۱) Images + Alt Text ───
+        if ($body !== '') {
+            $imgCount = preg_match_all('/<img[^>]*>/i', $body);
+            $imgWithAlt = preg_match_all('/<img[^>]*alt=["\'][^"\']+["\'][^>]*>/i', $body);
+            $total++;
+            if ($imgCount === 0) {
+                $warnings[] = 'no_images';
+                $passed++;
+            } elseif ($imgWithAlt >= $imgCount * 0.8) {
+                $passed++;
+            } else {
+                $warnings[] = "images_missing_alt:" . ($imgCount - $imgWithAlt);
+                $passed++;
+            }
+        }
+
+        // ─── ۲۲) Uniqueness (vs existing drafts) ───
+        $uniquenessScore = 100; // default: unique
+        if ($body !== '' && $siteId !== null) {
+            $existingDrafts = \App\Domains\Content\Models\ContentDraft::query()
+                ->where('site_id', $siteId)
+                ->where('status', '!=', 'archived')
+                ->latest()
+                ->limit(5)
+                ->get(['id', 'content']);
+            foreach ($existingDrafts as $draft) {
+                $draftPlain = strip_tags($draft->content ?? '');
+                $commonWords = 0;
+                $draftWords = array_filter(explode(' ', mb_strtolower($draftPlain, 'UTF-8')), fn($w) => mb_strlen($w) > 3);
+                foreach ($draftWords as $dw) {
+                    if (mb_strpos(mb_strtolower($plain, 'UTF-8'), $dw) !== false) $commonWords++;
+                }
+                $similarity = count($draftWords) > 0 ? ($commonWords / count($draftWords)) * 100 : 0;
+                if ($similarity > $uniquenessScore) $uniquenessScore = $similarity;
+            }
+            $total++;
+            if ($uniquenessScore < 80) {
+                $passed++;
+            } else {
+                $failures[] = "duplicate_content:{$uniquenessScore}% similar to existing draft";
+            }
+        }
+
         // RankMath-style score (0-100)
         $rankmathScore = max(0, min(100, $score));
 
@@ -383,6 +520,14 @@ class ContentQualityGuard
                 'readability_score' => $readability['score'] ?? 0,
                 'freshness' => $hasFreshness,
                 'ai_overviews' => $hasDirectAnswer,
+                'ls_keywords' => $lsCount ?? 0,
+                'intro_words' => $introWords ?? 0,
+                'bold_count' => $boldCount ?? 0,
+                'has_toc' => ($hasTOC ?? false) ? 'yes' : 'no',
+                'active_sentences_pct' => round($activePct ?? 0),
+                'image_count' => $imgCount ?? 0,
+                'image_with_alt' => $imgWithAlt ?? 0,
+                'uniqueness' => $uniquenessScore ?? 100,
                 'timestamp' => now()->toISOString(),
             ],
         ];
