@@ -388,6 +388,114 @@ class ContentApiController extends Controller
 
 
     /**
+     * Check for duplicate content before generation.
+     *
+     * POST /api/content/check-duplicate
+     */
+    public function checkDuplicate(Request $request, CurrentOrganization $org): JsonResponse
+    {
+        $data = $request->validate([
+            'title' => 'required|string|max:500',
+            'site_id' => 'required|integer',
+        ]);
+
+        $title = $data['title'];
+        $siteId = (int) $data['site_id'];
+
+        // Search for similar titles in content_drafts
+        $normalizedName = ContentProfiler::normalizeFa($title);
+        $words = array_filter(explode(' ', $normalizedName), fn(string $w): bool => mb_strlen($w) > 2);
+
+        $existingDrafts = ContentDraft::query()
+            ->where('site_id', $siteId)
+            ->where(function ($q) use ($words, $title) {
+                // Exact match
+                $q->where('title', $title);
+                // Or similar (any word match)
+                foreach ($words as $word) {
+                    $q->orWhere('title', 'LIKE', '%' . $word . '%');
+                }
+            })
+            ->orderByDesc('created_at')
+            ->limit(5)
+            ->get(['id', 'title', 'status', 'quality_score', 'created_at']);
+
+        $similar = [];
+        foreach ($existingDrafts as $draft) {
+            $draftNormalized = ContentProfiler::normalizeFa($draft->title);
+            $overlap = count(array_intersect($words, array_filter(explode(' ', $draftNormalized))));
+            $similarity = count($words) > 0 ? round($overlap / count($words) * 100) : 0;
+
+            if ($similarity >= 40) {
+                $similar[] = [
+                    'id' => $draft->id,
+                    'title' => $draft->title,
+                    'status' => $draft->status,
+                    'quality_score' => $draft->quality_score,
+                    'similarity' => $similarity,
+                    'created_at' => $draft->created_at,
+                ];
+            }
+        }
+
+        usort($similar, fn(array $a, array $b): int => $b['similarity'] <=> $a['similarity']);
+
+        return response()->json([
+            'has_duplicate' => count($similar) > 0,
+            'similar_count' => count($similar),
+            'similar_drafts' => $similar,
+        ]);
+    }
+
+    /**
+     * Regenerate a specific section of content.
+     *
+     * POST /api/content/regenerate-section
+     */
+    public function regenerateSection(Request $request, CurrentOrganization $org): JsonResponse
+    {
+        $this->authorizeSuperAdmin();
+
+        $data = $request->validate([
+            'heading' => 'required|string|max:200',
+            'context' => 'required|string',
+            'full_content' => 'required|string',
+            'keyword' => 'nullable|string|max:100',
+            'instruction' => 'nullable|string|max:500',
+        ]);
+
+        $system = 'تو یک متخصص سئو و تولید محتوای فارسی هستی. فقط بخش درخواستی را بازنویسی کن.
+'
+            . 'خروجی فقط HTML معتبر آن بخش باشد (بدون h1 اولیه).
+'
+            . 'ساختار و لحن بقیه محتوا را حفظ کن.';
+
+        $instruction = $data['instruction'] ?? '';
+        $user = "بخش «{$data['heading']}» را بازنویسی کن.
+
+"
+            . "موضوع کلی مقاله: {$data['context']}
+"
+            . ($data['keyword'] ? "کلمه کلیدی: {$data['keyword']}
+" : '')
+            . ($instruction !== '' ? "دستور ویژه: {$instruction}
+" : '')
+            . "
+فقط خروجی HTML این بخش را برگردان:";
+
+        try {
+            $result = $this->gateway->generate($system, $user, 'section');
+            return response()->json([
+                'content' => $result['content'],
+                'model' => $result['model'],
+                'source' => $result['source'],
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['error' => 'بازنویسی بخش ناموفق بود: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
      * Get GSC context for a title — find related queries with real metrics.
      *
      * GET /api/content/gsc-context?site_id=1&title=...

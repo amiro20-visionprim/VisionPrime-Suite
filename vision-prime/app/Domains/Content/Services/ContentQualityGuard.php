@@ -248,6 +248,20 @@ class ContentQualityGuard
 
         $score = $total > 0 ? (int) round($passed / $total * 100) : 0;
 
+        // ─── ۱۱) Readability Score ───
+        $readability = null;
+        if ($body !== '') {
+            $readabilityService = app(ReadabilityService::class);
+            $readability = $readabilityService->analyze($body);
+            $total++;
+            if ($readability['score'] >= 40) {
+                $passed++;
+            } else {
+                $warnings[] = 'readability_low:' . $readability['score'] . '/100';
+                $passed++; // warning only
+            }
+        }
+
         // RankMath-style score (0-100)
         $rankmathScore = max(0, min(100, $score));
 
@@ -258,6 +272,7 @@ class ContentQualityGuard
             'warnings' => $warnings,
             'standard' => $standard,
             'rankmath_score' => $rankmathScore,
+            'readability' => $readability,
         ];
     }
 

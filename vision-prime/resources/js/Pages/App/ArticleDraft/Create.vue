@@ -12,7 +12,8 @@ import VSelect from '@/shared/ui/VSelect.vue'
 interface SiteOption { id: number; name: string; canonical_url: string }
 interface OutlineItem { heading: string; level: 2 | 3; note: string }
 interface SchemaItem { '@type': string; [key: string]: unknown }
-interface QualityResult { passed: boolean; score: number; failures: string[]; warnings: string[] }
+interface QualityResult { passed: boolean; score: number; failures: string[]; warnings: string[]; readability?: ReadabilityResult | null }
+interface ReadabilityResult { score: number; label: string; sentence_avg_length: number; word_avg_length: number; long_sentences_pct: number; complex_words_pct: number; details: string }
 interface LinkSuggestion { url: string; title: string; anchor: string; relevance_score: number }
 interface GeneratedResult {
   content: string
@@ -25,6 +26,9 @@ interface GeneratedResult {
   quality: QualityResult
   profile: { content_type: string; subtype: string; intent: string } | null
 }
+
+interface DuplicateDraft { id: number; title: string; status: string; quality_score: number; similarity: number; created_at: string }
+interface SectionItem { heading: string; level: number; content: string; regenerating: boolean }
 
 const p = defineProps<{
   sites: SiteOption[]
@@ -53,6 +57,20 @@ const result = ref<GeneratedResult | null>(null)
 const activeResultTab = ref<'content' | 'meta' | 'seo' | 'schema'>('content')
 const errorMsg = ref('')
 
+// Duplicate check
+const duplicates = ref<DuplicateDraft[]>([])
+const showDuplicates = ref(false)
+const duplicateLoading = ref(false)
+
+// Section editing
+const sections = ref<SectionItem[]>([])
+const showSectionEdit = ref(false)
+const editSectionIndex = ref<number | null>(null)
+const editSectionText = ref('')
+
+// Keyword density
+const keywordInput = ref('')
+
 const wordCount = computed(() => {
   if (!result.value?.content) return 0
   const plain = result.value.content.replace(/<[^>]+>/g, ' ').trim()
@@ -60,6 +78,33 @@ const wordCount = computed(() => {
 })
 
 const seoScore = computed(() => result.value?.quality?.score ?? 0)
+
+const readability = computed<ReadabilityResult | null>(() => result.value?.quality?.readability ?? null)
+
+const keywordDensity = computed(() => {
+  const kw = keywordInput.value.trim()
+  if (!kw || !result.value?.content) return { count: 0, density: 0 }
+  const plain = result.value.content.replace(/<[^>]+>/g, ' ').trim().toLowerCase()
+  const kwLower = kw.toLowerCase()
+  let count = 0
+  let pos = 0
+  while ((pos = plain.indexOf(kwLower, pos)) !== -1) {
+    count++
+    pos += kwLower.length
+  }
+  const words = plain.split(/\s+/).filter(w => w.length > 0)
+  const density = words.length > 0 ? (count / words.length) * 100 : 0
+  return { count, density: Math.round(density * 100) / 100 }
+})
+
+const keywordDensityStatus = computed(() => {
+  const d = keywordDensity.value.density
+  if (d === 0) return { label: 'ناموجود', color: 'text-red-500', bg: 'bg-red-50' }
+  if (d < 0.5) return { label: 'خیلی کم', color: 'text-yellow-600', bg: 'bg-yellow-50' }
+  if (d <= 3) return { label: 'ایده‌آل', color: 'text-green-600', bg: 'bg-green-50' }
+  if (d <= 5) return { label: 'زیاد', color: 'text-orange-600', bg: 'bg-orange-50' }
+  return { label: 'اسپم', color: 'text-red-600', bg: 'bg-red-50' }
+})
 
 const seoChecks = computed(() => {
   if (!result.value) return []
@@ -71,6 +116,7 @@ const seoChecks = computed(() => {
     { label: 'لینک‌های داخلی', value: (r.links?.length ?? 0) + ' عدد', passed: (r.links?.length ?? 0) >= 2 },
     { label: 'اسکیما', value: (r.schemas?.length ?? 0) + ' عدد', passed: (r.schemas?.length ?? 0) >= 1 },
     { label: 'امتیاز کیفیت', value: r.quality?.score ?? 0, passed: (r.quality?.score ?? 0) >= 70 },
+    ...(readability.value ? [{ label: 'خوانایی', value: readability.value.label + ' (' + readability.value.score + '/100)', passed: readability.value.score >= 40 }] : []),
   ]
 })
 
@@ -92,8 +138,40 @@ const serpLoading = ref(false)
 const serpError = ref('')
 const showSerpPanel = ref(false)
 
+// === API Methods ===
+
+async function checkDuplicate() {
+  if (!title.value.trim() || !selectedSiteId.value) return
+  duplicateLoading.value = true
+  try {
+    const res = await fetch('/api/content/check-duplicate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+      body: JSON.stringify({ title: title.value.trim(), site_id: Number(selectedSiteId.value) }),
+    })
+    const data = await res.json()
+    if (data.has_duplicate) {
+      duplicates.value = data.similar_drafts
+      showDuplicates.value = true
+    } else {
+      duplicates.value = []
+      showDuplicates.value = false
+    }
+  } catch { /* ignore */ }
+  duplicateLoading.value = false
+}
+
+function dismissDuplicates() {
+  showDuplicates.value = false
+}
+
 async function generateOutline() {
   if (!selectedSiteId.value || !title.value.trim()) return
+  // Check duplicates first
+  await checkDuplicate()
+  if (duplicates.value.length > 0) {
+    // Show warning but allow proceeding
+  }
   outlineLoading.value = true
   outlineError.value = ''
   try {
@@ -180,6 +258,8 @@ async function generateWithOutline() {
       step.value = 'outline'
     } else {
       result.value = data
+      keywordInput.value = title.value.trim()
+      parseSections(data.content)
       step.value = 'result'
     }
   } catch (e: unknown) {
@@ -188,6 +268,71 @@ async function generateWithOutline() {
   }
   generatingLoading.value = false
 }
+
+// === Section Editing ===
+
+function parseSections(html: string) {
+  const items: SectionItem[] = []
+  const regex = /(<h[2-6][^>]*>.*?<\/h[2-6]>)([\s\S]*?)(?=<h[2-6]|$)/gi
+  let match
+  while ((match = regex.exec(html)) !== null) {
+    const heading = match[1]
+    const content = match[2].trim()
+    const levelMatch = heading.match(/<h(\d)/i)
+    const level = levelMatch ? parseInt(levelMatch[1]) : 2
+    items.push({ heading: heading.replace(/<[^>]+>/g, ''), level, content, regenerating: false })
+  }
+  sections.value = items
+}
+
+function editSection(index: number) {
+  editSectionIndex.value = index
+  editSectionText.value = sections.value[index].content.replace(/<[^>]+>/g, '\n').trim()
+  showSectionEdit.value = true
+}
+
+async function regenerateSection(index: number) {
+  sections.value[index].regenerating = true
+  try {
+    const res = await fetch('/api/content/regenerate-section', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+      body: JSON.stringify({
+        heading: sections.value[index].heading,
+        context: title.value.trim(),
+        full_content: result.value?.content ?? '',
+        keyword: keywordInput.value.trim(),
+      }),
+    })
+    const data = await res.json()
+    if (data.content) {
+      sections.value[index].content = data.content
+      rebuildContent()
+    }
+  } catch { /* ignore */ }
+  sections.value[index].regenerating = false
+}
+
+function rebuildContent() {
+  if (!result.value) return
+  let html = ''
+  for (const sec of sections.value) {
+    const hTag = sec.level <= 2 ? 'h2' : 'h3'
+    html += `<${hTag}>${sec.heading}</${hTag}>\n${sec.content}\n`
+  }
+  result.value.content = html
+  parseSections(html)
+}
+
+function saveSectionEdit() {
+  if (editSectionIndex.value === null) return
+  sections.value[editSectionIndex.value].content = editSectionText.value
+  showSectionEdit.value = false
+  editSectionIndex.value = null
+  rebuildContent()
+}
+
+// === SERP ===
 
 async function analyzeSerp() {
   if (!title.value.trim()) return
@@ -217,9 +362,10 @@ async function analyzeSerp() {
 }
 
 function addSerpHeading(heading: string) {
-  // Add a heading from SERP analysis to the outline
   outline.value.push({ heading: heading.replace(/^H[23]:\s*/, ''), level: 2, note: 'از تحلیل رقبا' })
 }
+
+// === Navigation ===
 
 function goToInput() {
   step.value = 'input'
@@ -228,17 +374,22 @@ function goToInput() {
   serpAnalysis.value = null
   showSerpPanel.value = false
   errorMsg.value = ''
+  showDuplicates.value = false
+  duplicates.value = []
+  sections.value = []
 }
 
 function goToOutline() {
   step.value = 'outline'
   result.value = null
   errorMsg.value = ''
+  sections.value = []
 }
 
 function regenerate() {
   result.value = null
   step.value = 'outline'
+  sections.value = []
 }
 
 function autoMetaTitle() {
@@ -277,6 +428,21 @@ function autoMetaTitle() {
             <p class="text-ink-muted mt-1 text-xs">بعد از وارد کردن عنوان، سیستم ابتدا outline (ساختار) پیشنهادی را نمایش می‌دهد.</p>
           </div>
           <VSelect v-model="subtype" label="زیرنوع" :options="Object.entries(p.subtypes).map(([v,l]) => ({label:l, value:v}))" />
+
+          <!-- Duplicate Warning -->
+          <VAlert v-if="showDuplicates && duplicates.length > 0" tone="warning">
+            <div class="space-y-2">
+              <p class="font-semibold">⚠️ {{ duplicates.length }} مقاله مشابه یافت شد:</p>
+              <div v-for="d in duplicates" :key="d.id" class="flex items-center justify-between text-xs">
+                <span>{{ d.title }} ({{ d.status }})</span>
+                <VBadge :tone="d.similarity >= 80 ? 'danger' : 'warning'" size="sm">{{ d.similarity }}% مشابه</VBadge>
+              </div>
+              <div class="flex gap-2 mt-2">
+                <VButton variant="secondary" size="sm" @click="dismissDuplicates">ادامه با تولید</VButton>
+              </div>
+            </div>
+          </VAlert>
+
           <VButton @click="generateOutline" :loading="outlineLoading" :disabled="!selectedSiteId || !title.trim()" variant="primary" size="lg" class="w-full">
             <span v-if="!outlineLoading">تولید Outline</span>
             <span v-else>در حال تحلیل...</span>
@@ -342,7 +508,6 @@ function autoMetaTitle() {
           </div>
         </template>
 
-        <!-- Competitors -->
         <div class="space-y-3">
           <h4 class="text-ink-strong text-sm font-semibold">صفحات برتر رقبا:</h4>
           <div v-for="(comp, i) in serpAnalysis.competitors" :key="i" class="rounded-xl border border-surface-muted bg-surface p-3">
@@ -359,7 +524,6 @@ function autoMetaTitle() {
           </div>
         </div>
 
-        <!-- Common Headings -->
         <div class="mt-4">
           <h4 class="text-ink-strong text-sm font-semibold">عنوان‌های مشترک رقبا:</h4>
           <div class="mt-2 flex flex-wrap gap-1">
@@ -371,7 +535,6 @@ function autoMetaTitle() {
           </div>
         </div>
 
-        <!-- Content Gaps -->
         <div v-if="serpAnalysis.content_gaps.length > 0" class="mt-4">
           <h4 class="text-ink-strong text-sm font-semibold">⚠️ شکاف‌های محتوایی:</h4>
           <ul class="mt-2 space-y-1">
@@ -379,7 +542,6 @@ function autoMetaTitle() {
           </ul>
         </div>
 
-        <!-- Recommendations -->
         <div v-if="serpAnalysis.recommendations.length > 0" class="mt-4">
           <h4 class="text-ink-strong text-sm font-semibold">💡 پیشنهادات:</h4>
           <ul class="mt-2 space-y-1">
@@ -387,7 +549,6 @@ function autoMetaTitle() {
           </ul>
         </div>
 
-        <!-- Avg word count -->
         <div class="mt-4 text-sm text-ink-muted">
           میانگین کلمات رقبا: <span class="font-bold text-ink-strong">{{ serpAnalysis.avg_word_count }}</span> کلمه
         </div>
@@ -439,11 +600,15 @@ function autoMetaTitle() {
       <div class="grid gap-6 lg:grid-cols-[2fr_1fr]">
         <div class="space-y-6">
           <div class="border-line flex gap-1 border-b">
-            <button v-for="tab in [{id:'content',label:'✏️ محتوا'}, {id:'meta',label:'🏷️ Meta'}, {id:'seo',label:'📊 امتیاز'}, {id:'schema',label:'📊 اسکیما'}]" :key="tab.id" type="button" class="border-b-2 px-4 py-2.5 text-sm font-medium transition-colors" :class="activeResultTab === tab.id ? 'border-brand-600 text-brand-700' : 'border-transparent text-ink-muted hover:text-ink-strong'" @click="activeResultTab = tab.id">{{ tab.label }}</button>
+            <button v-for="tab in [{id:'content',label:'✏️ محتوا'}, {id:'meta',label:'🏷️ Meta'}, {id:'seo',label:'📊 امتیاز'}, {id:'schema',label:'📊 اسکیما'}, {id:'sections',label:'📝 ویرایش بخش‌ها'}]" :key="tab.id" type="button" class="border-b-2 px-4 py-2.5 text-sm font-medium transition-colors" :class="activeResultTab === tab.id ? 'border-brand-600 text-brand-700' : 'border-transparent text-ink-muted hover:text-ink-strong'" @click="activeResultTab = tab.id">{{ tab.label }}</button>
           </div>
+
+          <!-- Content Tab -->
           <VCard v-if="activeResultTab === 'content'">
             <div class="prose prose-sm max-w-none" dir="auto" v-html="result.content" />
           </VCard>
+
+          <!-- Meta Tab -->
           <VCard v-if="activeResultTab === 'meta'">
             <div class="space-y-4">
               <div>
@@ -464,6 +629,8 @@ function autoMetaTitle() {
               </div>
             </div>
           </VCard>
+
+          <!-- SEO Tab -->
           <VCard v-if="activeResultTab === 'seo'">
             <div class="space-y-3">
               <div v-for="check in seoChecks" :key="check.label" class="flex items-center justify-between">
@@ -478,8 +645,26 @@ function autoMetaTitle() {
                 <p class="text-yellow-600 text-sm font-semibold">نکات:</p>
                 <ul class="mt-1 space-y-1"><li v-for="w in result.quality.warnings" :key="w" class="text-yellow-500 text-xs">• {{ w }}</li></ul>
               </div>
+
+              <!-- Readability Card -->
+              <div v-if="readability" class="mt-4 rounded-xl border border-surface-muted bg-surface p-4">
+                <h4 class="text-ink-strong text-sm font-semibold mb-2">📖 خوانایی</h4>
+                <div class="flex items-center gap-3 mb-3">
+                  <VBadge :tone="readability.score >= 60 ? 'success' : readability.score >= 40 ? 'warning' : 'danger'" size="lg">
+                    {{ readability.label }} ({{ readability.score }}/100)
+                  </VBadge>
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-xs text-ink-muted">
+                  <div>میانگین طول جمله: <span class="font-medium text-ink-strong">{{ readability.sentence_avg_length }} کلمه</span></div>
+                  <div>میانگین طول کلمه: <span class="font-medium text-ink-strong">{{ readability.word_avg_length }} کاراکتر</span></div>
+                  <div>جملات طولانی: <span class="font-medium text-ink-strong">{{ readability.long_sentences_pct }}%</span></div>
+                  <div>کلمات پیچیده: <span class="font-medium text-ink-strong">{{ readability.complex_words_pct }}%</span></div>
+                </div>
+              </div>
             </div>
           </VCard>
+
+          <!-- Schema Tab -->
           <VCard v-if="activeResultTab === 'schema'">
             <div class="space-y-2">
               <div v-for="(schema, i) in (result.schemas || [])" :key="i">
@@ -487,7 +672,51 @@ function autoMetaTitle() {
               </div>
             </div>
           </VCard>
+
+          <!-- Section Edit Tab -->
+          <VCard v-if="activeResultTab === 'sections'">
+            <div class="space-y-3">
+              <div class="flex items-center justify-between">
+                <h4 class="text-ink-strong text-sm font-semibold">ویرایش بخش‌به‌بخش</h4>
+                <span class="text-ink-muted text-xs">{{ sections.length }} بخش</span>
+              </div>
+              <div v-for="(sec, i) in sections" :key="i"
+                class="rounded-xl border border-surface-muted bg-surface p-3 transition-all hover:border-brand-300">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <VBadge :tone="sec.level <= 2 ? 'brand' : 'info'" size="sm">H{{ sec.level }}</VBadge>
+                    <span class="text-ink-strong text-sm font-medium">{{ sec.heading }}</span>
+                  </div>
+                  <div class="flex items-center gap-1">
+                    <button type="button" class="rounded p-1.5 text-ink-muted hover:bg-surface-muted text-xs" @click="editSection(i)" title="ویرایش متن">✏️</button>
+                    <button type="button" class="rounded p-1.5 text-ink-muted hover:bg-blue-100 hover:text-blue-600 text-xs" @click="regenerateSection(i)" :disabled="sec.regenerating" title="تولید مجدد">
+                      <span v-if="sec.regenerating" class="animate-pulse">⏳</span>
+                      <span v-else>🔄</span>
+                    </button>
+                  </div>
+                </div>
+                <div class="mt-2 text-xs text-ink-muted max-h-20 overflow-hidden" dir="auto">{{ sec.content.replace(/<[^>]+>/g, ' ').substring(0, 200) }}...</div>
+              </div>
+            </div>
+          </VCard>
+
+          <!-- Section Edit Modal -->
+          <VCard v-if="showSectionEdit" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" style="position: fixed;">
+            <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-auto p-6">
+              <div class="flex items-center justify-between mb-4">
+                <h4 class="font-bold text-ink-strong">ویرایش بخش: {{ editSectionIndex !== null ? sections[editSectionIndex]?.heading : '' }}</h4>
+                <button type="button" class="text-ink-muted hover:text-ink-strong" @click="showSectionEdit = false">✕</button>
+              </div>
+              <textarea v-model="editSectionText" dir="auto" rows="12" class="border-line w-full rounded-xl border px-4 py-3 text-sm" />
+              <div class="flex gap-2 mt-4 justify-end">
+                <VButton variant="secondary" @click="showSectionEdit = false">لغو</VButton>
+                <VButton variant="primary" @click="saveSectionEdit">ذخیره</VButton>
+              </div>
+            </div>
+          </VCard>
         </div>
+
+        <!-- Sidebar -->
         <div class="space-y-6">
           <VCard title="📊 خلاصه">
             <div class="space-y-2 text-sm">
@@ -495,8 +724,33 @@ function autoMetaTitle() {
               <div class="flex justify-between"><span class="text-ink-muted">امتیاز:</span><span class="font-medium">{{ seoScore }}/100</span></div>
               <div class="flex justify-between"><span class="text-ink-muted">لینک‌ها:</span><span class="font-medium">{{ result.links?.length ?? 0 }}</span></div>
               <div class="flex justify-between"><span class="text-ink-muted">اسکیما:</span><span class="font-medium">{{ result.schemas?.length ?? 0 }}</span></div>
+              <div v-if="readability" class="flex justify-between"><span class="text-ink-muted">خوانایی:</span><span class="font-medium" :class="readability.score >= 60 ? 'text-green-600' : 'text-yellow-600'">{{ readability.label }}</span></div>
             </div>
           </VCard>
+
+          <!-- Keyword Density -->
+          <VCard title="🎯 تراکم کلیدواژه">
+            <div class="space-y-3">
+              <input v-model="keywordInput" dir="auto" class="border-line w-full rounded-xl border px-3 py-2 text-sm" placeholder="کلیدواژه را وارد کنید..." />
+              <div v-if="keywordInput.trim() && result?.content" class="space-y-2">
+                <div class="flex items-center justify-between">
+                  <span class="text-ink-muted text-xs">تعداد تکرار:</span>
+                  <span class="font-bold text-ink-strong">{{ keywordDensity.count }}</span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span class="text-ink-muted text-xs">تراکم:</span>
+                  <VBadge :tone="keywordDensity.density >= 1 && keywordDensity.density <= 3 ? 'success' : keywordDensity.density > 3 ? 'danger' : 'warning'" size="sm">
+                    {{ keywordDensity.density }}%
+                  </VBadge>
+                </div>
+                <div class="h-2 rounded-full bg-surface-muted overflow-hidden">
+                  <div class="h-full rounded-full transition-all duration-500" :class="keywordDensity.densityStatus?.color === 'text-green-600' ? 'bg-green-500' : keywordDensity.density > 3 ? 'bg-red-500' : 'bg-yellow-500'" :style="{ width: Math.min(100, keywordDensity.density * 20) + '%' }" />
+                </div>
+                <p class="text-xs" :class="keywordDensityStatus.color">{{ keywordDensityStatus.label }} — بهترین: ۱ تا ۳٪</p>
+              </div>
+            </div>
+          </VCard>
+
           <VCard v-if="result.links?.length" title="🔗 لینک‌های داخلی">
             <div class="space-y-2">
               <div v-for="link in result.links.slice(0, 5)" :key="link.url" class="text-xs">

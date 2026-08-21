@@ -295,7 +295,9 @@ Route::middleware(['auth', 'current.organization'])->group(function (): void {
         Route::get("/api/content/guardrails/resolve", [ContentGuardrailController::class, "resolve"])->name("api.content.guardrails.resolve");
         Route::post("/api/content/guardrails", [ContentGuardrailController::class, "store"])->name("api.content.guardrails.store")->middleware("throttle:20,1");
         Route::delete("/api/content/guardrails/{guardrail}", [ContentGuardrailController::class, "destroy"])->name("api.content.guardrails.destroy")->middleware("throttle:20,1");
-        Route::post("/api/content/guardrails/seed", [ContentGuardrailController::class, "seed"])->name("api.content.guardrails.seed")->middleware("throttle:10,1");});
+        Route::post("/api/content/guardrails/seed", [ContentGuardrailController::class, "seed"])->name("api.content.guardrails.seed")->middleware("throttle:10,1");
+        Route::post("/api/content/check-duplicate", [ContentApiController::class, "checkDuplicate"])->name("api.content.check-duplicate");
+        Route::post("/api/content/regenerate-section", [ContentApiController::class, "regenerateSection"])->name("api.content.regenerate-section")->middleware("throttle:10,1");});
 
 // بازگشت از درگاه پرداخت — عمومی است چون درگاه به آن ریدایرکت می‌کند (بدون لاگین)
 Route::get('/platform/payments/callback/{gateway}/{transaction}', [PlatformPaymentGatewayController::class, 'callback'])->name('platform.payments.callback');
