@@ -478,6 +478,21 @@ class AiGateway
             isset($metrics['position']) ? round((float) $metrics['position'], 1) : '—',
         );
 
+        // Related GSC queries for richer prompt context
+        $relatedQueries = $metrics['related_queries'] ?? [];
+        $relatedQueriesText = '';
+        if (count($relatedQueries) > 0) {
+            $queryLines = [];
+            foreach (array_slice($relatedQueries, 0, 5) as $rq) {
+                $queryLines[] = $rq['query'] . ' | clicks=' . $rq['clicks'] . ' impressions=' . $rq['impressions'] . ' position=' . $rq['position'];
+            }
+            $relatedQueriesText = "
+
+کوئری‌های مرتبط در GSC:
+" . implode("
+", $queryLines);
+        }
+
         $linksText = '';
         if (is_array($internalLinks) && $internalLinks !== []) {
             $linkLines = [];
@@ -562,7 +577,7 @@ class AiGateway
 عنوان: " . ($title !== '' ? $title : $targetQuery) . "
 کلمهٔ کلیدی: " . $targetQuery . "
 نام برند: " . $siteName . "
-دادهٔ GSC: " . $metricsLine . "
+دادهٔ GSC: " . $metricsLine . $relatedQueriesText . "
 
 === الزامات فنی ===
 - طول: بین " . $wordMin . " و " . $wordMax . " کلمه

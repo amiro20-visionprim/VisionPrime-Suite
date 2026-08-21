@@ -320,7 +320,7 @@ class ContentApiController extends Controller
             'site_name' => (string) $site->name,
             'url' => '',
             'standard' => $standard,
-            'metrics' => ['clicks' => 0, 'impressions' => 0, 'ctr' => 0, 'position' => 0],
+            'metrics' => $this->fetchGscMetrics($site->id, $data['keyword'] ?? ''),
             'freshness' => null,
             'page_status' => 'publish',
             'internal_links' => $links,
@@ -385,6 +385,84 @@ class ContentApiController extends Controller
         }
     }
 
+
+    /**
+     * Get GSC context for a title — find related queries with real metrics.
+     *
+     * GET /api/content/gsc-context?site_id=1&title=...
+     */
+    public function gscContext(Request $request, CurrentOrganization $org): JsonResponse
+    {
+        $siteId = (int) $request->query('site_id', 0);
+        $title = (string) $request->query('title', '');
+
+        if ($siteId === 0 || $title === '') {
+            return response()->json(['error' => 'site_id و title الزامی است'], 422);
+        }
+
+        $site = Site::query()->where('organization_id', $org->id())->findOrFail($siteId);
+
+        // Search keyword_insights for queries matching the title
+        $keywords = ['clicks', 'impressions', 'ctr', 'position'];
+        $insights = DB::table('keyword_insights')
+            ->where('site_id', $siteId)
+            ->where('status', 'active')
+            ->where(function ($q) use ($title) {
+                // Split title into words and match any
+                $words = array_filter(explode(' ', trim($title)), fn($w) => mb_strlen($w) > 2);
+                foreach ($words as $word) {
+                    $q->orWhere('query_normalized', 'LIKE', '%' . $word . '%');
+                }
+            })
+            ->orderByDesc('latest_metrics->clicks')
+            ->limit(20)
+            ->get();
+
+        $queries = [];
+        $totalClicks = 0;
+        $totalImpressions = 0;
+
+        foreach ($insights as $insight) {
+            $metrics = json_decode($insight->latest_metrics, true) ?? [];
+            $clicks = (int) ($metrics['clicks'] ?? 0);
+            $impressions = (int) ($metrics['impressions'] ?? 0);
+            $ctr = (float) ($metrics['ctr'] ?? 0);
+            $position = (float) ($metrics['position'] ?? 0);
+
+            // Calculate CTR gap: what CTR should be based on position
+            $expectedCtr = ($position <= 3) ? 0.30 : (($position <= 10) ? 0.10 : 0.03);
+            $ctrGap = max(0, $expectedCtr - $ctr);
+
+            $queries[] = [
+                'query' => $insight->query_normalized,
+                'clicks' => $clicks,
+                'impressions' => $impressions,
+                'ctr' => round($ctr * 100, 2),
+                'position' => round($position, 1),
+                'ctr_gap' => round($ctrGap * 100, 2),
+                'opportunity_score' => (int) ($impressions * $ctrGap),
+            ];
+
+            $totalClicks += $clicks;
+            $totalImpressions += $impressions;
+        }
+
+        // Sort by opportunity score
+        usort($queries, fn($a, $b) => $b['opportunity_score'] <=> $a['opportunity_score']);
+
+        return response()->json([
+            'queries' => $queries,
+            'summary' => [
+                'total_queries' => count($queries),
+                'total_clicks' => $totalClicks,
+                'total_impressions' => $totalImpressions,
+                'avg_ctr' => $totalImpressions > 0 ? round($totalClicks / $totalImpressions * 100, 2) : 0,
+                'has_data' => count($queries) > 0,
+            ],
+            'site' => ['id' => $site->id, 'name' => $site->name],
+        ]);
+    }
+
     /**
      * Get AI provider status.
      *
@@ -428,4 +506,56 @@ class ContentApiController extends Controller
         }
         return $headings;
     }
+
+    /**
+     * Fetch real GSC metrics for a keyword from keyword_insights.
+     */
+    private function fetchGscMetrics(int $siteId, string $keyword): array
+    {
+        if ($keyword === '') {
+            return ['clicks' => 0, 'impressions' => 0, 'ctr' => 0, 'position' => 0, 'related_queries' => []];
+        }
+
+        $insights = DB::table('keyword_insights')
+            ->where('site_id', $siteId)
+            ->where('status', 'active')
+            ->where(function ($q) use ($keyword) {
+                $words = array_filter(explode(' ', trim($keyword)), fn($w) => mb_strlen($w) > 2);
+                foreach ($words as $word) {
+                    $q->orWhere('query_normalized', 'LIKE', '%' . $word . '%');
+                }
+            })
+            ->orderByDesc('latest_metrics->clicks')
+            ->limit(10)
+            ->get();
+
+        $totalClicks = 0;
+        $totalImpressions = 0;
+        $relatedQueries = [];
+
+        foreach ($insights as $insight) {
+            $m = json_decode($insight->latest_metrics, true) ?? [];
+            $clicks = (int) ($m['clicks'] ?? 0);
+            $impressions = (int) ($m['impressions'] ?? 0);
+            $totalClicks += $clicks;
+            $totalImpressions += $impressions;
+            $relatedQueries[] = [
+                'query' => $insight->query_normalized,
+                'clicks' => $clicks,
+                'impressions' => $impressions,
+                'ctr' => round((float) ($m['ctr'] ?? 0) * 100, 2),
+                'position' => round((float) ($m['position'] ?? 0), 1),
+            ];
+        }
+
+        return [
+            'clicks' => $totalClicks,
+            'impressions' => $totalImpressions,
+            'ctr' => $totalImpressions > 0 ? round($totalClicks / $totalImpressions * 100, 2) : 0,
+            'position' => count($relatedQueries) > 0 ? round(array_sum(array_column($relatedQueries, 'position')) / count($relatedQueries), 1) : 0,
+            'related_queries' => $relatedQueries,
+        ];
+    }
+
+
 }

@@ -281,6 +281,7 @@ Route::middleware(['auth', 'current.organization'])->group(function (): void {
     Route::post("/api/content/links", [ContentApiController::class, "links"])->name("api.content.links")->middleware("throttle:30,1");
     Route::post("/api/content/schema", [ContentApiController::class, "schema"])->name("api.content.schema")->middleware("throttle:30,1");
     Route::post("/api/content/generate", [ContentApiController::class, "generate"])->name("api.content.generate")->middleware("throttle:5,1");
+    Route::get("/api/content/gsc-context", [ContentApiController::class, "gscContext"])->name("api.content.gsc-context");
     Route::get("/api/content/providers", [ContentApiController::class, "providers"])->name("api.content.providers");
     Route::post("/api/content/test-provider", [ContentApiController::class, "testProvider"])->name("api.content.test-provider")->middleware("throttle:5,1");
     Route::post("/api/content/detect-models", [\App\Http\Controllers\App\AiModelDetectionController::class, "detectModels"])->name("api.content.detect-models")->middleware("throttle:10,1");
