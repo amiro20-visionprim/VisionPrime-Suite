@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Domain\Content\Services;
+namespace App\Domains\Content\Services;
 
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
