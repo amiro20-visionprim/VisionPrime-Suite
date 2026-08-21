@@ -8,6 +8,7 @@ use App\Domains\Ai\Actions\GenerateArticleDraft;
 use App\Domains\Ai\Actions\GenerateMetaDraft;
 use App\Domains\Content\Services\ContentProfiler;
 use App\Domains\Content\Services\StandardsKB;
+use App\Domains\Content\Models\ContentDraft;
 use App\Domains\Organization\Contracts\CurrentOrganization;
 use App\Domains\Workspace\Models\Site;
 use App\Http\Controllers\Controller;
@@ -240,4 +241,63 @@ class AiDraftController extends Controller
 
         return redirect()->route('app.reviews.index')->with('status', 'پیشنویس مقاله تولید شد و برای بازبینی ثبت گردید (#'.$generationId.').');
     }
+
+    /** List all content drafts for the organization. */
+    public function index(Request $request, CurrentOrganization $org): Response
+    {
+        $siteIds = Site::query()->where('organization_id', $org->id())->pluck('id');
+        $status = $request->query('status', '');
+        $search = $request->query('search', '');
+
+        $query = ContentDraft::query()
+            ->whereIn('site_id', $siteIds)
+            ->with('site:id,name')
+            ->latest();
+
+        if ($status !== '') {
+            $query->where('status', $status);
+        }
+        if ($search !== '') {
+            $query->where('title', 'like', '%' . $search . '%');
+        }
+
+        $drafts = $query->paginate(20);
+
+        return Inertia::render('App/ArticleDraft/Index', [
+            'drafts' => $drafts,
+            'filters' => ['status' => $status, 'search' => $search],
+        ]);
+    }
+
+    /** Edit a content draft. */
+    public function edit(int $id, CurrentOrganization $org): Response
+    {
+        $siteIds = Site::query()->where('organization_id', $org->id())->pluck('id');
+        $draft = ContentDraft::whereIn('site_id', $siteIds)->findOrFail($id);
+
+        return Inertia::render('App/ArticleDraft/Edit', [
+            'draft' => $draft->load('site:id,name'),
+            'subtypes' => ContentProfiler::subtypeLabels(),
+        ]);
+    }
+
+    /** Update a content draft. */
+    public function update(Request $request, int $id, CurrentOrganization $org): RedirectResponse
+    {
+        $siteIds = Site::query()->where('organization_id', $org->id())->pluck('id');
+        $draft = ContentDraft::whereIn('site_id', $siteIds)->findOrFail($id);
+
+        $data = $request->validate([
+            'title' => ['nullable', 'string', 'max:200'],
+            'content' => ['nullable', 'string'],
+            'meta_title' => ['nullable', 'string', 'max:100'],
+            'meta_description' => ['nullable', 'string', 'max:300'],
+            'status' => ['nullable', 'in:draft,review,published,archived'],
+        ]);
+
+        $draft->update($data);
+
+        return back()->with('status', 'پیش‌نویس ذخیره شد.');
+    }
+
 }

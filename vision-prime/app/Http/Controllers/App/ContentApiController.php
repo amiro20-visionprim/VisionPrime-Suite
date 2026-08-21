@@ -10,6 +10,7 @@ use App\Domains\Content\Services\ContentQualityGuard;
 use App\Domains\Content\Services\InternalLinkEngine;
 use App\Domains\Content\Services\SchemaGenerator;
 use App\Domains\Content\Models\ContentGuardrail;
+use App\Domains\Content\Models\ContentDraft;
 use App\Domains\Content\Services\StandardsKB;
 use App\Domains\Organization\Contracts\CurrentOrganization;
 use App\Domains\Workspace\Models\Site;
@@ -350,6 +351,22 @@ class ContentApiController extends Controller
                 'meta_title' => $metaTitle,
                 'meta_description' => $metaDesc,
             ], (int) $site->id, $this->standards);
+
+
+            // Auto-save draft
+            ContentDraft::create([
+                'site_id' => (int) $site->id,
+                'title' => $data['title'] ?? $data['keyword'],
+                'slug' => str()->slug($data['title'] ?? $data['keyword']),
+                'content' => $result['content'],
+                'meta_title' => $metaTitle,
+                'meta_description' => $metaDesc,
+                'schemas' => $schemas,
+                'quality_score' => $evaluation['score'] ?? 0,
+                'subtype' => $profiled['subtype'] ?? 'article',
+                'model_used' => $result['model'],
+                'status' => 'draft',
+            ]);
 
             return response()->json([
                 'content' => $result['content'],

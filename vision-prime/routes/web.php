@@ -270,6 +270,10 @@ Route::middleware(['auth', 'current.organization'])->group(function (): void {
     Route::post('/app/ai-drafts/article', [AiDraftController::class, 'storeArticle'])->name('app.ai-drafts.article')->middleware('throttle:10,1');
     Route::get('/app/ai-drafts/product/create', [AiDraftController::class, 'createProduct'])->name('app.ai-drafts.product.create');
     Route::post('/app/ai-drafts/product', [AiDraftController::class, 'storeProduct'])->name('app.ai-drafts.product')->middleware('throttle:10,1');
+    Route::get('/app/ai-drafts', [\App\Http\Controllers\App\AiDraftController::class, 'index'])->name('app.ai-drafts.index');
+    Route::get('/app/ai-drafts/{id}/edit', [\App\Http\Controllers\App\AiDraftController::class, 'edit'])->name('app.ai-drafts.edit');
+    Route::put('/app/ai-drafts/{id}', [\App\Http\Controllers\App\AiDraftController::class, 'update'])->name('app.ai-drafts.update');
+
 
     // ─── Content API (AI Gateway + SEO Intelligence) ───
     Route::get("/api/content/research", [ContentApiController::class, "research"])->name("api.content.research");
