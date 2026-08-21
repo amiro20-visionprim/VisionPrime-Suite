@@ -210,7 +210,7 @@ async function quickGenerate() {
   try {
     const res = await fetch('/api/content/generate', {
       method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-      body: JSON.stringify({ site_id: Number(selectedSiteId.value), keyword: title.value.trim(), title: title.value.trim(), subtype: autoDetectedSubtype.value || undefined })
+      body: JSON.stringify({ site_id: Number(selectedSiteId.value), keyword: title.value.trim(), title: title.value.trim(), subtype: autoDetectedSubtype.value || undefined, template_id: selectedTemplateId.value || undefined })
     });
     const d = await res.json()
     if (d.error) { errorMsg.value = d.error; step.value = 'input'; return }

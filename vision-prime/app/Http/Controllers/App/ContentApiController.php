@@ -303,6 +303,12 @@ class ContentApiController extends Controller
 
         $standard = $this->standards->standardFor($profiled, (int) $site->id);
 
+        // Load template if specified
+        $template = null;
+        if (!empty($data['template_id'])) {
+            $template = PromptTemplate::find((int) $data['template_id']);
+        }
+
         $links = $this->linkEngine->suggest(
             (int) $site->id,
             $data['title'] ?? $data['keyword'],

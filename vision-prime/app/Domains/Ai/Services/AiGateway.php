@@ -557,7 +557,7 @@ class AiGateway
 
         // Apply guardrail overrides
         $requireCta = (bool) ($guardrails['require_cta'] ?? true);
-        $requireFaq = (bool) ($guardrails['require_faq'] ?? false);
+        $requireFaq = (bool) ($guardrails["require_faq"] ?? true);
         $requireLinks = (bool) ($guardrails['require_internal_links'] ?? true);
         $minLinks = (int) ($guardrails['min_internal_links'] ?? 2);
         $requireBrand = (bool) ($guardrails['require_brand_mention'] ?? true);
