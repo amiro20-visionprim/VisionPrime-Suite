@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Http\Controllers\App\AiDraftController;
 use App\Http\Controllers\App\ContentApiController;
 use App\Http\Controllers\App\ContentGuardrailController;
+use App\Http\Controllers\App\PromptTemplateController;
 use App\Http\Controllers\App\ContentCommandCenterController;
 use App\Http\Controllers\App\AutomationPolicyController;
 use App\Http\Controllers\App\ClientController;
@@ -297,6 +298,14 @@ Route::middleware(['auth', 'current.organization'])->group(function (): void {
         Route::delete("/api/content/guardrails/{guardrail}", [ContentGuardrailController::class, "destroy"])->name("api.content.guardrails.destroy")->middleware("throttle:20,1");
         Route::post("/api/content/guardrails/seed", [ContentGuardrailController::class, "seed"])->name("api.content.guardrails.seed")->middleware("throttle:10,1");
         Route::post("/api/content/check-duplicate", [ContentApiController::class, "checkDuplicate"])->name("api.content.check-duplicate");
+        // Prompt Templates Library
+        Route::get("/api/content/prompt-templates", [PromptTemplateController::class, "index"])->name("api.content.prompt-templates.index");
+        Route::post("/api/content/prompt-templates", [PromptTemplateController::class, "store"])->name("api.content.prompt-templates.store")->middleware("throttle:20,1");
+        Route::get("/api/content/prompt-templates/stats", [PromptTemplateController::class, "stats"])->name("api.content.prompt-templates.stats");
+        Route::get("/api/content/prompt-templates/{template}", [PromptTemplateController::class, "show"])->name("api.content.prompt-templates.show");
+        Route::put("/api/content/prompt-templates/{template}", [PromptTemplateController::class, "update"])->name("api.content.prompt-templates.update")->middleware("throttle:20,1");
+        Route::delete("/api/content/prompt-templates/{template}", [PromptTemplateController::class, "destroy"])->name("api.content.prompt-templates.destroy")->middleware("throttle:20,1");
+        Route::post("/api/content/prompt-templates/{template}/render", [PromptTemplateController::class, "render"])->name("api.content.prompt-templates.render")->middleware("throttle:10,1");
         Route::post("/api/content/regenerate-section", [ContentApiController::class, "regenerateSection"])->name("api.content.regenerate-section")->middleware("throttle:10,1");});
 
 // بازگشت از درگاه پرداخت — عمومی است چون درگاه به آن ریدایرکت می‌کند (بدون لاگین)

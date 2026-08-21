@@ -27,6 +27,8 @@ interface GeneratedResult {
   profile: { content_type: string; subtype: string; intent: string } | null
 }
 
+
+interface PromptTemplate { id: number; title: string; content_type: string; subtype: string; tone: string; system_prompt: string; user_prompt_template: string; usage_count: number; avg_quality_score: number; is_featured: boolean; tags: string[]; }
 interface DuplicateDraft { id: number; title: string; status: string; quality_score: number; similarity: number; created_at: string }
 interface SectionItem { heading: string; level: number; content: string; regenerating: boolean }
 
@@ -61,6 +63,11 @@ const errorMsg = ref('')
 const duplicates = ref<DuplicateDraft[]>([])
 const showDuplicates = ref(false)
 const duplicateLoading = ref(false)
+// Prompt templates
+const templates = ref<PromptTemplate[]>([])
+const selectedTemplateId = ref<number | null>(null)
+const templatesLoading = ref(false)
+
 
 // Section editing
 const sections = ref<SectionItem[]>([])
@@ -140,6 +147,18 @@ const showSerpPanel = ref(false)
 
 // === API Methods ===
 
+
+async function fetchTemplates() {
+  templatesLoading.value = true
+  try {
+    const res = await fetch('/api/content/prompt-templates?content_type=article', {
+      headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    if (res.ok) templates.value = await res.json()
+  } catch { /* ignore */ }
+  templatesLoading.value = false
+}
+
 async function checkDuplicate() {
   if (!title.value.trim() || !selectedSiteId.value) return
   duplicateLoading.value = true
@@ -160,6 +179,8 @@ async function checkDuplicate() {
   } catch { /* ignore */ }
   duplicateLoading.value = false
 }
+
+fetchTemplates()
 
 function dismissDuplicates() {
   showDuplicates.value = false
@@ -426,6 +447,28 @@ function autoMetaTitle() {
             <label class="text-ink-strong text-sm font-semibold">عنوان مقاله</label>
             <input v-model="title" type="text" dir="auto" class="border-line mt-2 w-full rounded-xl border px-4 py-3 text-lg focus:ring-2 focus:ring-brand-500" placeholder="مثال: راهنمای جامع سئو برای سایت فروشگاهی" @keyup.enter="generateOutline" />
             <p class="text-ink-muted mt-1 text-xs">بعد از وارد کردن عنوان، سیستم ابتدا outline (ساختار) پیشنهادی را نمایش می‌دهد.</p>
+          </div>
+          
+          <!-- Prompt Template Selector -->
+          <div v-if="templates.length > 0">
+            <label class="text-ink-strong text-sm font-semibold">قالب پرامپت (اختیاری)</label>
+            <p class="text-ink-muted text-xs mb-2">یک قالب حرفه‌ای انتخاب کنید یا خودتان پرامپت بنویسید.</p>
+            <div class="grid grid-cols-2 gap-2 mt-2">
+              <button v-for="tpl in templates" :key="tpl.id" type="button"
+                @click="selectedTemplateId = selectedTemplateId === tpl.id ? null : tpl.id"
+                class="rounded-xl border px-3 py-2 text-right text-sm transition-all"
+                :class="[selectedTemplateId === tpl.id ? 'border-brand-500 bg-brand-50 ring-2 ring-brand-300' : 'border-surface-muted bg-surface hover:border-brand-300']">
+                <div class="flex items-center justify-between">
+                  <span class="font-medium">{{ tpl.title }}</span>
+                  <VBadge v-if="tpl.is_featured" tone="success" size="sm">⭐</VBadge>
+                </div>
+                <div class="flex gap-2 mt-1 text-xs text-ink-muted">
+                  <span>{{ tpl.tone }}</span>
+                  <span v-if="tpl.avg_quality_score > 0">⭐ {{ tpl.avg_quality_score.toFixed(1) }}</span>
+                  <span v-if="tpl.usage_count > 0">{{ tpl.usage_count }}x</span>
+                </div>
+              </button>
+            </div>
           </div>
           <VSelect v-model="subtype" label="زیرنوع" :options="Object.entries(p.subtypes).map(([v,l]) => ({label:l, value:v}))" />
 

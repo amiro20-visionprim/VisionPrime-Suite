@@ -10,6 +10,7 @@ use App\Domains\Content\Services\ContentQualityGuard;
 use App\Domains\Content\Services\InternalLinkEngine;
 use App\Domains\Content\Services\SchemaGenerator;
 use App\Domains\Content\Models\ContentGuardrail;
+use App\Domains\Content\Models\PromptTemplate;
 use App\Domains\Content\Models\ContentDraft;
 use App\Domains\Content\Services\StandardsKB;
 use App\Domains\Content\Services\SERPAnalyzer;
@@ -592,6 +593,7 @@ class ContentApiController extends Controller
             'site_id' => 'required|integer|exists:sites,id',
             'title'   => 'required|string|max:500',
             'subtype' => 'nullable|string|max:100',
+            'template_id' => 'nullable|integer|exists:prompt_templates,id',
         ]);
 
         $siteId = (int) $data['site_id'];
@@ -602,12 +604,28 @@ class ContentApiController extends Controller
         // Fetch GSC data for context
         $gscData = $this->fetchGscMetrics($siteId, $title);
 
+        // Load prompt template if selected
+        $template = null;
+        if (!empty($data["template_id"])) {
+            $template = PromptTemplate::find((int) $data["template_id"]);
+        }
+
         // Get guardrails for context
         $guardrails = ContentGuardrail::resolve($org->id(), $siteId, 'article', $subtype);
         $guardrailConfig = $guardrails->toArray();
 
         // Generate outline via AI
-        [$system, $user] = $this->gateway->generateOutline($title, $subtype, $site->name, $gscData);
+        if ($template) {
+            $system = $template->system_prompt;
+            $user = $template->render($title) . "
+" . "Subtype: " . $subtype . ". Site: " . $site->name;
+            if ($gscData) {
+                $user .= "
+" . "GSC Context: " . json_encode($gscData, JSON_UNESCAPED_UNICODE);
+            }
+        } else {
+            [$system, $user] = $this->gateway->generateOutline($title, $subtype, $site->name, $gscData);
+        }
 
         // Use the AI gateway to generate
         $result = $this->gateway->generate($system, $user, 'outline');
