@@ -365,7 +365,7 @@ class ContentApiController extends Controller
 
 
             // Auto-save draft
-            ContentDraft::create([
+            $draft = ContentDraft::create([
                 'site_id' => (int) $site->id,
                 'title' => $data['title'] ?? $data['keyword'],
                 'slug' => $this->validateSlug(str()->slug($data['title'] ?? $data['keyword']), $data['keyword'] ?? ''),
@@ -407,6 +407,7 @@ class ContentApiController extends Controller
                 'quality' => $evaluation,
                 'standard' => $standard,
                 'profile' => $profiled,
+                'draft_id' => $draft->id,
             ]);
         } catch (\Throwable $e) {
             return response()->json(['error' => 'تولید محتوا ناموفق بود: ' . $e->getMessage()], 500);
@@ -975,6 +976,49 @@ class ContentApiController extends Controller
         return response()->json($publisher->testConnection(
             $data['wp_url'], $data['wp_username'], $data['wp_app_password']
         ));
+    }
+
+    /**
+     * Save or update a content draft.
+     * POST /api/content/drafts
+     */
+    public function saveDraft(Request $request, CurrentOrganization $org): JsonResponse
+    {
+        $data = $request->validate([
+            'draft_id' => 'nullable|integer',
+            'site_id' => 'required|integer',
+            'title' => 'required|string|max:200',
+            'content' => 'nullable|string',
+            'meta_title' => 'nullable|string|max:100',
+            'meta_description' => 'nullable|string|max:300',
+            'subtype' => 'nullable|string',
+            'quality_score' => 'nullable|integer',
+            'expert_analysis' => 'nullable|array',
+            'audit_log' => 'nullable|array',
+        ]);
+
+        if (!empty($data['draft_id'])) {
+            $draft = ContentDraft::whereHas('site', fn($q) => $q->where('organization_id', $org->id()))
+                ->findOrFail($data['draft_id']);
+            $draft->update(array_filter($data, fn($v) => $v !== null));
+            return response()->json(['id' => $draft->id, 'updated' => true]);
+        }
+
+        $draft = ContentDraft::create([
+            'site_id' => (int) $data['site_id'],
+            'title' => $data['title'],
+            'slug' => str()->slug($data['title']),
+            'content' => $data['content'] ?? '',
+            'meta_title' => $data['meta_title'] ?? '',
+            'meta_description' => $data['meta_description'] ?? '',
+            'subtype' => $data['subtype'] ?? 'tutorial',
+            'quality_score' => $data['quality_score'] ?? 0,
+            'expert_analysis' => $data['expert_analysis'] ?? null,
+            'audit_log' => $data['audit_log'] ?? [],
+            'status' => 'draft',
+        ]);
+
+        return response()->json(['id' => $draft->id, 'created' => true]);
     }
 
     /**

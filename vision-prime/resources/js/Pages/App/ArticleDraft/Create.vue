@@ -214,7 +214,7 @@ async function quickGenerate() {
     });
     const d = await res.json()
     if (d.error) { errorMsg.value = d.error; step.value = 'input'; return }
-    result.value = d; activeResultTab.value = 'content'; step.value = 'result'; parseSections(d.content)
+    result.value = d; currentDraftId.value = d.draft_id || null; activeResultTab.value = 'content'; step.value = 'result'; parseSections(d.content)
   } catch (e: any) { errorMsg.value = 'خطا: ' + e.message; step.value = 'input' }
   generatingLoading.value = false
 }
@@ -496,25 +496,37 @@ function autoMetaTitle() {
 async function publishToWordPress(status: string) {
   if (!result.value || !wpUrl.value || !wpUser.value || !wpPass.value) return
   publishing.value = true
+  publishResult.value = null
   try {
-    // First save draft
-    const saveRes = await fetch('/api/content/generate', {
-      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-      body: JSON.stringify({ site_id: Number(selectedSiteId.value), keyword: title.value, title: title.value, subtype: autoDetectedSubtype.value })
-    });
-    const saveData = await saveRes.json()
-    // Get latest draft ID
-    const draftsRes = await fetch('/api/content/drafts?search=' + encodeURIComponent(title.value), { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
-    const draftsData = await draftsRes.json()
-    const draftId = draftsData.drafts?.[0]?.id
-    if (!draftId) { publishResult.value = { success: false, error: 'Draft یافت نشد' }; return }
+    // Use current draft if available, otherwise find by title
+    let draftId = currentDraftId.value
+    if (!draftId) {
+      const draftsRes = await fetch('/api/content/drafts?search=' + encodeURIComponent(title.value), { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+      const draftsData = await draftsRes.json()
+      draftId = draftsData.drafts?.[0]?.id
+    }
+    if (!draftId) { publishResult.value = { success: false, error: 'Draft یافت نشد. ابتدا مقاله را تولید کنید.' }; publishing.value = false; return }
     const res = await fetch('/api/content/publish', {
       method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
       body: JSON.stringify({ draft_id: draftId, status, wp_url: wpUrl.value, wp_username: wpUser.value, wp_app_password: wpPass.value })
-    });
+    })
     publishResult.value = await res.json()
   } catch (e: any) { publishResult.value = { success: false, error: e.message } }
   publishing.value = false
+}
+
+const currentDraftId = ref<number | null>(null)
+const draftSaved = ref(false)
+
+async function saveCurrentDraft() {
+  if (!result.value || !selectedSiteId.value) return
+  try {
+    const r = await fetch('/api/content/drafts', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+      body: JSON.stringify({ draft_id: currentDraftId.value || undefined, site_id: Number(selectedSiteId.value), title: title.value, content: result.value.content, meta_title: result.value.meta_title, meta_description: result.value.meta_description, subtype: autoDetectedSubtype.value || 'tutorial', quality_score: result.value.quality?.score || 0 })
+    })
+    if (r.ok) { const d = await r.json(); currentDraftId.value = d.id; draftSaved.value = true }
+  } catch { }
 }
 
 watch(title, (v) => { if (v && v.trim().length > 5) autoDetect(v) })
@@ -952,6 +964,74 @@ watch(title, (v) => { if (v && v.trim().length > 5) autoDetect(v) })
               <div>قصد: {{ result.profile.intent }}</div>
             </div>
           </VCard>
+
+          <!-- Expert Analysis Card -->
+          <VCard v-if="result.expert_analysis" title="🧠 تحلیل متخصص SEO">
+            <div class="space-y-3">
+              <p class="text-ink-strong text-sm font-medium">{{ result.expert_analysis.summary }}</p>
+              <div v-if="result.expert_analysis.strengths?.length" class="space-y-1">
+                <p class="text-green-600 text-xs font-semibold">✅ نقاط قوت:</p>
+                <p v-for="s in result.expert_analysis.strengths" :key="s" class="text-green-500 text-xs">• {{ s }}</p>
+              </div>
+              <div v-if="result.expert_analysis.weaknesses?.length" class="space-y-1">
+                <p class="text-red-600 text-xs font-semibold">⚠️ نقاط ضعف:</p>
+                <p v-for="w in result.expert_analysis.weaknesses" :key="w" class="text-red-500 text-xs">• {{ w }}</p>
+              </div>
+              <div v-if="result.expert_analysis.recommendations?.length" class="space-y-1">
+                <p class="text-blue-600 text-xs font-semibold">💡 توصیه‌ها:</p>
+                <p v-for="r in result.expert_analysis.recommendations" :key="r" class="text-blue-500 text-xs">• {{ r }}</p>
+              </div>
+              <div class="flex gap-2 mt-3">
+                <VButton size="sm" variant="primary" :loading="applyingSuggestions" @click="applySuggestions(result.expert_analysis.recommendations || [])">اعمال همه پیشنهادات</VButton>
+                <VButton size="sm" variant="secondary" @click="result.expert_analysis = null">فقط ذخیره</VButton>
+              </div>
+            </div>
+          </VCard>
+
+          <!-- Action Buttons Card -->
+          <VCard title="🚀 اقدامات">
+            <div class="space-y-3">
+              <div class="flex flex-wrap gap-2">
+                <VButton variant="primary" size="sm" @click="saveCurrentDraft">💾 ذخیره</VButton>
+                <VButton variant="secondary" size="sm" @click="copyHtml">📋 کپی HTML</VButton>
+                <VButton variant="secondary" size="sm" @click="copyPlainText">📝 کپی متن</VButton>
+                <VButton variant="secondary" size="sm" @click="showPublishDialog = true">🚀 انتشار در وردپرس</VButton>
+              </div>
+              <p v-if="draftSaved" class="text-green-600 text-xs">✅ Draft ذخیره شد</p>
+              <p v-if="publishResult?.success" class="text-green-600 text-xs">✅ منتشر شد! <a :href="publishResult.post_url" target="_blank" class="underline">مشاهده</a></p>
+              <p v-if="publishResult?.error" class="text-red-600 text-xs">❌ {{ publishResult.error }}</p>
+            </div>
+          </VCard>
+        </div>
+      </div>
+    </div>
+
+    <!-- WP Publish Dialog -->
+    <div v-if="showPublishDialog" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h4 class="font-bold text-ink-strong">🚀 انتشار در وردپرس</h4>
+          <button class="text-ink-muted hover:text-ink-strong" @click="showPublishDialog = false">✕</button>
+        </div>
+        <div class="space-y-3">
+          <div>
+            <label class="text-ink-strong text-sm font-semibold">آدرس سایت</label>
+            <input v-model="wpUrl" placeholder="https://example.com" dir="ltr" class="border-line mt-1 w-full rounded-xl border px-4 py-2.5 text-sm" />
+          </div>
+          <div>
+            <label class="text-ink-strong text-sm font-semibold">نام کاربری</label>
+            <input v-model="wpUser" placeholder="admin" dir="ltr" class="border-line mt-1 w-full rounded-xl border px-4 py-2.5 text-sm" />
+          </div>
+          <div>
+            <label class="text-ink-strong text-sm font-semibold">Application Password</label>
+            <input v-model="wpPass" type="password" dir="ltr" class="border-line mt-1 w-full rounded-xl border px-4 py-2.5 text-sm" />
+          </div>
+          <p class="text-xs text-ink-muted">از وردپرس → کاربران → ویرایش → رمز عبور برنامه بگیرید.</p>
+        </div>
+        <div class="flex gap-2 mt-4 justify-end">
+          <VButton variant="secondary" @click="showPublishDialog = false">لغو</VButton>
+          <VButton variant="secondary" :loading="publishing" @click='publishToWordPress("draft")'>پیش‌نویس</VButton>
+          <VButton variant="primary" :loading="publishing" @click='publishToWordPress("publish")'>انتشار</VButton>
         </div>
       </div>
     </div>
