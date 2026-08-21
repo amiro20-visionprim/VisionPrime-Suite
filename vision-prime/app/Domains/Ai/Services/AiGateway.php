@@ -434,7 +434,7 @@ class AiGateway
                 'openai' => $this->callOpenAiCompatible('openai', $apiKey, $model ?: 'gpt-4o-mini', $system, $user),
                 'openrouter' => $this->callOpenAiCompatible('openrouter', $apiKey, $model ?: 'openai/gpt-4o-mini', $system, $user),
                 'anthropic' => $this->callAnthropic($apiKey, $model ?: 'claude-3-5-haiku-latest', $system, $user),
-                'gapgpt' => $this->callOpenAiCompatible('gapgpt', $apiKey, $model ?: 'gapgpt-chat', $system, $user),
+                'gapgpt' => $this->callOpenAiCompatible('gapgpt', $apiKey, $model ?: 'gpt-4o-mini', $system, $user),
                 default => throw new \RuntimeException("Unknown provider: {$provider}"),
             };
 

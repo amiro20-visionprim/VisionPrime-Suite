@@ -1,3 +1,109 @@
+<script setup lang="ts">
+import { computed, ref } from 'vue'
+import { Head, usePage } from '@inertiajs/vue3'
+import AppLayout from '@/app/layouts/AppLayout.vue'
+import VAlert from '@/shared/ui/VAlert.vue'
+import VBadge from '@/shared/ui/VBadge.vue'
+import VButton from '@/shared/ui/VButton.vue'
+import VCard from '@/shared/ui/VCard.vue'
+import VPageHeader from '@/shared/ui/VPageHeader.vue'
+import VSelect from '@/shared/ui/VSelect.vue'
+
+interface SiteOption { id: number; name: string; canonical_url: string }
+interface SchemaItem { '@type': string; [key: string]: unknown }
+interface QualityResult { passed: boolean; score: number; failures: string[]; warnings: string[] }
+interface LinkSuggestion { url: string; title: string; anchor: string; relevance_score: number }
+interface GeneratedResult {
+  content: string
+  model: string
+  source: string
+  meta_title: string
+  meta_description: string
+  schemas: SchemaItem[]
+  links: LinkSuggestion[]
+  quality: QualityResult
+  profile: { content_type: string; subtype: string; intent: string } | null
+}
+
+const p = defineProps<{
+  sites: SiteOption[]
+  subtypes: Record<string, string>
+  standards: Record<string, unknown>
+  isSuperAdmin: boolean
+}>()
+
+const page = usePage<{ flash?: { status?: string; error?: string } }>()
+
+const step = ref<'input' | 'generating' | 'result'>('input')
+const selectedSiteId = ref('')
+const title = ref('')
+const subtype = ref('how_to_guide')
+const loadingGenerate = ref(false)
+const result = ref<GeneratedResult | null>(null)
+const activeResultTab = ref<'content' | 'meta' | 'seo' | 'schema'>('content')
+const errorMsg = ref('')
+
+const wordCount = computed(() => {
+  if (!result.value?.content) return 0
+  const plain = result.value.content.replace(/<[^>]+>/g, ' ').trim()
+  return plain ? plain.split(/\s+/).filter(w => w.length > 0).length : 0
+})
+
+const seoScore = computed(() => result.value?.quality?.score ?? 0)
+
+const seoChecks = computed(() => {
+  if (!result.value) return []
+  const r = result.value
+  return [
+    { label: 'طول محتوا', value: wordCount.value + ' کلمه', passed: wordCount.value >= 400 },
+    { label: 'Meta Title', value: (r.meta_title?.length ?? 0) + '/60', passed: (r.meta_title?.length ?? 0) >= 30 && (r.meta_title?.length ?? 0) <= 60 },
+    { label: 'Meta Description', value: (r.meta_description?.length ?? 0) + '/160', passed: (r.meta_description?.length ?? 0) >= 120 && (r.meta_description?.length ?? 0) <= 160 },
+    { label: 'لینک‌های داخلی', value: (r.links?.length ?? 0) + ' عدد', passed: (r.links?.length ?? 0) >= 2 },
+    { label: 'اسکیما', value: (r.schemas?.length ?? 0) + ' عدد', passed: (r.schemas?.length ?? 0) >= 1 },
+    { label: 'امتیاز کیفیت', value: r.quality?.score ?? 0, passed: (r.quality?.score ?? 0) >= 70 },
+  ]
+})
+
+async function generate() {
+  if (!selectedSiteId.value || !title.value.trim()) return
+  step.value = 'generating'
+  errorMsg.value = ''
+  loadingGenerate.value = true
+  try {
+    const res = await fetch('/api/content/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+      body: JSON.stringify({
+        site_id: Number(selectedSiteId.value),
+        keyword: title.value.trim(),
+        title: title.value.trim(),
+        subtype: subtype.value || undefined,
+      }),
+    })
+    const data = await res.json()
+    if (data.error) {
+      errorMsg.value = data.error
+      step.value = 'input'
+    } else {
+      result.value = data
+      step.value = 'result'
+    }
+  } catch (e: unknown) {
+    errorMsg.value = 'خطا: ' + (e instanceof Error ? e.message : String(e))
+    step.value = 'input'
+  }
+  loadingGenerate.value = false
+}
+
+function regenerate() { result.value = null; step.value = 'input' }
+function autoMetaTitle() {
+  if (result.value && title.value) {
+    const siteName = p.sites.find(s => String(s.id) === selectedSiteId.value)?.name ?? ''
+    result.value.meta_title = title.value.substring(0, 50) + ' | ' + siteName
+  }
+}
+</script>
+
 <template>
   <Head title="تولید مقاله هوشمند" />
   <AppLayout>
