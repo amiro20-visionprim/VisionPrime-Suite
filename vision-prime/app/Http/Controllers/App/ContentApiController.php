@@ -611,15 +611,30 @@ class ContentApiController extends Controller
         // Use the AI gateway to generate
         $result = $this->gateway->generate($system, $user, 'outline');
 
-        // Parse JSON from response
+        // Parse JSON from response (handle markdown fences, extra text, etc.)
         $content = $result['content'] ?? '[]';
-        // Strip markdown code fences if present
-        $content = preg_replace('/^```json\s*/i', '', trim($content));
-        $content = preg_replace('/\s*```$/', '', $content);
-        $outline = json_decode($content, true);
+        $outline = [];
 
+        // Step 1: Try direct decode
+        $trimmed = trim($content);
+        $outline = json_decode($trimmed, true);
+
+        // Step 2: Strip markdown code fences
         if (!is_array($outline)) {
-            // Try to extract JSON array from the text
+            $cleaned = preg_replace('/^```(?:json)?\s*/im', '', $trimmed);
+            $cleaned = preg_replace('/```\s*$/m', '', $cleaned);
+            $outline = json_decode(trim($cleaned), true);
+        }
+
+        // Step 3: Extract JSON array from mixed text
+        if (!is_array($outline)) {
+            if (preg_match('/\[{.*?}\]/s', $content, $matches)) {
+                $outline = json_decode($matches[0], true);
+            }
+        }
+
+        // Step 4: Try non-greedy match for array
+        if (!is_array($outline)) {
             if (preg_match('/\[.*\]/s', $content, $matches)) {
                 $outline = json_decode($matches[0], true);
             }
@@ -627,6 +642,11 @@ class ContentApiController extends Controller
 
         if (!is_array($outline)) {
             $outline = [];
+            \Illuminate\Support\Facades\Log::warning('Outline parsing failed', [
+                'raw_content' => mb_substr($content, 0, 500),
+                'model' => $result['model'] ?? 'unknown',
+                'source' => $result['source'] ?? 'unknown',
+            ]);
         }
 
         // Validate and normalize each item
