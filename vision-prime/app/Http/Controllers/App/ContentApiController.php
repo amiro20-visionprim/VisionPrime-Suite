@@ -60,8 +60,9 @@ class ContentApiController extends Controller
      * GET /api/content/research?site_id=1
      */
     
-    private function upsertUrlProfile(int $siteId, string $url, string $contentType, string $slug, string $title, int $wpId, string $modifiedAt): void
+    private function upsertUrlProfile(int $siteId, string $url, string $contentType, string $slug, string $title, int $wpId, string $modifiedAt, array $extra = []): void
     {
+        $metadata = array_merge(['title' => $title, 'wp_id' => $wpId], $extra);
         $existing = DB::table('url_profiles')
             ->where('site_id', $siteId)
             ->where('canonical_url', $url)
@@ -69,7 +70,7 @@ class ContentApiController extends Controller
 
         if ($existing) {
             DB::table('url_profiles')->where('id', $existing->id)->update([
-                'metadata' => json_encode(['title' => $title, 'wp_id' => $wpId], JSON_UNESCAPED_UNICODE),
+                'metadata' => json_encode($metadata, JSON_UNESCAPED_UNICODE),
                 'updated_at' => $modifiedAt,
             ]);
         } else {
@@ -80,7 +81,7 @@ class ContentApiController extends Controller
                 'content_type' => $contentType,
                 'post_status' => 'publish',
                 'slug' => $slug,
-                'metadata' => json_encode(['title' => $title, 'wp_id' => $wpId], JSON_UNESCAPED_UNICODE),
+                'metadata' => json_encode($metadata, JSON_UNESCAPED_UNICODE),
                 'created_at' => now(),
                 'updated_at' => $modifiedAt,
             ]);
@@ -1186,15 +1187,46 @@ class ContentApiController extends Controller
             return response()->json(['error' => 'آدرس سایت وردپرس تنظیم نشده است.'], 422);
         }
 
+        $baseUrl = rtrim($wpUrl, "/");
         $synced = 0;
         $errors = [];
+        $categories = [];
+        $tags = [];
 
-        // Sync posts
+        // --- 1. Sync Categories ---
+        try {
+            $response = \Illuminate\Support\Facades\Http::timeout(30)
+                ->get($baseUrl . "/wp-json/wp/v2/categories", ["per_page" => 100, "_fields" => "id,name,slug,parent,count"]);
+            if ($response->successful()) {
+                foreach ($response->json() as $cat) {
+                    $catUrl = $baseUrl . "/" . $cat["slug"] . "/";
+                    $categories[$cat["id"]] = ["name" => $cat["name"], "slug" => $cat["slug"], "count" => $cat["count"] ?? 0];
+                    $this->upsertUrlProfile($site->id, $catUrl, "category", $cat["slug"], $cat["name"], (int)$cat["id"], now()->toDateTimeString(), ["name" => $cat["name"], "slug" => $cat["slug"], "count" => $cat["count"] ?? 0]);
+                    $synced++;
+                }
+            }
+        } catch (\Throwable $e) { $errors[] = "categories: " . $e->getMessage(); }
+
+        // --- 2. Sync Tags ---
+        try {
+            $response = \Illuminate\Support\Facades\Http::timeout(30)
+                ->get($baseUrl . "/wp-json/wp/v2/tags", ["per_page" => 100, "_fields" => "id,name,slug,count"]);
+            if ($response->successful()) {
+                foreach ($response->json() as $tag) {
+                    $tagUrl = $baseUrl . "/tag/" . $tag["slug"] . "/";
+                    $tags[$tag["id"]] = ["name" => $tag["name"], "slug" => $tag["slug"], "count" => $tag["count"] ?? 0];
+                    $this->upsertUrlProfile($site->id, $tagUrl, "tag", $tag["slug"], $tag["name"], (int)$tag["id"], now()->toDateTimeString(), ["name" => $tag["name"], "slug" => $tag["slug"], "count" => $tag["count"] ?? 0]);
+                    $synced++;
+                }
+            }
+        } catch (\Throwable $e) { $errors[] = "tags: " . $e->getMessage(); }
+
+        // --- 3. Sync Posts (with category/tag metadata) ---
         try {
             $response = \Illuminate\Support\Facades\Http::timeout(30)
                 ->get(rtrim($wpUrl, '/') . '/wp-json/wp/v2/posts', [
                     'per_page' => 100,
-                    '_fields' => 'id,title,link,modified,type',
+                    '_fields' => 'id,title,link,modified,slug,categories,tags,excerpt',
                 ]);
 
             if ($response->successful()) {
@@ -1203,7 +1235,50 @@ class ContentApiController extends Controller
                     $url = $post['link'] ?? '';
                     if (empty($url)) continue;
 
-                    $this->upsertUrlProfile($site->id, $url, 'post', $post['slug'] ?? '', $title, $post['id'], $post['modified'] ?? now()->toDateTimeString());
+                    // Resolve category and tag names
+                    $postCatNames = [];
+                    foreach (($post["categories"] ?? []) as $catId) {
+                        if (isset($categories[$catId])) $postCatNames[] = $categories[$catId]["name"];
+                    }
+                    $postTagNames = [];
+                    foreach (($post["tags"] ?? []) as $tagId) {
+                        if (isset($tags[$tagId])) $postTagNames[] = $tags[$tagId]["name"];
+                    }
+                    $excerpt = isset($post["excerpt"]["rendered"]) ? strip_tags($post["excerpt"]["rendered"]) : "";
+
+                    $metadata = [
+                        "title" => $title,
+                        "wp_id" => $post["id"],
+                        "categories" => $postCatNames,
+                        "tags" => $postTagNames,
+                        "category_ids" => $post["categories"] ?? [],
+                        "tag_ids" => $post["tags"] ?? [],
+                        "excerpt" => mb_substr($excerpt, 0, 300),
+                    ];
+
+                    $existing = DB::table("url_profiles")
+                        ->where("site_id", $site->id)
+                        ->where("canonical_url", $url)
+                        ->first();
+                    if ($existing) {
+                        DB::table("url_profiles")->where("id", $existing->id)->update([
+                            "metadata" => json_encode($metadata, JSON_UNESCAPED_UNICODE),
+                            "updated_at" => $post["modified"] ?? now(),
+                        ]);
+                    } else {
+                        DB::table("url_profiles")->insert([
+                            "site_id" => $site->id,
+                            "public_id" => \Illuminate\Support\Str::ulid(),
+                            "canonical_url" => $url,
+                            "content_type" => "post",
+                            "post_status" => "publish",
+                            "slug" => $post["slug"] ?? "",
+                            "metadata" => json_encode($metadata, JSON_UNESCAPED_UNICODE),
+                            "created_at" => now(),
+                            "updated_at" => $post["modified"] ?? now(),
+                        ]);
+                    }
+                    $synced++;
                     $synced++;
                 }
             }
@@ -1254,10 +1329,19 @@ class ContentApiController extends Controller
             $errors[] = 'pages: ' . $e->getMessage();
         }
 
+        $totalProfiles = DB::table('url_profiles')->where('site_id', $site->id)->count();
+        $byType = DB::table('url_profiles')->where('site_id', $site->id)
+            ->selectRaw('content_type, count(*) as cnt')
+            ->groupBy('content_type')
+            ->pluck('cnt', 'content_type')
+            ->toArray();
         return response()->json([
             'synced' => $synced,
             'errors' => $errors,
-            'url_profiles_count' => DB::table('url_profiles')->where('site_id', $site->id)->count(),
+            'url_profiles_count' => $totalProfiles,
+            'by_type' => $byType,
+            'categories_count' => count($categories),
+            'tags_count' => count($tags),
         ]);
     }
 
