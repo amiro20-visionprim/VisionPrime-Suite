@@ -285,15 +285,16 @@ class AiGateway
             }
         }
 
-        $response = $http->post($endpoint, [
+        $payload = [
                 'model' => $model,
                 'messages' => [
                     ['role' => 'system', 'content' => $system],
                     ['role' => 'user', 'content' => $user],
                 ],
                 'temperature' => 0.7,
-                'max_tokens' => 4096,
-            ]);
+                'max_tokens' => $provider === 'gapgpt' ? 1000 : 4096,
+            ];
+            $response = $http->withBody(json_encode($payload), 'application/json')->post($endpoint);
 
         if (! $response->successful()) {
             $status = $response->status();
@@ -337,7 +338,7 @@ class AiGateway
             ])
             ->post('https://api.anthropic.com/v1/messages', [
                 'model' => $model,
-                'max_tokens' => 4096,
+                'max_tokens' => $provider === 'gapgpt' ? 1000 : 4096,
                 'system' => $system,
                 'messages' => [['role' => 'user', 'content' => $user]],
             ]);
