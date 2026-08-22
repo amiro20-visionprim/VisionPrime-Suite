@@ -65,7 +65,7 @@ class AiGateway
     {
         [$system, $user] = $this->articlePrompts($context);
 
-        return $this->generateWithFailover($org, 'article', $system, $user);
+        return $this->generateWithFailover($org, 'article', $system, $user, $context);
     }
 
     /**
@@ -79,23 +79,23 @@ class AiGateway
 
         [$system, $user] = $this->metaPrompts($kind, $context);
 
-        return $this->generateWithFailover($org, $kind, $system, $user);
+        return $this->generateWithFailover($org, $kind, $system, $user, $context);
     }
 
     /**
      * Generate raw content from system+user prompts.
      */
-    public function generate(string $system, string $user, string $kind = 'article'): array
+    public function generate(string $system, string $user, string $kind = 'article', array $context = []): array
     {
         $org = app(CurrentOrganization::class)->get();
-        return $this->generateWithFailover($org, $kind, $system, $user);
+        return $this->generateWithFailover($org, $kind, $system, $user, $context);
     }
 
     /**
      * Core generation with failover chain.
      * Tries user-configured provider first, then free models, then rule-based.
      */
-    private function generateWithFailover(Organization $org, string $kind, string $system, string $user): array
+    private function generateWithFailover(Organization $org, string $kind, string $system, string $user, array $context = []): array
     {
         $retryCount = 0;
 
@@ -115,7 +115,7 @@ class AiGateway
 
                 // 3. Fallback to rule-based
                 Log::info('AiGateway: all AI providers exhausted, using RuleBased fallback');
-                return $this->fallback->generate($kind, ['kind' => $kind] + $this->contextFromPrompts($system, $user));
+                return $this->fallback->generate($kind, ['kind' => $kind] + ($context !== [] ? $context : $this->contextFromPrompts($system, $user)));
 
             } catch (\RuntimeException $e) {
                 $retryCount++;
@@ -123,7 +123,7 @@ class AiGateway
                     Log::error("AiGateway: max retries ({$retryCount}) reached, using RuleBased fallback", [
                         'error' => $e->getMessage(),
                     ]);
-                    return $this->fallback->generate($kind, ['kind' => $kind] + $this->contextFromPrompts($system, $user));
+                    return $this->fallback->generate($kind, ['kind' => $kind] + ($context !== [] ? $context : $this->contextFromPrompts($system, $user)));
                 }
 
                 Log::warning("AiGateway: retry {$retryCount}/" . self::MAX_RETRIES . " after rate limit", [
@@ -547,12 +547,21 @@ class AiGateway
         $metrics = (array) ($context['metrics'] ?? []);
         $internalLinks = $context['internal_links'] ?? [];
         $guardrails = (array) ($context['guardrails'] ?? []);
+        $customInstructions = (string) ($context['custom_instructions'] ?? '');
+        $userWordCount = (int) ($context['word_count'] ?? 0);
+        $userTone = (string) ($context['tone'] ?? '');
 
-        $wordMin = (int) ($guardrails['min_words'] ?? $standard['word_min'] ?? 400);
-        $wordMax = (int) ($guardrails['max_words'] ?? $standard['word_max'] ?? 2000);
+        // User word count overrides guardrails/standard
+        if ($userWordCount > 0) {
+            $wordMin = (int) max($userWordCount * 0.8, 200);
+            $wordMax = (int) min($userWordCount * 1.2, 10000);
+        } else {
+            $wordMin = (int) ($guardrails['min_words'] ?? $standard['word_min'] ?? 400);
+            $wordMax = (int) ($guardrails['max_words'] ?? $standard['word_max'] ?? 2000);
+        }
         $minHeadings = max(2, (int) ($standard['min_headings'] ?? 2));
         $elements = (array) ($standard['required_elements'] ?? []);
-        $tone = (string) ($guardrails['allowed_tone'] ?? $standard['tone'] ?? 'informative');
+        $tone = $userTone !== '' ? $userTone : (string) ($guardrails['allowed_tone'] ?? $standard['tone'] ?? 'informative');
         $schemaType = (string) ($standard['schema_type'] ?? 'Article');
 
         // Apply guardrail overrides
@@ -687,8 +696,10 @@ class AiGateway
 - جملات باید فعال باشند: ما انجام می‌دهیم نه انجام می‌شود
 - ادعاهای بزرگ بدون پشتوانه نزن
 - اطلاعات باید به‌روز و دقیق باشند
-{$guardrailRules}";
-
+{$guardrailRules}"
+        . ($customInstructions !== '' ? "\n\n=== CUSTOM INSTRUCTIONS ===\n" . $customInstructions : '')
+        . ($userWordCount > 0 ? "\n\n--- Target word count: " . $userWordCount . " words ---" : '')
+        ;
         $user = "=== درخواست: تولید مقاله حرفه‌ای سئو شده ===
 
 "

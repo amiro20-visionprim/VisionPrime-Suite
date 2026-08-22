@@ -38,8 +38,14 @@ class RuleBasedDraft
         $targetQuery = trim((string) ($context['target_query'] ?? ''));
         $siteName = trim((string) ($context['site_name'] ?? ''));
         $standard = (array) ($context['standard'] ?? []);
+        // Enhanced context for RuleBased
+        $customInstructions = (string) ($context['custom_instructions'] ?? '');
+        $internalLinks = $context['internal_links'] ?? [];
+        $userWordCount = (int) ($context['word_count'] ?? 0);
+        $guardrails = (array) ($context['guardrails'] ?? []);
 
-        $wordMin = (int) ($standard['word_min'] ?? 400);
+
+        $wordMin = $userWordCount > 0 ? (int) max($userWordCount * 0.8, 200) : (int) ($standard['word_min'] ?? 400);
         $minHeadings = max(2, (int) ($standard['min_headings'] ?? 2));
         $requiredElements = (array) ($standard['required_elements'] ?? []);
         $isProduct = str_starts_with((string) ($standard['standard_key'] ?? ''), 'product');
@@ -49,6 +55,14 @@ class RuleBasedDraft
 
         $sections = $this->sectionsFor($query, $siteName, $requiredElements, $isProduct);
         $parts = ['<h1>'.htmlspecialchars($heading, ENT_QUOTES, 'UTF-8').'</h1>'];
+
+        // Inject custom instructions as a styled section
+        if ($customInstructions !== '') {
+            $parts[] = '<div class="custom-note" style="border-right:3px solid #2563eb;padding:12px;margin:16px 0;background:#f0f7ff;">';
+            $parts[] = '<strong>دستور ویژه:</strong> ' . nl2br(htmlspecialchars($customInstructions, ENT_QUOTES, 'UTF-8'));
+            $parts[] = '</div>';
+        }
+
         foreach ($sections as $section) {
             $parts[] = $this->renderSection($section);
         }
@@ -75,6 +89,20 @@ class RuleBasedDraft
             $content .= "\n<h2>".htmlspecialchars($extra['h'].' '.($poolIdx + 1), ENT_QUOTES, 'UTF-8').'</h2><p>'.$extra['body'].'</p>';
             $headingsCount = preg_match_all('/<h2>/', $content);
             $poolIdx++;
+        }
+
+        // Add internal links section
+        if (is_array($internalLinks) && count($internalLinks) > 0) {
+            $content .= '
+
+<h2>لینک‌های مرتبط</h2>';
+            $content .= '<ul>';
+            foreach (array_slice($internalLinks, 0, 5) as $link) {
+                $url = htmlspecialchars($link['url'] ?? '#', ENT_QUOTES, 'UTF-8');
+                $anchor = htmlspecialchars($link['anchor'] ?? $link['title'] ?? '', ENT_QUOTES, 'UTF-8');
+                $content .= '<li><a href="'.$url.'">'.$anchor.'</a></li>';
+            }
+            $content .= '</ul>';
         }
 
         return [
