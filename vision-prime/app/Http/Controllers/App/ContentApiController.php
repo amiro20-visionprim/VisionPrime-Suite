@@ -397,6 +397,26 @@ class ContentApiController extends Controller
             $metaTitle = $data['meta_title'] ?? ($data['keyword'] . ' | ' . $site->name);
             $metaDesc = $data['meta_description'] ?? '';
 
+            // Auto-generate meta_description from content if empty
+            if ($metaDesc === '' && !empty($result['content'])) {
+                $stripped = strip_tags($result['content']);
+                $stripped = preg_replace('/\s+/', ' ', trim($stripped));
+                // Extract first meaningful sentence after h1/title
+                $parts = preg_split('/[.!?؟]+/', $stripped, -1, PREG_SPLIT_NO_EMPTY);
+                $metaDesc = '';
+                foreach ($parts as $part) {
+                    $part = trim($part);
+                    if (mb_strlen($part) > 30 && !str_contains($part, $data['title'] ?? '')) {
+                        $metaDesc = mb_substr($part, 0, 155);
+                        break;
+                    }
+                }
+                if ($metaDesc === '') {
+                    $metaDesc = mb_substr($stripped, 0, 155);
+                }
+                $metaDesc = rtrim($metaDesc, '،. ') . '...';
+            }
+
             $schemas = $this->schemaGen->generate(
                 $profiled,
                 $result['content'],
