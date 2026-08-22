@@ -157,7 +157,7 @@ async function generateOutline() {
   try {
     const res = await fetch('/api/content/outline', {
       method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-      body: JSON.stringify({ site_id: Number(selectedSiteId.value), title: title.value.trim(), subtype: autoDetectedSubtype.value || undefined, template_id: selectedTemplateId.value || undefined })
+      body: JSON.stringify({ site_id: Number(selectedSiteId.value), title: title.value.trim(), subtype: autoDetectedSubtype.value || undefined, template_id: selectedTemplateId.value || undefined, custom_prompt: customPrompt.value || undefined, tone: autoDetectedTone.value || undefined })
     })
     const data = await res.json()
     if (data.error) { outlineError.value = data.error; outlineLoading.value = false; return }
@@ -177,7 +177,7 @@ async function generateFromOutline() {
   try {
     const res = await fetch('/api/content/generate', {
       method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-      body: JSON.stringify({ site_id: Number(selectedSiteId.value), keyword: title.value.trim(), title: title.value.trim(), subtype: autoDetectedSubtype.value || undefined, template_id: selectedTemplateId.value || undefined })
+      body: JSON.stringify({ site_id: Number(selectedSiteId.value), keyword: title.value.trim(), title: title.value.trim(), subtype: autoDetectedSubtype.value || undefined, template_id: selectedTemplateId.value || undefined, custom_prompt: customPrompt.value || undefined, tone: autoDetectedTone.value || undefined })
     })
     const d = await res.json()
     if (d.error) { errorMsg.value = d.error; step.value = 'input'; generatingLoading.value = false; return }
@@ -194,7 +194,7 @@ async function quickGenerate() {
   try {
     const res = await fetch('/api/content/generate', {
       method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-      body: JSON.stringify({ site_id: Number(selectedSiteId.value), keyword: title.value.trim(), title: title.value.trim(), subtype: autoDetectedSubtype.value || undefined, template_id: selectedTemplateId.value || undefined })
+      body: JSON.stringify({ site_id: Number(selectedSiteId.value), keyword: title.value.trim(), title: title.value.trim(), subtype: autoDetectedSubtype.value || undefined, template_id: selectedTemplateId.value || undefined, custom_prompt: customPrompt.value || undefined, tone: autoDetectedTone.value || undefined })
     })
     const d = await res.json()
     if (d.error) { errorMsg.value = d.error; step.value = 'input'; generatingLoading.value = false; return }
