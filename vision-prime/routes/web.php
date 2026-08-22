@@ -317,6 +317,8 @@ Route::middleware(['auth', 'current.organization'])->group(function (): void {
         Route::post("/api/content/apply-suggestions", [ContentApiController::class, "applySuggestions"])->name("api.content.apply-suggestions")->middleware("throttle:10,1");
         Route::post("/api/content/save-user-template", [PromptTemplateController::class, "store"])->name("api.content.save-user-template")->middleware("throttle:20,1");
         Route::post("/api/content/regenerate-section", [ContentApiController::class, "regenerateSection"])->name("api.content.regenerate-section")->middleware("throttle:10,1");});
+        Route::post("/api/content/sync-wordpress", [ContentApiController::class, "syncWordPressContent"])->name("api.content.sync-wordpress")->middleware("throttle:3,1");
+
 
 // بازگشت از درگاه پرداخت — عمومی است چون درگاه به آن ریدایرکت می‌کند (بدون لاگین)
 Route::get('/platform/payments/callback/{gateway}/{transaction}', [PlatformPaymentGatewayController::class, 'callback'])->name('platform.payments.callback');

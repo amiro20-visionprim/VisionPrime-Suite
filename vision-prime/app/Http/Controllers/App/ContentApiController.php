@@ -59,6 +59,33 @@ class ContentApiController extends Controller
      *
      * GET /api/content/research?site_id=1
      */
+    
+    private function upsertUrlProfile(int $siteId, string $url, string $contentType, string $slug, string $title, int $wpId, string $modifiedAt): void
+    {
+        $existing = DB::table('url_profiles')
+            ->where('site_id', $siteId)
+            ->where('canonical_url', $url)
+            ->first();
+
+        if ($existing) {
+            DB::table('url_profiles')->where('id', $existing->id)->update([
+                'metadata' => json_encode(['title' => $title, 'wp_id' => $wpId], JSON_UNESCAPED_UNICODE),
+                'updated_at' => $modifiedAt,
+            ]);
+        } else {
+            DB::table('url_profiles')->insert([
+                'site_id' => $siteId,
+                'public_id' => \Illuminate\Support\Str::ulid(),
+                'canonical_url' => $url,
+                'content_type' => $contentType,
+                'post_status' => 'publish',
+                'slug' => $slug,
+                'metadata' => json_encode(['title' => $title, 'wp_id' => $wpId], JSON_UNESCAPED_UNICODE),
+                'created_at' => now(),
+                'updated_at' => $modifiedAt,
+            ]);
+        }
+    }
     public function research(Request $request, CurrentOrganization $org): JsonResponse
     {
         $siteId = (int) $request->query('site_id', 0);
@@ -1139,4 +1166,100 @@ class ContentApiController extends Controller
 
         return response()->json($result);
     }
+    /**
+     * Sync content from WordPress REST API to url_profiles.
+     * This enables internal link suggestions.
+     *
+     * POST /api/content/sync-wordpress
+     */
+    public function syncWordPressContent(Request $request, CurrentOrganization $org): JsonResponse
+    {
+        $data = $request->validate([
+            'site_id' => 'required|integer',
+        ]);
+
+        $site = Site::query()->where('organization_id', $org->id())->findOrFail($data['site_id']);
+
+        // Get WordPress URL from site settings or connection
+        $wpUrl = $site->canonical_url ?? '';
+        if (empty($wpUrl)) {
+            return response()->json(['error' => 'آدرس سایت وردپرس تنظیم نشده است.'], 422);
+        }
+
+        $synced = 0;
+        $errors = [];
+
+        // Sync posts
+        try {
+            $response = \Illuminate\Support\Facades\Http::timeout(30)
+                ->get(rtrim($wpUrl, '/') . '/wp-json/wp/v2/posts', [
+                    'per_page' => 100,
+                    '_fields' => 'id,title,link,modified,type',
+                ]);
+
+            if ($response->successful()) {
+                foreach ($response->json() as $post) {
+                    $title = is_array($post['title']) ? ($post['title']['rendered'] ?? '') : $post['title'];
+                    $url = $post['link'] ?? '';
+                    if (empty($url)) continue;
+
+                    $this->upsertUrlProfile($site->id, $url, 'post', $post['slug'] ?? '', $title, $post['id'], $post['modified'] ?? now()->toDateTimeString());
+                    $synced++;
+                }
+            }
+        } catch (\Throwable $e) {
+            $errors[] = 'posts: ' . $e->getMessage();
+        }
+
+        // Sync products (WooCommerce)
+        try {
+            $response = \Illuminate\Support\Facades\Http::timeout(30)
+                ->get(rtrim($wpUrl, '/') . '/wp-json/wc/v3/products', [
+                    'per_page' => 100,
+                    '_fields' => 'id,name,permalink,date_modified',
+                ]);
+
+            if ($response->successful()) {
+                foreach ($response->json() as $product) {
+                    $url = $product['permalink'] ?? '';
+                    if (empty($url)) continue;
+
+                    $this->upsertUrlProfile($site->id, $url, 'product', \Illuminate\Support\Str::slug($product['name'] ?? ''), $product['name'] ?? '', $product['id'], $product['date_modified'] ?? now()->toDateTimeString());
+                    $synced++;
+                }
+            }
+        } catch (\Throwable $e) {
+            $errors[] = 'products: ' . $e->getMessage();
+        }
+
+        // Sync pages
+        try {
+            $response = \Illuminate\Support\Facades\Http::timeout(30)
+                ->get(rtrim($wpUrl, '/') . '/wp-json/wp/v2/pages', [
+                    'per_page' => 100,
+                    '_fields' => 'id,title,link,modified,type',
+                ]);
+
+            if ($response->successful()) {
+                foreach ($response->json() as $page) {
+                    $title = is_array($page['title']) ? ($page['title']['rendered'] ?? '') : $page['title'];
+                    $url = $page['link'] ?? '';
+                    if (empty($url)) continue;
+
+                    $this->upsertUrlProfile($site->id, $url, 'page', $page['slug'] ?? '', $title, $page['id'], $page['modified'] ?? now()->toDateTimeString());
+                    $synced++;
+                }
+            }
+        } catch (\Throwable $e) {
+            $errors[] = 'pages: ' . $e->getMessage();
+        }
+
+        return response()->json([
+            'synced' => $synced,
+            'errors' => $errors,
+            'url_profiles_count' => DB::table('url_profiles')->where('site_id', $site->id)->count(),
+        ]);
+    }
+
+
 }
