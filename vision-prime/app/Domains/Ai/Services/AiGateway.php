@@ -292,7 +292,7 @@ class AiGateway
                     ['role' => 'user', 'content' => $user],
                 ],
                 'temperature' => 0.7,
-                'max_tokens' => $provider === 'gapgpt' ? 2000 : 4096,
+                'max_tokens' => $provider === 'gapgpt' ? 8000 : 4096,
             ];
             $response = $http->withBody(json_encode($payload), 'application/json')->post($endpoint);
 
@@ -338,7 +338,7 @@ class AiGateway
             ])
             ->post('https://api.anthropic.com/v1/messages', [
                 'model' => $model,
-                'max_tokens' => $provider === 'gapgpt' ? 2000 : 4096,
+                'max_tokens' => 4096,
                 'system' => $system,
                 'messages' => [['role' => 'user', 'content' => $user]],
             ]);
