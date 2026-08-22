@@ -1,7 +1,7 @@
 # 42 — Content Generation System: Technical Specification
 
-**تاریخ:** ۲۰۲۶-۰۸-۱۹
-**وضعیت:** تحویل شده (فاز ۱ محتوا)
+**تاریخ:** ۲۰۲۶-۰۸-۲۲ (آپدیت شده)
+**وضعیت:** تحویل شده (فاز ۱+۲ محتوا)
 **مخاطب:** هر ایجنتی که روی تولید محتوا، استانداردهای SEO یا کیفیت محتوا کار می‌کند.
 
 ---
@@ -11,14 +11,53 @@
 سیستم تولید محتوا یک pipeline کامل است که از **تشخیص نوع محتوا** تا **تولید HTML سئو شده** تا **ارزیابی کیفیت** و **تزریق لینک داخلی** و **تولید اسکیما** را پوشش می‌دهد.
 
 ```
-ContentProfiler → StandardsKB → AiClient → ArticleHtmlSanitizer → ContentQualityGuard → InternalLinkEngine → SchemaGenerator
+ContentProfiler → StandardsKB → AiGateway → ArticleHtmlSanitizer → ContentQualityGuard → InternalLinkEngine → SchemaGenerator → SEOExpertAnalyzer
 ```
 
 ---
 
-## ۲) اجزای سیستم
+## ۲) Journey جدید (۴ مرحله‌ای)
 
-### ۲.۱ ContentProfiler (`ContentProfiler.php`)
+### Journey فعلی (v2):
+
+```
+مرحله ۱: هویت محتوا
+├── سایت (auto-fill اگه فقط یکی باشه)
+├── عنوان مقاله
+├── قالب پرامپت (اختیاری)
+├── پرامپت اختیاری کاربر
+└── تشخیص خودکار زیرنوع + لحن توسط AI
+    ↓
+مرحله ۲: طراحی ساختار (اختیاری)
+├── Outline با H2/H3
+├── قابلیت drag-and-drop
+└── مقایسه با ساختار رقبا
+    ↓
+مرحله ۳: تولید + ویرایش
+├── Side-by-side: محتوا + Sidebar امتیاز لایو
+├── تب‌ها: محتوا / Meta / SEO / Schema
+└── ذخیره خودکار
+    ↓
+مرحله ۴: تحلیل + اقدامات
+├── تحلیل متخصص SEO (Expert Analysis)
+├── ۳ دکمه: اعمال همه / انتخابی / فقط ذخیره
+├── ذخیره Draft
+├── کپی HTML / متن
+└── انتشار در وردپرس (از طریق Connector)
+```
+
+### دو حالت تولید:
+
+| حالت | توضیح | کاربر |
+|------|--------|-------|
+| ⚡ **تولید سریع** | مستقیم از مرحله ۱ → تولید مقاله | کاربر عادی |
+| 📋 **با Outline** | مرحله ۱ → ۲ → ۳ → ۴ | کاربر حرفه‌ای |
+
+---
+
+## ۳) اجزای سیستم
+
+### ۳.۱ ContentProfiler (`ContentProfiler.php`)
 
 تشخیص **نوع محتوا** (article/product/meta/landing)، **زیرنوع** (tutorial/comparison/review/...) و **قصد** (informational/commercial/transactional/navigational).
 
@@ -43,7 +82,7 @@ ContentProfiler → StandardsKB → AiClient → ArticleHtmlSanitizer → Conten
 
 ---
 
-### ۲.۲ StandardsKB (`StandardsKB.php`)
+### ۳.۲ StandardsKB (`StandardsKB.php`)
 
 پایگاه استانداردهای پویا — مدل سهلایه:
 1. **L1 Seed** — استاندارد صنعت (versioned در دیتابیس `content_standards`)
@@ -59,35 +98,51 @@ ContentProfiler → StandardsKB → AiClient → ArticleHtmlSanitizer → Conten
 | meta | 20 | 0 | 30 | 60 | 120 | 160 |
 | landing | 400 | 2 | 30 | 60 | 130 | 160 |
 
-**خروجی `standardFor()`:**
-```php
-[
-    'word_min' => int,
-    'word_max' => int|null,
-    'min_headings' => int,
-    'required_elements' => array,
-    'tone' => string,
-    'keyword_guidance' => [
-        'title_required' => bool,
-        'intro_required' => bool,
-        'density_min' => float,
-        'density_max' => float,
-    ],
-    'schema_type' => string,
-    'internal_link_rules' => [
-        'min_links' => int,
-        'max_links' => int,
-        'anchor_relevant' => bool,
-    ],
-    'meta_title' => ['min_length' => int, 'max_length' => int],
-    'meta_description' => ['min_length' => int, 'max_length' => int],
-    'standard_key' => string,
-]
-```
+---
+
+### ۳.۳ Prompt Template Library (`prompt_templates`)
+
+کتابخانه پرامپت‌های آماده برای انواع محتوا:
+
+| ID | عنوان | نوع | لحن |
+|----|-------|------|------|
+| 1 | راهنمای جامع آموزشی | article/tutorial | educational |
+| 2 | مقایسه تخصصی محصولات | article/comparison | analytical |
+| 3 | بررسی و نقد حرفه‌ای | article/review | analytical |
+| 4 | لیست پیشنهادی | article/listicle | engaging |
+| 5 | مقاله خبری | article/news | journalistic |
+| 6 | توضیحات محصول فروشگاهی | product/short_desc | persuasive |
+| 7 | مقاله پیلار | article/pillar | authoritative |
+| 8 | سوالات متداول | article/faq | informative |
+| 9 | قالب دستی کاربر | custom | custom |
+
+**ذخیره قالب کاربر:** کاربر می‌تونه پرامپت اختیاری خودش رو ذخیره کنه با لیبل "ساخته شده توسط کاربر".
 
 ---
 
-### ۲.۳ ContentQualityGuard (`ContentQualityGuard.php`)
+### ۳.۴ SEO Expert Analyzer (`SEOExpertAnalyzer.php`)
+
+تحلیل تخصصی محتوا پس از تولید:
+
+**خروجی:**
+```php
+[
+    'summary' => string,        // خلاصه ۴-۵ خط
+    'strengths' => array,       // نقاط قوت
+    'weaknesses' => array,      // نقاط ضعف
+    'suggestions' => array,     // پیشنهادات بهبود
+    'score' => int,             // امتیاز ۰-۱۰۰
+]
+```
+
+**۳ دکمه اعمال پیشنهادات:**
+1. **اعمال همه** → AI محتوا رو بازنویسی میکنه
+2. **اعمال انتخابی** → کاربر تیک بزنه کدوما اعمال بشه
+3. **فقط ذخیره** → تحلیل ذخیره بشه ولی محتوا تغییر نکنه
+
+---
+
+### ۳.۵ ContentQualityGuard (`ContentQualityGuard.php`)
 
 ارزیابی کیفیت محتوا قبل از انتشار — مشابه RankMath/Yoast.
 
@@ -108,22 +163,12 @@ ContentProfiler → StandardsKB → AiClient → ArticleHtmlSanitizer → Conten
 | 11 | Meta title length | failure/warning | 30-60 کاراکتر |
 | 12 | Meta description length | failure/warning | 120-160 کاراکتر |
 | 13 | لینک‌های داخلی | failure | min_links ≤ count |
-
-**خروجی:**
-```php
-[
-    'passed' => bool,
-    'score' => int,        // 0-100
-    'failures' => array,   // مشکلات جدی
-    'warnings' => array,   // نکات بهبود
-    'rankmath_score' => int,
-    'standard' => array,
-]
-```
+| 14 | FAQ existence | failure | require_faq = true |
+| 15 | Schema markup | warning | وجود اسکیما |
 
 ---
 
-### ۲.۴ InternalLinkEngine (`InternalLinkEngine.php`)
+### ۳.۶ InternalLinkEngine (`InternalLinkEngine.php`)
 
 لینک‌سازی داخلی هوشمند بر اساس شباهت موضوعی.
 
@@ -136,24 +181,9 @@ ContentProfiler → StandardsKB → AiClient → ArticleHtmlSanitizer → Conten
    - **Content type bonus** (15%): مقاله↔محصول
    - **Recency bonus** (10%): صفحات جدیدتر
 
-**خروجی `suggest()`:**
-```php
-[
-    [
-        'url' => string,
-        'title' => string,
-        'anchor' => string,
-        'relevance_score' => float,
-    ],
-    // ... حداکثر 8 پیشنهاد
-]
-```
-
-**متد `injectLinks()`:** تزریق لینک‌ها در HTML محتوا.
-
 ---
 
-### ۲.۵ SchemaGenerator (`SchemaGenerator.php`)
+### ۳.۷ SchemaGenerator (`SchemaGenerator.php`)
 
 تولید اسکیمای Schema.org بر اساس نوع محتوا.
 
@@ -169,45 +199,119 @@ ContentProfiler → StandardsKB → AiClient → ArticleHtmlSanitizer → Conten
 
 ---
 
-### ۲.۶ AiClient (`AiClient.php`)
+### ۳.۸ AiGateway (`AiGateway.php`)
 
-کلاینت تولید محتوا با AI — OpenAI, OpenRouter, Anthropic + fallback آفلاین.
+Gateway حرفه‌ای با قابلیت‌های:
 
-**پرامپت مقاله شامل:**
-- عنوان، کلیدواژه، نام برند، داده GSC
-- الزامات فنی (طول، زیرعنوان، ساختار h1>h2>h3)
-- الزامات محتوایی (عناصر از StandardsKB)
-- لینک‌های داخلی پیشنهادی
+- **پشتیبانی از چندین Provider:** OpenAI, OpenRouter, Anthropic, Groq, GapGPT
+- **تشخیص خودکار لیمیت:** 429/402 → سوئیچ به مدل بعدی
+- **Retry حداکثر ۳ بار** → Fallback RuleBased
+- **Cache وضعیت لیمیت** (60 ثانیه)
+- **HTTP Proxy برای OpenRouter** (رفع مشکل SSL)
+
+**مدل‌های موجود:**
+
+| Provider | مدل‌ها | رایگان |
+|----------|--------|--------|
+| OpenRouter | qwen-30b-a3b, gemini-3.1-flash-lite-preview | ✅ |
+| Groq | llama-3.3-70b-versatile, gemma2-9b-it | ✅ |
+| GapGPT | gpt-4o-mini, qwen-3.6 | ❌ (پولی) |
+| Anthropic | claude-sonnet-4-20250514 | ❌ (پولی) |
 
 ---
 
-### ۲.۷ GenerateContentBatch (`GenerateContentBatch.php`)
+### ۳.۹ ContentDraft (`content_drafts`)
 
-دستور Artisan برای تولید دسته‌ای محتوا.
+ذخیره خودکار محتوای تولید شده:
 
-```bash
-php artisan content:generate-batch --site=1 --type=article --limit=5
-php artisan content:generate-batch --site=1 --type=product --limit=3
-php artisan content:generate-batch --site=1 --type=all --limit=10 --dry-run
+| فیلد | توضیح |
+|------|--------|
+| site_id | شناسه سایت |
+| content_type | article/product |
+| title | عنوان محتوا |
+| content | HTML محتوا |
+| meta_title | عنوان SEO |
+| meta_description | توضیحات SEO |
+| schema_json | اسکیمای Schema.org |
+| quality_score | امتیاز کیفیت ۰-۱۰۰ |
+| ai_model | مدل استفاده شده |
+| template_id | شناسه قالب پرامپت |
+| audit_log | لاگ عملیات |
+| expert_analysis | تحلیل متخصص SEO |
+| status | draft/review/published/archived |
+
+---
+
+## ۴) WordPress Integration
+
+### ۴.۱ Vision Prime Connector (Plugin v1.2.0)
+
+اتصال امن با وردپres از طریق پلاگین رسمی:
+
+**ویژگی‌ها:**
+- Pairing Token یکبار مصرف
+- HMAC Signature برای هر درخواست
+- Rollback snapshot برای بازگشت تغییرات
+- پشتیبانی از RankMath و Yoast
+- پشتیبانی از WooCommerce
+
+**جریان اتصال:**
+```
+۱. نصب پلاگین در وردپرس
+۲. وارد کردن Platform URL + Site ID
+۳. دریافت Pairing Token از پلتفرم
+۴. وارد کردن توکن در پلاگین
+۵. اتصال برقرار ✅
 ```
 
-**مراحل اجرا:**
-1. دریافت URL profiles سایت
-2. برای هر صفحه:
-   a. دریافت keyword insight از GSC
-   b. Profile کردن نوع/زیرنوع/قصد
-   c. دریافت استاندارد مؤثر
-   d. پیشنهاد لینک داخلی
-   e. تولید محتوا با AI
-   f. تزریق لینک داخلی
-   g. تولید meta title/description
-   h. تولید اسکیما
-   i. ارزیابی کیفیت
-   j. ذخیره در ai_generations + url_profiles
+**دستورات پشتیبانی شده:**
+
+| دستور | توضیح |
+|-------|--------|
+| `publish_new_article` | انتشار مقاله جدید |
+| `update_meta_title` | بروزرسانی عنوان SEO |
+| `update_meta_description` | بروزرسانی توضیحات SEO |
+| `update_content` | بروزرسانی محتوا |
+| `update_product_title` | بروزرسانی عنوان محصول |
+| `update_product_description` | بروزرسانی توضیحات محصول |
+
+### ۴.۲ انتشار از طریق Command System
+
+**روش صحیح انتشار:**
+```
+۱. ایجاد Command در جدول `commands`
+۲. با type = `publish_new_article`
+۳. با payload شامل: title, content, meta, schema
+۴. ارسال از طریق `DispatchCommand`
+۵. دریافت نتیجه از WordPress
+```
+
+**⚠️ نکته مهم:** از `WordPressPublisher.php` استفاده نکنید! این فایل از Basic Auth استفاده میکنه که امن نیست. همیشه از سیستم Command/Dispatch استفاده کنید.
 
 ---
 
-## ۳) جدول محتوایی استانداردها
+## ۵) API Endpoints
+
+| Endpoint | Method | توضیح |
+|----------|--------|--------|
+| `/api/content/outline` | POST | تولید Outline |
+| `/api/content/generate` | POST | تولید محتوا + کیفیت + لینک + اسکیما |
+| `/api/content/score` | POST | امتیازدهی RankMath لحظه‌ای |
+| `/api/content/links` | POST | لینک‌سازی داخلی |
+| `/api/content/schema` | POST | پیش‌نمایش اسکیما |
+| `/api/content/providers` | GET | وضعیت مدل‌ها |
+| `/api/content/test-provider` | POST | تست اتصال |
+| `/api/content/gsc-context` | GET | دریافت Context GSC |
+| `/api/content/apply-suggestions` | POST | اعمال پیشنهادات Expert |
+| `/api/content/templates` | GET | لیست قالب‌های پرامپت |
+| `/api/content/user-templates` | GET/POST | قالب‌های کاربر |
+| `/api/content/drafts` | GET | لیست Draftها |
+| `/api/content/drafts/{id}` | DELETE | حذف Draft |
+| `/api/content/publish-wp` | POST | انتشار در وردپرس |
+
+---
+
+## ۶) جدول محتوایی استانداردها
 
 | زیرنوع | word_min | word_max | min_headings | schema | tone |
 |--------|----------|----------|-------------|--------|------|
@@ -228,60 +332,33 @@ php artisan content:generate-batch --site=1 --type=all --limit=10 --dry-run
 
 ---
 
-## ۴) ملاحظات فنی
+## ۷) فایل‌های کلیدی
 
-- `StandardsKB::SUBTYPE_DEFAULTS` — اگر زیرنوع جدیدی اضافه شود، هم در SUBTYPES و هم در SUBTYPE_DEFAULTS باید تعریف شود
-- `InternalLinkEngine` — برای سایت‌های با کمتر از ۵ صفحه ممکن است نتایج ضعیفی برگرداند
-- `SchemaGenerator::faqSchema` — فقط الگوی `<strong>پرسش:</strong>` را تشخیص می‌دهد
-- `ContentQualityGuard` — خروجی `warnings` جدید است؛ مصرف‌کنندگان قبلی باید آن را نادیده بگیرند
-- `AiClient` — timeout به 120s افزایش یافت (مقالات طولانی)
-- `RuleBasedDraft` — social_proof و internal_links اضافه شد
+| فایل | مسیر | توضیح |
+|------|------|--------|
+| AiGateway.php | app/Domains/Ai/Services/ | Gateway اصلی AI |
+| ContentApiController.php | app/Http/Controllers/App/ | API Endpointها |
+| AiDraftController.php | app/Domains/Content/Controllers/ | مدیریت Draftها |
+| ContentDraft.php | app/Domains/Content/Models/ | مدل Draft |
+| PromptTemplate.php | app/Domains/Content/Models/ | مدل قالب پرامپت |
+| SEOExpertAnalyzer.php | app/Domains/Content/Services/ | تحلیلگر متخصص |
+| ContentQualityGuard.php | app/Domains/Content/Services/ | نگهبان کیفیت |
+| InternalLinkEngine.php | app/Domains/Content/Services/ | موتور لینک‌سازی |
+| SchemaGenerator.php | app/Domains/Content/Services/ | تولیدکننده اسکیما |
+| Create.vue | resources/js/Pages/App/ArticleDraft/ | صفحه تولید مقاله |
+| ProductDraft/Create.vue | resources/js/Pages/App/ProductDraft/ | صفحه تولید محصول |
+| Index.vue | resources/js/Pages/App/ArticleDraft/ | لیست Draftها |
 
 ---
 
-## ۵) بازسازی مغز متفکر — ۲۰۲۶-۰۸-۲۰
+## ۸) فازهای بعدی
 
-### AiGateway — سیستم Failover خودکار
-
-یک Gateway حرفه‌ای اضافه شد که:
-- ۱۰+ مدل رایگان OpenRouter + DeepSeek + OpenAI + Anthropic پشتیبانی می‌کند
-- تشخیص خودکار لیمیت (429/402) → سوئیچ به مدل بعدی
-- Retry حداکثر ۳ بار → Fallback RuleBased
-- Cache وضعیت لیمیت در Cache (60 ثانیه)
-
-### ContentApiController — ۷ API Endpoint
-
-| Endpoint | Method | توضیح |
-|----------|--------|--------|
-| `/api/content/research` | GET | تحقیق موضوع از GSC |
-| `/api/content/score` | POST | امتیازدهی RankMath لحظه‌ای |
-| `/api/content/links` | POST | لینک‌سازی داخلی |
-| `/api/content/schema` | POST | پیش‌نمایش اسکیما |
-| `/api/content/generate` | POST | تولید با AI + کیفیت + لینک + اسکیما |
-| `/api/content/providers` | GET | وضعیت مدل‌ها (فقط سوپر ادمین) |
-| `/api/content/test-provider` | POST | تست اتصال (فقط سوپر ادمین) |
-
-### محدودسازی دسترسی — فقط سوپر ادمین
-
-- `AiSettingsController::authorizeManage()` → فقط `isSuperAdmin()`
-- `ContentApiController::generate/providers/testProvider()` → فقط `isSuperAdmin()`
-- `AiDraftController::store/storeArticle/storeProduct()` → فقط `isSuperAdmin()`
-- فرانت‌اند: بخش AI Gateway فقط برای سوپر ادمین، دکمه تولید AI فقط سوپر ادمین
-
-### جریان کاری جدید
-
-```
-تحقیق موضوع (GSC) → انتخاب موضوع → تولید با AI → امتیازدهی RankMath → لینک داخلی → اسکیما → ذخیره پیش‌نویس
-```
-
-قبل: فرم فقط بازنویسی صفحات موجود (اجبار انتخاب URL Profile)
-بعد: تولید مستقل بدون نیاز به صفحه موجود + تحقیق خودکار موضوع از GSC
-
-## ۶) فازهای بعدی
-
-| فاز | توضیح |
-|-----|--------|
-| فاز ۲ | اتصال وردپرس و انتشار خودکار |
-| فاز ۳ | GSC واقعی و تولید محتوا با داده لحظه‌ای |
-| فاز ۴ | Content Calendar و زمان‌بندی انتشار |
-| فاز ۵ | Performance optimization و caching |
+| فاز | توضیح | وضعیت |
+|-----|--------|-------|
+| فاز ۱ | Journey ۴ مرحله‌ای + Prompt Templates | ✅ تکمیل |
+| فاز ۱.۱ | SEO Expert Analyzer + Audit Log | ✅ تکمیل |
+| فاز ۱.۲ | Quick Generate + Publish Button | ✅ تکمیل |
+| فاز ۲ | WordPress Connector Integration | 🔄 در حال انجام |
+| فاز ۳ | GSC واقعی و تولید محتوا با داده لحظه‌ای | 📋 برنامه‌ریزی شده |
+| فاز ۴ | Content Calendar و زمان‌بندی انتشار | 📋 برنامه‌ریزی شده |
+| فاز ۵ | A/B Testing و بهینه‌سازی | 📋 برنامه‌ریزی شده |

@@ -309,6 +309,8 @@ Route::middleware(['auth', 'current.organization'])->group(function (): void {
         Route::post("/api/content/publish", [ContentApiController::class, "publishToWordPress"])->name("api.content.publish")->middleware("throttle:5,1");
         Route::post("/api/content/test-wp", [ContentApiController::class, "testWordPress"])->name("api.content.test-wp")->middleware("throttle:5,1");
         Route::post("/api/content/drafts", [ContentApiController::class, "saveDraft"])->name("api.content.drafts.save");
+        Route::post("/api/content/test-wp-connection", [ContentApiController::class, "testWpConnection"])->name("api.content.test-wp");
+        Route::post("/api/content/publish-stored", [ContentApiController::class, "publishStored"])->name("api.content.publish-stored");
         Route::get("/api/content/drafts", [ContentApiController::class, "listDrafts"])->name("api.content.drafts");
         Route::get("/api/content/drafts/{id}", [ContentApiController::class, "getDraft"])->name("api.content.drafts.show");
         Route::delete("/api/content/drafts/{id}", [ContentApiController::class, "deleteDraft"])->name("api.content.drafts.delete")->middleware("throttle:10,1");

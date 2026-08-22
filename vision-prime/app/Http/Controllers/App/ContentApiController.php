@@ -1072,4 +1072,71 @@ class ContentApiController extends Controller
 
         return response()->json(['ok' => true]);
     }
+
+    /**
+     * Test WordPress connection for a site.
+     * POST /api/content/test-wp-connection
+     */
+    public function testWpConnection(Request $request): JsonResponse
+    {
+        $this->authorizeSuperAdmin();
+        $data = $request->validate([
+            'site_id' => 'required|integer|exists:sites,id',
+            'wp_url' => 'required|string|max:500',
+            'wp_username' => 'required|string|max:200',
+            'wp_app_password' => 'required|string|max:200',
+        ]);
+
+        $publisher = app(WordPressPublisher::class);
+        $result = $publisher->testConnection($data['wp_url'], $data['wp_username'], $data['wp_app_password']);
+
+        if ($result['success']) {
+            $site = Site::findOrFail($data['site_id']);
+            $settings = (array) $site->settings;
+            $settings['wordpress'] = [
+                'wp_url' => $data['wp_url'],
+                'wp_username' => $data['wp_username'],
+                'wp_app_password' => $data['wp_app_password'],
+                'connected_at' => now()->toISOString(),
+                'user_name' => $result['user'] ?? '',
+            ];
+            $site->update(['settings' => $settings]);
+        }
+
+        return response()->json($result);
+    }
+
+    /**
+     * Publish draft to WordPress using stored credentials.
+     * POST /api/content/publish-stored
+     */
+    public function publishStored(Request $request, CurrentOrganization $org): JsonResponse
+    {
+        $this->authorizeSuperAdmin();
+        $data = $request->validate([
+            'draft_id' => 'required|integer|exists:content_drafts,id',
+            'status' => 'nullable|string|in:publish,draft,pending',
+        ]);
+
+        $draft = ContentDraft::findOrFail($data['draft_id']);
+        $site = Site::findOrFail($draft->site_id);
+        $settings = (array) $site->settings;
+        $wp = $settings['wordpress'] ?? null;
+
+        if (!$wp || empty($wp['wp_url'])) {
+            return response()->json(['success' => false, 'error' => 'تنظیمات وردپرس ذخیره نشده.']);
+        }
+
+        $publisher = app(WordPressPublisher::class);
+        $result = $publisher->publish(
+            ['wp_url'=>$wp['wp_url'],'wp_username'=>$wp['wp_username'],'wp_app_password'=>$wp['wp_app_password']],
+            ['title'=>$draft->title,'content'=>$draft->content,'meta_title'=>$draft->meta_title,'meta_description'=>$draft->meta_description,'slug'=>$draft->slug,'status'=>$data['status'] ?? 'draft']
+        );
+
+        if ($result['success']) {
+            $draft->update(['status'=>'published','audit_log'=>array_merge($draft->audit_log ?? [],['wp_post_id'=>$result['post_id'],'wp_post_url'=>$result['post_url'],'published_at'=>now()->toISOString()])]);
+        }
+
+        return response()->json($result);
+    }
 }

@@ -295,9 +295,34 @@ class AiDraftController extends Controller
             'status' => ['nullable', 'in:draft,review,published,archived'],
         ]);
 
+        $oldStatus = $draft->status;
         $draft->update($data);
+
+        // Auto-publish to WordPress when status changes to published
+        if (($data['status'] ?? '') === 'published' && $oldStatus !== 'published') {
+            $this->tryAutoPublish($draft);
+        }
 
         return back()->with('status', 'پیش‌نویس ذخیره شد.');
     }
 
+    private function tryAutoPublish(ContentDraft $draft): void
+    {
+        try {
+            $site = $draft->site;
+            if (!$site) return;
+            $settings = (array) $site->settings;
+            $wp = $settings['wordpress'] ?? null;
+            if (!$wp || empty($wp['wp_url'])) return;
+
+            $publisher = app(\App\Domains\Content\Services\WordPressPublisher::class);
+            $result = $publisher->publish(
+                ['wp_url' => $wp['wp_url'], 'wp_username' => $wp['wp_username'], 'wp_app_password' => $wp['wp_app_password']],
+                ['title' => $draft->title, 'content' => $draft->content, 'meta_title' => $draft->meta_title, 'meta_description' => $draft->meta_description, 'slug' => $draft->slug, 'status' => 'publish']
+            );
+            if ($result['success']) {
+                $draft->update(['audit_log' => array_merge($draft->audit_log ?? [], ['wp_post_id' => $result['post_id'], 'wp_post_url' => $result['post_url'], 'auto_published_at' => now()->toISOString()])]);
+            }
+        } catch (\Throwable $e) { \Illuminate\Support\Facades\Log::warning('Auto-publish failed: ' . $e->getMessage()); }
+    }
 }
