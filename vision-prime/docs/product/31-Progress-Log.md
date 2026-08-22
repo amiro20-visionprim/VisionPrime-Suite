@@ -273,3 +273,74 @@ Vision Prime یک پلتفرم self-hosted برای عملیات رشد و هو�
 - **اجرایی روی DB واقعی:** `php artisan migrate --force` روی database.sqlite اعمال شد (۵ migration D-013)؛ scheduler (`schedule:work`، PID 37516) و queue worker (`queue:work --sleep=10 --tries=3`، PID 14064) detached در حال اجرا؛ run doc به ۴ پروسه به‌روز شد.
 - **تأیید DB واقعی:** جدول‌ها و ستون‌ها موجود (۴ پروفایل seeded)، route های داشبورد 302 به لاگین (بدون 500)، کوئری‌های کنترولر روی DB زنده بدون خطا اجرا می‌شوند.
 - **تأیید نهایی:** کل سویییت **۲۲۴ تست / ۱۱۵۱ assert سبز** (Acceptance + ۳ تست جدید) + pint تمیز (۳۴ فایل) + typecheck + lint سبز + Preview سالم.
+## ۲۵) به‌روزرسانی ۲۰۲۶-۰۸-۲۳ — رفع باگ‌های AI Provider + بهینه‌سازی پرامپت تولید محتوا
+
+- **رفع باگ max_tokens GapGPT:** مقدار از 1000 به 8000 تغییر کرد (طبق مستندات رسمی gapgpt-qwen-3.6). مشکل قبلی: مقالات وسط جمله قطع می‌شدند و FAQ/CTA تولید نمی‌شدند.
+- **رفع باگ callOpenAiCompatible:** استفاده از `withBody()` به جای ارسال array مستقیم به `post()` — Guzzle array رو form-encode می‌کرد نه JSON.
+- **اصلاح callAnthropic:** حذف متغیر undefined `$provider` از max_tokens.
+- **بهینه‌سازی system prompt مقاله:** اضافه شدن Anti-AI Detection (۶ قانون ممنوعیت)، E-E-A-T (۴ اصل)، Conversion (CTA + Micro-CTA)، Featured Snippet (پاراگراف پاسخ مستقیم).
+- **تقویت user prompt:** اضافه شدن Micro-CTA placement، Featured Snippet paragraph، mobile-friendly table constraints.
+- **نتایج تست:** مقاله کامل با 8,513 کاراکتر، 8 H2، FAQ، CTA، 7 لینک داخلی، جدول — فقط با عنوان ورودی.
+
+## ۲۶) به‌روزرسانی ۲۰۲۶-۰۸-۲۳ — اتصال Custom Instructions + Internal Links + Word Count به AI
+
+- **باگ حیاتی `custom_instructions`:** کنترلر فیلد رو دریافت می‌کرد ولی AiGateway هرگز نمی‌خواند. اصلاح شد — اکنون در system prompt تزریق می‌شه.
+- **باگ `word_count`:** کنترلر ارسال می‌کرد ولی نادیده گرفته می‌شد. اصلاح شد — اکنون wordMin/wordMax رو override می‌کنه.
+- **باگ `tone`:** فقط از guardrails می‌آمد. اصلاح شد — اکنون انتخاب کاربر مقدم بر guardrails است.
+- **RuleBased fallback:** `custom_instructions` و `internal_links` اکنون در RuleBased هم اعمال می‌شوند.
+- **نتایج:** Internal links از liuna.ir (۵ لینک واقعی) در محتوای RuleBased نمایش داده می‌شوند.
+
+## ۲۷) به‌روزرسانی ۲۰۲۶-۰۸-۲۳ — رفع باگ 403 صفحات سایت‌ها و سازمان
+
+- **علت:** Seeder `RolePermissionSeeder` اجرا نشده بود → نقش Super Admin هیچ permission نداشت → Gate::authorize همه رو رد می‌کرد.
+- **حل:** `artisan db:seed --class=RolePermissionSeeder` → 47 permission + 9 role + 152 navigation link.
+- **نتیجه:** همه ۱۶ صفحه از 403 به 200 تغییر کردند.
+
+## ۲۸) به‌روزرسانی ۲۰۲۶-۰۸-۲۳ — Meta Description خودکار + ProductDraft بهینه‌سازی
+
+- **Meta Description خودکار:** اگر کاربر meta_description وارد نکنه، خودکار از ۱۵۵ کاراکتر اول محتوا استخراج می‌شه.
+- **ProductDraft:** فیلدهای `custom_prompt`، `tone`، `word_count` اکنون به API ارسال می‌شوند.
+- **تست:** Meta Title و Meta Description هر دو تولید می‌شوند (49/60 و 158/160).
+
+## ۲۹) به‌روزرسانی ۲۰۲۶-۰۸-۲۳ — قالب‌های پرامپت «هوش داخلی اکوسیستم سوئیت»
+
+- **قالب مقاله (ID=6):** `suite-intelligence-v2` — پرامپت V2.0 با Anti-AI Detection، E-E-A-T، CTA، Featured Snippet.
+- **قالب محصول (ID=7):** `suite-intelligence-v2-product` — پرامپت Universal با Domain Expertise Engine، لحن تطبیقی، ۳ بلوک خروجی (Comment + Section + Operator Guide).
+- **فایل‌های داک:** `docs/PROMPT-V2-SUITE-INTELLIGENCE.md` و `docs/PROMPT-V2-PRODUCT-SUITE-INTELLIGENCE.md`
+- **ویژگی کلیدی:** فقط با دریافت عنوان/نام محصول، محتوای کامل و Publish-Ready تولید می‌کنند.
+
+---
+
+## خلاصه وضعیت فعلی (۲۰۲۶-۰۸-۲۳)
+
+### وضعیت AI Providers:
+| Provider | وضعیت | مدل |
+|----------|-------|-----|
+| GapGPT | ✅ فعال | gapgpt-qwen-3.6 (8K output) |
+| Groq | ❌ تحریم | — |
+| OpenRouter | ❌ بلاک ایران | — |
+| RuleBased | ✅ Fallback | — |
+
+### وضعیت صفحات:
+| بخش | وضعیت | نمره |
+|-----|-------|------|
+| داشبورد | ✅ | 8/10 |
+| تولید مقاله | ✅ AI واقعی | 8/10 |
+| تولید محصول | ✅ بهینه‌شده | 7/10 |
+| پیش‌نویس‌ها | ✅ | 8/10 |
+| Connector | ✅ liuna.ir متصل | 8/10 |
+| GSC | ✅ | 7/10 |
+| AI Gateway | ✅ GapGPT فعال | 8/10 |
+| تنظیمات | ✅ 16/16 صفحه سالم | 8/10 |
+
+### آخرین کامیت‌ها:
+- `2c5de7a` — Enhance article prompts with V2.0 SEO standards
+- `622ff36` — Fix GapGPT max_tokens to 8000
+- `59c1238` — Add "هوش داخلی اکوسیستم سوئیت" article template
+- `13dab81` — Add "هوش داخلی اکوسیستم سوئیت" product template
+
+### قدم‌های بعدی:
+1. تست بصری کامل صفحه تولید مقاله در preview
+2. تست تولید محصول با قالب جدید
+3. آپلود و rebuild روی سرور production
+4. تست WordPress Publish از طریق Connector
