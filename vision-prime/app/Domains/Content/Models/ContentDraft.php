@@ -23,12 +23,14 @@ class ContentDraft extends Model
         'model_used',
         'status',
         'audit_log',
+        'expert_analysis',
     ];
 
     protected $casts = [
         'schemas' => 'array',
         'quality_score' => 'integer',
         'audit_log' => 'array',
+        'expert_analysis' => 'array',
     ];
 
     public function site(): BelongsTo
