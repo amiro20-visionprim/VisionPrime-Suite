@@ -318,6 +318,10 @@ class ContentApiController extends Controller
             'subtype' => 'nullable|string',
             'meta_title' => 'nullable|string|max:100',
             'meta_description' => 'nullable|string|max:300',
+            'custom_prompt' => 'nullable|string|max:5000',
+            'template_id' => 'nullable|integer|exists:prompt_templates,id',
+            'tone' => 'nullable|string|max:50',
+            'word_count' => 'nullable|integer|min:200|max:10000',
         ]);
 
         $site = Site::query()->where('organization_id', $org->id())->findOrFail($data['site_id']);
@@ -353,6 +357,25 @@ class ContentApiController extends Controller
             $profiled['subtype'] ?? 'general',
         );
 
+        // Build custom instructions from template and user prompt
+        $customInstructions = '';
+        if ($template !== null) {
+            $customInstructions .= $template->render($data['title'] ?? $data['keyword']) . "
+
+";
+        }
+        if (!empty($data['custom_prompt'])) {
+            $customInstructions .= "دستور ویژه کاربر:
+" . $data['custom_prompt'] . "
+
+";
+        }
+        if (!empty($data['tone'])) {
+            $customInstructions .= "لحن مورد نظر: " . $data['tone'] . "
+";
+        }
+        $wordCount = (int) ($data['word_count'] ?? 0);
+
         $context = [
             'title' => $data['title'] ?? $data['keyword'],
             'target_query' => $data['keyword'],
@@ -364,6 +387,8 @@ class ContentApiController extends Controller
             'page_status' => 'publish',
             'internal_links' => $links,
             'guardrails' => $guardrail->toPromptArray(),
+            'custom_instructions' => $customInstructions,
+            'word_count' => $wordCount > 0 ? $wordCount : null,
         ];
 
         try {
