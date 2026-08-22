@@ -26,6 +26,25 @@ const disconnectOpen = ref(false)
 function copyToken(): void {
   navigator.clipboard.writeText(page.props.flash?.pairingToken ?? '')
 }
+
+const syncing = ref(false)
+const syncResult = ref<null | {synced: number, errors: string[], url_profiles_count: number}>(null)
+
+async function syncWordPress() {
+  syncing.value = true
+  syncResult.value = null
+  try {
+    const res = await fetch('/api/content/sync-wordpress', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+      body: JSON.stringify({ site_id: props.site.id })
+    })
+    syncResult.value = await res.json()
+  } catch (e: any) {
+    syncResult.value = { synced: 0, errors: [e.message], url_profiles_count: 0 }
+  }
+  syncing.value = false
+}
 function disconnect(): void {
   router.post(`/app/sites/${props.site.id}/connector/disconnect`)
 }
@@ -83,6 +102,18 @@ function disconnect(): void {
         <p class="text-ink-muted mt-2 text-xs">نسخه ۱.۲.۰ · پشتیبانی از مقاله، صفحه و محصولات ووکامرس</p>
       </div>
 
+      
+      <div v-if="connection?.status === 'connected'" class="border-line mt-6 border-t pt-5">
+        <h3 class="text-ink-strong mb-3 text-sm font-bold">همگام‌سازی محتوا از وردپرس</h3>
+        <p class="text-ink-muted mb-3 text-sm">صفحات، مقالات و محصولات وردپرس را برای لینک‌سازی داخلی هوشمند دریافت کنید.</p>
+        <VButton @click="syncWordPress" :loading="syncing" variant="secondary">🔄 سینک محتوا از وردپرس</VButton>
+        <div v-if="syncResult" class="rounded-card bg-surface mt-4 p-4">
+          <p v-if="syncResult.errors?.length === 0" class="text-green-600 text-sm font-semibold">{{ syncResult.synced }} محتوا سینک شد — {{ syncResult.url_profiles_count }} صفحه در پایگاه داده</p>
+          <div v-else>
+            <p class="text-red-600 text-sm">خطا: {{ syncResult.errors?.join(', ') }}</p>
+          </div>
+        </div>
+      </div>
       <div class="border-line mt-6 border-t pt-5">
         <h3 class="text-ink-strong mb-3 text-sm font-bold">مرحله ۲ — جفت‌سازی</h3>
         <div class="flex flex-wrap gap-3">
